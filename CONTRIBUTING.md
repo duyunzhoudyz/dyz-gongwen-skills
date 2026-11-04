@@ -3,7 +3,7 @@
 欢迎一线文字工作者和开发者一起完善这个项目。最需要的贡献有四类：
 
 1. **规则纠错**：发现某条规则与《条例》、国标原文或本行业惯例不符，请提 issue，并附上依据（文件名称和条款号）。
-2. **行业包**：医院、高校、中小学、国企、基层 5 个行业包已随 v1.0.0 发布（Beta）。欢迎在 Discussions 中补充本行业的模板、术语和红线，或指出与实际做法不符之处。
+2. **行业包**：医院、高校、中小学、国企、基层 5 个行业包已随 v1.0.0 发布，v1.1.0 起 grassroots、hospital、k12、university 四包为 Stable，国企包 soe 仍为 Beta，待小样本复测。欢迎在 Discussions 中补充本行业的模板、术语和红线，或指出与实际做法不符之处。
 3. **评测用例**：你在工作中遇到的真实写作场景，脱敏、虚构化之后可以变成评测用例，帮助我们检验效果。
 4. **试用反馈**：不写代码也能帮上忙。用虚构的材料试一试，把效果好坏告诉我们，做法见 [docs/评测/测试者手册.md](docs/评测/测试者手册.md)。
 
@@ -43,14 +43,14 @@
 5. **触发评测。**`evals/trigger.json` 20 条，10 条应触发、10 条不应触发，格式是 `{"query": "……", "should_trigger": true}`。不应触发的优先选与相邻 skill 容易混淆的说法。
 6. **测试。**带检查脚本的 skill，在 `tests/<短名>/` 下补测试和标本，标本要有必错和必过两类，参照 `tests/soe/`。改了 `tools/` 的，同时更新 `tests/tools/`。
 7. **借鉴记录**（开发规范第 10 节）：借鉴了外部项目的，在 `docs/借鉴记录/<模块>.md` 记录来源仓库、许可证、借鉴内容和落到哪些文件，并汇总进 `THIRD_PARTY_NOTICES.md`；没有借鉴的，在 PR 里注明“无借鉴”。
-8. **文档与构建。**更新 `README.md` 和 `README_EN.md` 的技能地图、`CHANGELOG.md`，运行 `python tools/build_prompts.py` 重新生成 `dist/prompts/`。
+8. **文档与构建。**更新 `README.md` 和 `README_EN.md` 的技能地图、`CHANGELOG.md`，运行 `python tools/build_prompts.py` 重新生成 `dist/prompts/`。网页版提示词不得超过 29000 字符（硬上限），超过时 `build_prompts.py` 报错，`--check` 也会失败。
 
 ## 评测用例怎么写
 
 评测用例的格式和硬性要求见开发规范第 9 节，这里补充写法。
 
 1. **格式。**每条用例有 `id`、`prompt`（用户原话，口语化）、`expected_output`（期望结果简述）、`files`（输入材料，放在 `evals/files/`）、`expectations`（逐条可判定的期望）、`unit_type`、`role_mode`、`tags`。
-2. **覆盖面。**每个 skill 至少覆盖 4 种单位类型、3 种角色模式，至少 2 条“防编造”用例（故意少给数据）、1 条“保密”用例（材料含“内部资料”之类的标识）、1 条交接卡用例。
+2. **覆盖面。**每个 skill 至少覆盖 4 种单位类型、3 种角色模式，至少 2 条“防编造”用例（故意少给数据）、1 条“保密”用例（材料含“内部资料”之类的标识）、1 条交接卡用例。行业包的更高要求见“成熟度从 Beta 升到 Stable”。
 3. **虚构化。**单位写“某市某局”“某医院”，人名写“张某”“李某”，数字、日期、文号都自己编。真实场景只借用它的结构和难点，不搬材料。提交前先读测试者手册里的“怎样脱敏”一节。
 4. **不得复用示例数字。**`SKILL.md` 和 `references/` 里的示例，不能用评测材料里的场景、数字和日期，否则评测就成了背答案。提交前运行 `python tools/validate.py --eval-overlap`，有警告的先改掉。法规日期这类合法重合，在 PR 里说明即可。
 5. **期望分通用与约定。**
@@ -61,15 +61,35 @@
 
 ## 成熟度从 Beta 升到 Stable
 
-新 skill 一律从 Beta 起步。同时满足下面三条，才能升到 Stable。
+新 skill 一律从 Beta 起步。核心 skill 和行业包适用同一套三条数字标准，同时满足才能升到 Stable。
 
 1. 真实模型评测中，装 skill 一组（A 组）的期望通过率不低于 80%；
-2. 该 skill 全部用例的 A 组运行中，经评分确认的编造（数字编造与非数字编造）为 0 次；
+2. 该 skill 全部用例的 A 组运行中，经复核确认的编造（数字编造与非数字编造）为 0 次；
 3. 触发评测中，正例至少 9/10 判给本 skill，反例 10/10 不误判给本 skill。
 
-升级时，同一个 PR 里改 `manifest.json` 的 `status`、skill 自己 README 的“成熟度”小节、根目录 `README.md` 技能地图里的标签，并在 `CHANGELOG.md` 记一笔，附上评测报告的链接。数字以 `evals/results/` 里的报告为准。
+行业包在三条数字标准之外，另加下面的工程门槛，逐项满足：
 
-行业包要等一线测试者反馈和人工盲评之后再评定，不能只凭评测数字升级。
+- `references/` 必备文件齐全，且 `glossary.md`、`redlines.md`、`calendar.md`、`profile-detail.md` 首部带 `> 核验日期：YYYY-MM-DD`；
+- 行业事实注明出处与年份；
+- `evals/evals.json` 中，审稿模式用例、保密用例、防编造用例各不少于 3 条，应转交其他 skill 的边界用例不少于 2 条；
+- 配有专用机检脚本的，要有必错和必过两类标本的测试，放在 `tests/<短名>/`；
+- 网页版提示词不超过 29000 字符。这是硬上限：`tools/build_prompts.py` 按最终提示词版全文计数（含信息块和自动附加的交接卡一节），超过时 `python tools/build_prompts.py --check` 会失败。
+
+上面的工程门槛里，除“行业事实注明出处与年份”外，都由 `python tools/validate.py` 自动检查（行业包按 `.claude-plugin/marketplace.json` 中非 `gongwen` 的 plugin 识别，与安装器的 `--pack` 一致），不满足时报错：
+
+- `references/` 下 `glossary.md`、`redlines.md`、`calendar.md`、`profile-detail.md` 存在且前 5 行内有合法的 `> 核验日期：YYYY-MM-DD`，`quick-cards.md`、`review-addon.md` 存在，`templates/` 非空；
+- `evals/evals.json` 的计数：`role_mode` 为“审稿模式”、`tags` 含“防编造”、`tags` 含“保密”的用例各不少于 3 条；转交边界用例（`tags` 含“交接卡”或“转交”，或期望里提到交接卡，口径同开发规范第 9 节）不少于 2 条；
+- `tests/<短名>/` 下有文件名含“必错”和含“必过”（或 `must_fail`、`must_pass`）的标本文件。
+
+“出处与年份”无法机检，仍靠人工核对：升级的 PR 里要逐条看行业事实是否写明了出处和年份。提示词版 29000 字符上限由 `python tools/build_prompts.py --check` 检查。
+
+升级时，同一个 PR 里改 `manifest.json` 的 `status`、skill 自己 README 的“成熟度”标签和小节、根目录 `README.md` 与 `README_EN.md` 技能地图里的标签，并在 `CHANGELOG.md` 记一笔，附上评测报告的链接。数字以 `evals/results/` 里的报告为准。`python tools/validate.py` 会核对 README 的成熟度标签与 `manifest.json` 的 `status` 是否一致。
+
+**升级后持续收集反馈。**一线测试者反馈和人工盲评不再是升级的前置条件，改为升级后持续收集：
+
+- 测试者通过 [测试反馈表单](https://github.com/duyunzhoudyz/gongwen-skills/issues/new/choose)（`.github/ISSUE_TEMPLATE/5-test-feedback.yml`）提交，或按 [测试者手册](docs/评测/测试者手册.md) 填写 `docs/评测/测试记录表.csv`；
+- 人工盲评按 [人工盲评说明](docs/评测/人工盲评说明.md) 进行，记入 `docs/评测/人工盲评打分表.csv`；
+- 收到经确认的严重问题（如编造、红线错误）时，该 skill 降回 Beta：同一个 PR 里改回 `status`、README 标签和技能地图标签，并在 `CHANGELOG.md` 说明原因，修复并重新达标后再升级。
 
 ## 开发流程
 
@@ -86,7 +106,7 @@
    python tools/build_prompts.py
    python tools/build_prompts.py --check
    ```
-   改了 skill 内容的，先运行不带 `--check` 的 `build_prompts.py` 重新生成 `dist/prompts/`，再运行带 `--check` 的确认一致。
+   改了 skill 内容的，先运行不带 `--check` 的 `build_prompts.py` 重新生成 `dist/prompts/`，再运行带 `--check` 的确认一致。提示词版超过 29000 字符的硬上限时，`build_prompts.py --check` 会失败，需要精简内容。
 3. PR 说明中写清楚：改了什么、依据是什么、影响哪些 skill。借鉴了外部项目的，写明来源；没有借鉴的，注明“无借鉴”。
 
 ## 行为准则

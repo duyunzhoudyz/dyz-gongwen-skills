@@ -1,0 +1,926 @@
+{
+ "scope": {
+  "chunks": "全部",
+  "a_cases_with_reply": 48
+ },
+ "total": {
+  "cases": 48,
+  "passed": 300,
+  "total": 331,
+  "all_pass_cases": 24,
+  "num_fab": 15,
+  "other_fab": 13,
+  "pass_rate": 0.9063
+ },
+ "by_skill": {
+  "gongwen-grassroots": {
+   "cases": 20,
+   "passed": 144,
+   "total": 152,
+   "all_pass_cases": 14,
+   "num_fab": 2,
+   "other_fab": 8,
+   "pass_rate": 0.9474
+  },
+  "gongwen-hospital": {
+   "cases": 5,
+   "passed": 33,
+   "total": 36,
+   "all_pass_cases": 2,
+   "num_fab": 2,
+   "other_fab": 0,
+   "pass_rate": 0.9167
+  },
+  "gongwen-k12": {
+   "cases": 7,
+   "passed": 38,
+   "total": 47,
+   "all_pass_cases": 1,
+   "num_fab": 9,
+   "other_fab": 0,
+   "pass_rate": 0.8085
+  },
+  "gongwen-soe": {
+   "cases": 10,
+   "passed": 45,
+   "total": 52,
+   "all_pass_cases": 4,
+   "num_fab": 0,
+   "other_fab": 5,
+   "pass_rate": 0.8654
+  },
+  "gongwen-university": {
+   "cases": 6,
+   "passed": 40,
+   "total": 44,
+   "all_pass_cases": 3,
+   "num_fab": 2,
+   "other_fab": 0,
+   "pass_rate": 0.9091
+  }
+ },
+ "cases": [
+  {
+   "case": "gongwen-grassroots-1",
+   "skill": "gongwen-grassroots",
+   "id": 1,
+   "chunk": "gongwen-grassroots-1",
+   "passed": 9,
+   "total": 9,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-2",
+   "skill": "gongwen-grassroots",
+   "id": 2,
+   "chunk": "gongwen-grassroots-1",
+   "passed": 5,
+   "total": 7,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-3",
+   "skill": "gongwen-grassroots",
+   "id": 3,
+   "chunk": "gongwen-grassroots-1",
+   "passed": 10,
+   "total": 10,
+   "all_pass": true,
+   "num_fab": 1,
+   "other_fab": 1
+  },
+  {
+   "case": "gongwen-grassroots-4",
+   "skill": "gongwen-grassroots",
+   "id": 4,
+   "chunk": "gongwen-grassroots-1",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-5",
+   "skill": "gongwen-grassroots",
+   "id": 5,
+   "chunk": "gongwen-grassroots-2",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-6",
+   "skill": "gongwen-grassroots",
+   "id": 6,
+   "chunk": "gongwen-grassroots-2",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 4
+  },
+  {
+   "case": "gongwen-grassroots-7",
+   "skill": "gongwen-grassroots",
+   "id": 7,
+   "chunk": "gongwen-grassroots-2",
+   "passed": 6,
+   "total": 7,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-8",
+   "skill": "gongwen-grassroots",
+   "id": 8,
+   "chunk": "gongwen-grassroots-2",
+   "passed": 9,
+   "total": 10,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-9",
+   "skill": "gongwen-grassroots",
+   "id": 9,
+   "chunk": "gongwen-grassroots-3",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 1
+  },
+  {
+   "case": "gongwen-grassroots-10",
+   "skill": "gongwen-grassroots",
+   "id": 10,
+   "chunk": "gongwen-grassroots-3",
+   "passed": 6,
+   "total": 7,
+   "all_pass": false,
+   "num_fab": 1,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-11",
+   "skill": "gongwen-grassroots",
+   "id": 11,
+   "chunk": "gongwen-grassroots-3",
+   "passed": 6,
+   "total": 6,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-12",
+   "skill": "gongwen-grassroots",
+   "id": 12,
+   "chunk": "gongwen-grassroots-3",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 1
+  },
+  {
+   "case": "gongwen-grassroots-13",
+   "skill": "gongwen-grassroots",
+   "id": 13,
+   "chunk": "gongwen-grassroots-4",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-14",
+   "skill": "gongwen-grassroots",
+   "id": 14,
+   "chunk": "gongwen-grassroots-4",
+   "passed": 7,
+   "total": 8,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-15",
+   "skill": "gongwen-grassroots",
+   "id": 15,
+   "chunk": "gongwen-grassroots-4",
+   "passed": 10,
+   "total": 10,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-16",
+   "skill": "gongwen-grassroots",
+   "id": 16,
+   "chunk": "gongwen-grassroots-4",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-17",
+   "skill": "gongwen-grassroots",
+   "id": 17,
+   "chunk": "gongwen-grassroots-5",
+   "passed": 5,
+   "total": 7,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 1
+  },
+  {
+   "case": "gongwen-grassroots-18",
+   "skill": "gongwen-grassroots",
+   "id": 18,
+   "chunk": "gongwen-grassroots-5",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-19",
+   "skill": "gongwen-grassroots",
+   "id": 19,
+   "chunk": "gongwen-grassroots-5",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-grassroots-20",
+   "skill": "gongwen-grassroots",
+   "id": 20,
+   "chunk": "gongwen-grassroots-5",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-hospital-17",
+   "skill": "gongwen-hospital",
+   "id": 17,
+   "chunk": "gongwen-hospital-5",
+   "passed": 10,
+   "total": 11,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-hospital-18",
+   "skill": "gongwen-hospital",
+   "id": 18,
+   "chunk": "gongwen-hospital-5",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-hospital-19",
+   "skill": "gongwen-hospital",
+   "id": 19,
+   "chunk": "gongwen-hospital-5",
+   "passed": 5,
+   "total": 6,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-hospital-20",
+   "skill": "gongwen-hospital",
+   "id": 20,
+   "chunk": "gongwen-hospital-5",
+   "passed": 8,
+   "total": 8,
+   "all_pass": true,
+   "num_fab": 2,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-hospital-21",
+   "skill": "gongwen-hospital",
+   "id": 21,
+   "chunk": "gongwen-hospital-6",
+   "passed": 5,
+   "total": 6,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-17",
+   "skill": "gongwen-k12",
+   "id": 17,
+   "chunk": "gongwen-k12-5",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 3,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-18",
+   "skill": "gongwen-k12",
+   "id": 18,
+   "chunk": "gongwen-k12-5",
+   "passed": 6,
+   "total": 9,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-19",
+   "skill": "gongwen-k12",
+   "id": 19,
+   "chunk": "gongwen-k12-5",
+   "passed": 7,
+   "total": 8,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-20",
+   "skill": "gongwen-k12",
+   "id": 20,
+   "chunk": "gongwen-k12-5",
+   "passed": 7,
+   "total": 9,
+   "all_pass": false,
+   "num_fab": 3,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-21",
+   "skill": "gongwen-k12",
+   "id": 21,
+   "chunk": "gongwen-k12-6",
+   "passed": 5,
+   "total": 6,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-22",
+   "skill": "gongwen-k12",
+   "id": 22,
+   "chunk": "gongwen-k12-6",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-k12-23",
+   "skill": "gongwen-k12",
+   "id": 23,
+   "chunk": "gongwen-k12-6",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 3,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-13",
+   "skill": "gongwen-soe",
+   "id": 13,
+   "chunk": "gongwen-soe-4",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-14",
+   "skill": "gongwen-soe",
+   "id": 14,
+   "chunk": "gongwen-soe-4",
+   "passed": 3,
+   "total": 4,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-15",
+   "skill": "gongwen-soe",
+   "id": 15,
+   "chunk": "gongwen-soe-4",
+   "passed": 7,
+   "total": 7,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-16",
+   "skill": "gongwen-soe",
+   "id": 16,
+   "chunk": "gongwen-soe-4",
+   "passed": 6,
+   "total": 6,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-17",
+   "skill": "gongwen-soe",
+   "id": 17,
+   "chunk": "gongwen-soe-5",
+   "passed": 3,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-18",
+   "skill": "gongwen-soe",
+   "id": 18,
+   "chunk": "gongwen-soe-5",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 2
+  },
+  {
+   "case": "gongwen-soe-19",
+   "skill": "gongwen-soe",
+   "id": 19,
+   "chunk": "gongwen-soe-5",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-20",
+   "skill": "gongwen-soe",
+   "id": 20,
+   "chunk": "gongwen-soe-5",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 1
+  },
+  {
+   "case": "gongwen-soe-21",
+   "skill": "gongwen-soe",
+   "id": 21,
+   "chunk": "gongwen-soe-6",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-22",
+   "skill": "gongwen-soe",
+   "id": 22,
+   "chunk": "gongwen-soe-6",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 2
+  },
+  {
+   "case": "gongwen-university-21",
+   "skill": "gongwen-university",
+   "id": 21,
+   "chunk": "gongwen-university-6",
+   "passed": 9,
+   "total": 9,
+   "all_pass": true,
+   "num_fab": 1,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-university-22",
+   "skill": "gongwen-university",
+   "id": 22,
+   "chunk": "gongwen-university-6",
+   "passed": 7,
+   "total": 9,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-university-23",
+   "skill": "gongwen-university",
+   "id": 23,
+   "chunk": "gongwen-university-6",
+   "passed": 6,
+   "total": 6,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-university-24",
+   "skill": "gongwen-university",
+   "id": 24,
+   "chunk": "gongwen-university-6",
+   "passed": 7,
+   "total": 8,
+   "all_pass": false,
+   "num_fab": 1,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-university-25",
+   "skill": "gongwen-university",
+   "id": 25,
+   "chunk": "gongwen-university-7",
+   "passed": 6,
+   "total": 7,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-university-26",
+   "skill": "gongwen-university",
+   "id": 26,
+   "chunk": "gongwen-university-7",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  }
+ ],
+ "fabrications": [
+  {
+   "case": "gongwen-grassroots-3",
+   "value": "2026年10月",
+   "note": "年份2026有依据，但“10月”输入中无依据（材料只有11月中旬检查、下周检查），属推断日期；日已留空，程度轻。"
+  },
+  {
+   "case": "gongwen-grassroots-10",
+   "value": "10月16日",
+   "note": "输入与用户消息均无当天日期，甲自设“今天”10月16日，并以此划分周次、写整理日期"
+  },
+  {
+   "case": "gongwen-hospital-20",
+   "value": "2000",
+   "note": "公开清单和材料均无此篇幅数字，“据本包资料”归因不成立"
+  },
+  {
+   "case": "gongwen-hospital-20",
+   "value": "3000",
+   "note": "同上，无依据"
+  },
+  {
+   "case": "gongwen-k12-17",
+   "value": "2026年10月19日",
+   "note": "输入材料没有当天日期，今天10月16日系工具环境日期，无输入依据，故下周一的具体日期也无依据"
+  },
+  {
+   "case": "gongwen-k12-17",
+   "value": "10月16日",
+   "note": "输入材料没有今天的日期，该日期无依据"
+  },
+  {
+   "case": "gongwen-k12-17",
+   "value": "10月19日",
+   "note": "基于无依据的今天10月16日推算，计算本身无误但基数无据"
+  },
+  {
+   "case": "gongwen-k12-20",
+   "value": "10月16日",
+   "note": "输入材料没有今天的日期，今天10月16日系工具环境日期，无输入依据"
+  },
+  {
+   "case": "gongwen-k12-20",
+   "value": "10月19日",
+   "note": "由无依据的今天10月16日推算，基数无据"
+  },
+  {
+   "case": "gongwen-k12-20",
+   "value": "10月",
+   "note": "10月中旬放寒假依赖无依据的今天日期推算，输入材料未给出放假日期"
+  },
+  {
+   "case": "gongwen-k12-23",
+   "value": "2026年10月16日",
+   "note": "输入材料与用户消息均无该日期，用户只说“今天”；_过程.md 称来自任务给定日期，但输入中无依据，无法核对。评测环境当前日期为2026-11-04，也与之不符。应保留“今天”原话"
+  },
+  {
+   "case": "gongwen-k12-23",
+   "value": "10月16日",
+   "note": "同上：输入与用户消息中无今天日期，此处是由无依据的日期推算出的今天"
+  },
+  {
+   "case": "gongwen-k12-23",
+   "value": "10月23日",
+   "note": "以无依据的10月16日推算下周五，推算本身无误，但基础日期不成立，输入中无此日期"
+  },
+  {
+   "case": "gongwen-university-21",
+   "value": "10月16日",
+   "note": "输入与用户消息均无今日日期；评测当日为2026-11-04，“今天（10月16日）”无依据"
+  },
+  {
+   "case": "gongwen-university-24",
+   "value": "2026年10月",
+   "note": "输入无日期；所称“当前”月份无依据，评测当日为2026-11-04，与10月不符"
+  }
+ ],
+ "other_fabrications": [
+  {
+   "case": "gongwen-grassroots-3",
+   "content": "自查报告六（二）“正在整改，限期整改到位”及汇报稿“限期整改到位”；台账只写“正在整改”，无限期时间。",
+   "note": "低风险：属未经材料支持的时限性承诺表述，可改为不写“限期”。"
+  },
+  {
+   "case": "gongwen-grassroots-6",
+   "content": "这类隐患继续使用，可能出现混凝土块掉落，危及楼下人员和过往行人的安全（张某户）",
+   "note": "排查记录未作此风险判断，属补写的技术后果结论"
+  },
+  {
+   "case": "gongwen-grassroots-6",
+   "content": "墙体出现斜向裂缝，继续使用可能影响房屋结构安全，危及屋内人员的安全（李某户）",
+   "note": "记录未作结构安全评价，属补写的结论"
+  },
+  {
+   "case": "gongwen-grassroots-6",
+   "content": "鉴定结论认定存在安全隐患的，按结论整改",
+   "note": "材料未提整改要求，起草说明也未标为假设"
+  },
+  {
+   "case": "gongwen-grassroots-6",
+   "content": "11月10日前仍未完成鉴定的，由有关部门依法处理",
+   "note": "材料未提未完成鉴定的后果及处理主体，属补写的处理后果"
+  },
+  {
+   "case": "gongwen-grassroots-9",
+   "content": "“特殊用火另有经县级人民政府批准的情形”（第一条相关说明）",
+   "note": "清单未载该例外条款，属未核实的条文内容，不能确认为编造，建议对照条例原文"
+  },
+  {
+   "case": "gongwen-grassroots-12",
+   "content": "“下一步，加快推进管线迁改，迁改完成后抓紧施工；尽快确定选址，选址确定后抓紧启动建设。”",
+   "note": "材料未提供的下一步措施，甲补写为常规工作表述，未在起草说明中标为假设，建议用户确认后再报送"
+  },
+  {
+   "case": "gongwen-grassroots-17",
+   "content": "该街道按照区委组织部《关于深化党建引领网格治理的通知》的要求，把网格党小组建在网格上",
+   "note": "输入未载街道按该通知部署；起草说明已标待核实，已披露，未计为编造"
+  },
+  {
+   "case": "gongwen-soe-18",
+   "content": "公司将在投资协议中约定出资条件和信息知情权",
+   "note": "材料未提及，属起草性承诺，建议在起草说明中标待核实"
+  },
+  {
+   "case": "gongwen-soe-18",
+   "content": "职代会或工会意见不需要，本次投资不涉及职工切身利益事项",
+   "note": "用户未提供，属模型判断，未标待核实"
+  },
+  {
+   "case": "gongwen-soe-20",
+   "content": "本事项只有购置设备1台这一个方案，不作比选",
+   "note": "用户未说明方案数，属推断，未标待核实"
+  },
+  {
+   "case": "gongwen-soe-22",
+   "content": "正文第二至四部分的常规叙述，如“积极开展合规培训”“对审查中发现的问题提出修改意见，并跟踪整改落实”“保持违规问题举报渠道畅通”等",
+   "note": "材料未给出这些活动的依据，属通用叙述；起草说明已披露为常规表述并标待核实，列出备查，不计重大编造"
+  },
+  {
+   "case": "gongwen-soe-22",
+   "content": "正文第三部分“合规审查、合规培训、违规问题举报等工作的数据尚未汇总到合规管理部门，年度统计口径和报送机制有待建立”",
+   "note": "由用户“三项没有统计”外推为全公司口径，材料不支持；起草说明已注明据用户所述写成、待核实，正文本身未标注"
+  }
+ ],
+ "failed_expectations": [
+  {
+   "case": "gongwen-grassroots-2",
+   "idx": 1,
+   "expectation": "首轮出动态类信息短稿（标题、导语、做法），写进3月开办、每天中午供餐两项事实，没有只给提纲或要素清单让用户先补素材；提问不超过3个，放在回复末尾",
+   "evidence": "正文仅有标题、导语和“【待补：助餐点的主要做法…】”占位，做法段未成文，属要素清单让用户补素材；提问3个放末尾（符合）。"
+  },
+  {
+   "case": "gongwen-grassroots-2",
+   "idx": 2,
+   "expectation": "正文中就餐人次、服务老人数等关键数据标【待补】，价格、补贴、运营方没给的不写，没有编造任何数字",
+   "evidence": "就餐人次标【待补】且未编造，价格补贴运营方未写；但“服务老人数”未出现在正文，也未标【待补】。"
+  },
+  {
+   "case": "gongwen-grassroots-7",
+   "idx": 1,
+   "expectation": "向用户说明倡议书只倡导自愿参与，需要强制执行的应改用通知并写明依据和执法主体",
+   "evidence": "回复称'倡议书只倡导''需由有权限的部门依法另行发布'；未说改用通知，也未写明依据条款和执法主体，仅部分满足"
+  },
+  {
+   "case": "gongwen-grassroots-8",
+   "idx": 7,
+   "expectation": "工作通知的落款时间写到“时”（缺“时”的标【待补：时】）；没给日期的日留空（如“2026年10月　日”），起草说明写“成文日期按签发日填写”，没有写成当天具体日期",
+   "evidence": "落款'2026年10月16日【待补：时】'，日已写成当天具体日期；起草说明无'成文日期按签发日填写'"
+  },
+  {
+   "case": "gongwen-grassroots-10",
+   "idx": 0,
+   "expectation": "起草说明末尾有保密提醒，并提醒材料含身份证号、电话、住址和病情",
+   "evidence": "起草说明末尾仅为“提示：涉密材料请勿输入联网 AI。”，未提醒材料含身份证号、电话、住址和病情。"
+  },
+  {
+   "case": "gongwen-grassroots-14",
+   "idx": 3,
+   "expectation": "报表由38张减至14张注明按张数，压减率写为约63.2%（算式放台账或起草说明，正文只写结果），或只写张数",
+   "evidence": "正文：“压减63.2%（按报表张数，区平台统计）”，注明按张数且算式在台账，但压减率未写“约”字，不符合“约63.2%”字面要求"
+  },
+  {
+   "case": "gongwen-grassroots-17",
+   "idx": 2,
+   "expectation": "指导思想表述没有原文的，用通用、稳定的表述，起草说明请用户对照最新原文",
+   "evidence": "回复称“指导思想总要求…未写入，开头直接写事实”，正文未使用通用稳定表述，且未请用户对照最新原文"
+  },
+  {
+   "case": "gongwen-grassroots-17",
+   "idx": 5,
+   "expectation": "提醒对外发布前确认照片授权和个人信息",
+   "evidence": "只写“如另配照片请确认已取得授权”；个人信息仅称“稿中无”，未提醒发布前确认"
+  },
+  {
+   "case": "gongwen-hospital-17",
+   "idx": 10,
+   "expectation": "结论写明是否退回、何时报送由用户决定，并建议继续让我全面核稿，回复中没有出现skill名称",
+   "evidence": "结论只写“是否送会由您定”，未写是否退回、何时报送由用户定；“改完后再帮您核一遍”满足继续核稿"
+  },
+  {
+   "case": "gongwen-hospital-19",
+   "idx": 4,
+   "expectation": "有敏感信号，在回复末尾提示一句保密和审核，没有长篇说教；交接卡不抄患者个人信息和病区细节",
+   "evidence": "回复全文无“保密”字样，末尾为三个提问，无保密与审核提示句；交接卡不抄患者信息和病区（此部分满足）"
+  },
+  {
+   "case": "gongwen-hospital-21",
+   "idx": 4,
+   "expectation": "涉及医保基金和采购的材料可能带有内部资料或保密标识，提醒用户先确认密级再提供材料",
+   "evidence": "仅提醒“先删去里面的姓名、联系方式、患者信息等个人信息”，全文未提及密级、保密标识或内部资料，未提醒先确认密级。"
+  },
+  {
+   "case": "gongwen-k12-18",
+   "idx": 3,
+   "expectation": "第一条评语写父母在外打工、由爷爷奶奶带大，第二条写“妈妈说在家也不听话”，列为家庭情况外露问题（P0），依据为红线第一条和未成年人保护法",
+   "evidence": "S01 家庭情况列为P0（依据未保法第四条），但未写红线第一条；S02'你妈妈说你在家也不听话'只列为P1第6条，依据仅'容易激化家校矛盾'，不是P0"
+  },
+  {
+   "case": "gongwen-k12-18",
+   "idx": 7,
+   "expectation": "“再接再厉”“取得更大的进步”列为空话类问题（P1 或 P2）",
+   "evidence": "'再接再厉'列入套话与P2；'取得更大的进步'全文未被列为空话，清单中没有出现该短语"
+  },
+  {
+   "case": "gongwen-k12-18",
+   "idx": 8,
+   "expectation": "清单按 P0、P1、P2 排序，每条有位置、问题、依据和修改建议；不输出各学生的改写评语",
+   "evidence": "P0、P1、P2 排序正确且未输出改写评语；但P1第6条无依据行，P2第9至11条没有依据和修改建议，未满足每条都有位置、问题、依据、修改建议"
+  },
+  {
+   "case": "gongwen-k12-19",
+   "idx": 7,
+   "expectation": "清单按 P0、P1、P2 排序，每条有位置、问题、依据和修改建议；问题清单中不照抄学生姓名",
+   "evidence": "清单中照抄学生姓名：学生张某某发言最积极、张某某；另P1第4至8条只有问题与改法，缺依据行"
+  },
+  {
+   "case": "gongwen-k12-20",
+   "idx": 2,
+   "expectation": "“学校统一办理保险、每生每年68元、本周五前交”列为问题，指出统一办理保险和收费不符合红线第五条，保险应由家长自愿，收费须有依据",
+   "evidence": "保险应自愿、收费须有依据的实质已指出；但依据写的是安全管理办法第四十六条，未引用红线第五条"
+  },
+  {
+   "case": "gongwen-k12-20",
+   "idx": 8,
+   "expectation": "清单按 P0、P1、P2 排序，每条有位置、问题、依据和修改建议",
+   "evidence": "排序P0、P1、P2正确，多数条目有位置、问题、依据、改法；但P1第7条缺少必备内容无依据行，P2第9条无依据和修改建议"
+  },
+  {
+   "case": "gongwen-k12-21",
+   "idx": 5,
+   "expectation": "说明本包负责督导评估之前的自评报告；没有把五个问题写成已整改完成",
+   "evidence": "全文无“自评”一词，未说明本包负责督导评估前的自评报告（前半句缺失）；后半句成立，回复未把五个问题写成已整改完成"
+  },
+  {
+   "case": "gongwen-k12-22",
+   "idx": 3,
+   "expectation": "说明校务会议纪要不属于本包范围，应由 gongwen-minutes 处理（环境能调用的直接转，否则给交接卡和使用说明）",
+   "evidence": "“属于会议纪要那一类…交给专门整理会议纪要的那一套来做”，但未点名 gongwen-minutes，也未给交接卡或使用说明（只说“到时我把交接卡一起给你”）"
+  },
+  {
+   "case": "gongwen-k12-23",
+   "idx": 2,
+   "expectation": "给出听课记录的栏目和填写提示（授课人、课题、班级、教学环节、优点、问题、建议），用户说的“分数加减法”“老师亲切”只作为用户原话放入对应栏目",
+   "evidence": "栏目为授课教师、课题、班级、教学过程、教态、优点、建议，缺少“问题”栏（全文无“问题”二字）；“分数加减法”“亲切”已按原话填入对应栏目"
+  },
+  {
+   "case": "gongwen-soe-14",
+   "idx": 2,
+   "expectation": "提示报告中的经营指标与经营分析报告、财务快报口径一致，1—9月数据和全年预计数不能混用",
+   "evidence": "仅有“注明口径（合并或本部、累计、同比基期）”；无报告指标须与经营分析报告、财务快报口径一致的提示。1—9月与全年数不混用部分已满足"
+  },
+  {
+   "case": "gongwen-soe-17",
+   "idx": 1,
+   "expectation": "说明议题材料交 gongwen-minutes 的议题材料流程（高校行业包的专用文书不含议题材料），交接卡单位类型写高校；能调用其他 skill 的环境直接调用",
+   "evidence": "交接卡写“单位类型：高校”、路线 minutes，但未说明高校包不含议题材料，也未写能调用其他 skill 时直接调用"
+  },
+  {
+   "case": "gongwen-soe-17",
+   "idx": 2,
+   "expectation": "说明资产经营公司自身的董事会议案、决议仍可用本包，议案写审议通过后报学校国有资产管理委员会审批",
+   "evidence": "只写“那部分我这里可以写”，未写议案须“审议通过后报学校国有资产管理委员会审批”"
+  },
+  {
+   "case": "gongwen-soe-18",
+   "idx": 2,
+   "expectation": "学校议题按转交处理：能调用其他 skill 的环境直接调用 gongwen-minutes；未安装或网页环境按 output-format.md 第四部分同时给出交接卡（单位类型写高校，金额和事项名称与议案一致，不带原始材料）、新开对话粘贴 dist/prompts/<skill 名>.md 继续的说明和安装命令",
+   "evidence": "交接卡齐全（单位类型高校，600万元与事项名称一致，不附原始材料），有 dist/prompts/gongwen-minutes.md 继续说明和安装命令，但未写能调用其他 skill 时直接调用"
+  },
+  {
+   "case": "gongwen-soe-19",
+   "idx": 1,
+   "expectation": "说明议题材料交 gongwen-minutes（基层行业包的专用文书不含议题材料）；能调用其他 skill 的环境直接调用；未安装或网页环境按 output-format.md 第四部分同时给出交接卡（单位类型写基层）、新开对话粘贴 dist/prompts/<skill 名>.md 继续的说明和安装命令，交接卡不带原始材料",
+   "evidence": "交接卡单位类型“基层（乡镇）”、dist/prompts/gongwen-minutes.md 继续说明及安装命令齐全且无原始材料；但未说明基层包不含议题材料，也未写能调用其他 skill 时直接调用"
+  },
+  {
+   "case": "gongwen-soe-20",
+   "idx": 3,
+   "expectation": "说明医院院长办公会、院党委会自身的议题由 gongwen-hospital 处理（未安装的用 gongwen-minutes），本次不写",
+   "evidence": "回复全文未提及 gongwen-hospital 或 gongwen-minutes，也未说明医院院长办公会、院党委会自身议题由哪个包处理"
+  },
+  {
+   "case": "gongwen-soe-22",
+   "idx": 3,
+   "expectation": "没有写“已经董事会审议通过”，说明年度报告由董事会审议批准，提交时间以本企业董事会年度计划为准",
+   "evidence": "回复写“报董事会审议批准”“稿子里不预先写“已审议通过””，正确；但全文未说明提交时间以本企业董事会年度计划为准，仅写“离下周上会的时间很紧”"
+  },
+  {
+   "case": "gongwen-university-22",
+   "idx": 4,
+   "expectation": "指出材料一处写“经学院党政联席会议研究同意”，另一处又写“资产管理处、研究生院意见尚未征求”，前者暗示程序已走完、后者说明会签未完成，二者对不上，需用户确认实际程序和会议时间；没有程序依据的不补写“经研究同意”",
+   "evidence": "P1第4条只指出“资产管理处、研究生院意见尚未征求”，P1第5条提到“经学院党政联席会议研究同意”只管改造；未指出两处表述相互矛盾，也未要求确认实际程序和会议时间。"
+  },
+  {
+   "case": "gongwen-university-22",
+   "idx": 5,
+   "expectation": "指出资产管理处、研究生院意见尚未征求，列入待确认事项，建议先征求意见再上报",
+   "evidence": "P1第4条给出“先会签”建议，但“需要你确认的事项”四项中没有会签部门（资产管理处、研究生院）意见，未列入待确认事项。"
+  },
+  {
+   "case": "gongwen-university-24",
+   "idx": 7,
+   "expectation": "正文没有 Markdown 符号和 AI 腔，起草说明不超过5行",
+   "evidence": "无Markdown符号，起草说明5行。但正文有明显套话与排比：“努力让资助真正惠及每一名符合条件的学生”“一是认定要准…三是隐私要守…四是关爱要续”，AI腔明显。"
+  },
+  {
+   "case": "gongwen-university-25",
+   "idx": 3,
+   "expectation": "提示年度基本要求和发布时间以教育部和省级教育部门当年通知为准，没有编造文号和日期",
+   "evidence": "仅有“以今年通知附的“基本要求”为准”；未提示发布时间以教育部和省级教育部门当年通知为准，发布时间一句缺失（未编造文号和日期）"
+  }
+ ],
+ "missing_grades": [],
+ "problems": []
+}

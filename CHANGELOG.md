@@ -1,5 +1,31 @@
 # 更新日志
 
+## v1.1.0（2026-11-04）
+
+行业包专项修订：四个行业包升为 Stable，国企包版本升到 1.1.0，成熟度仍为 Beta。
+
+### 行业包
+
+- **内容补齐**：核验日期统一；各包 `calendar.md` 扩充；模板补正误对照；5 个包 `evals` 新增 27 条用例，共 116 条；配有机检脚本的包补必错、必过标本测试。
+- **soe 边界修复**：国企包与其他行业包、核心 skill 的转交边界，用例 17 的转交目标由 gongwen-university 改为 gongwen-minutes；复核中发现的编造倾向已补规则。
+- **hospital 整改口径统一**：整改状态的口径按 gongwen-rectify 统一（用例 12）。
+- **k12 速查卡改名**：`references/quick-ref.md` 改名为 `quick-cards.md`，与其他行业包一致。
+
+### 工具与文档
+
+- `tools/validate.py` 新增三项检查：成熟度标签一致性（README 标签与 `manifest.json` 的 `status`）、共享副本登记、行业包工程门槛。
+- 升级标准修订：`CONTRIBUTING.md` 的 Stable 标准改为数字标准加行业包工程门槛，不再等一线反馈和人工盲评，升级后持续收集。
+- 文档中的提示词版字符上限更正为 29000。
+
+### 成熟度
+
+按新标准做了 A 组抽样评测（48/116 条用例，Sonnet 5.5，max 推理强度，Haiku 5.5 评分；没有 B 组），结果：
+
+- grassroots 94.7%、hospital 91.7%、k12 80.9%、university 90.9%，复核后编造为 0，**升为 Stable**，版本 1.1.0。
+- soe 86.5%，复核确认仍有编造，已补规则，**保持 Beta**，版本 1.1.0，待小样本复测。
+
+抽样方法、污染说明和局限见 [`evals/results/v1.1-industry-sample.md`](evals/results/v1.1-industry-sample.md)，原始汇总见 [`evals/results/v1.1-industry-sample.json`](evals/results/v1.1-industry-sample.json)。
+
 ## v1.0.0（2026-10-23 发布）
 
 原计划分 v0.2「开年版」、v0.3「落实版」、v0.4「行业包」三次发布的 15 个 skill 已全部完成，与 v0.1 的 7 个 skill 合并为 v1.0.0 一次发布，共 22 个 skill，其中核心 skill 17 个，行业包 5 个。各 skill 用成熟度标签区分，真实模型评测通过率不低于 80%、防编造 0 次、触发正确的标 Stable，其余标 Beta；行业包统一标 Beta，待测试者反馈后再升级。各 skill 的成熟度见 README 技能地图。

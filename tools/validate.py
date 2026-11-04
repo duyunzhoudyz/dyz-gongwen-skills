@@ -4,7 +4,10 @@
 
 检查项：frontmatter、SKILL.md 行数、manifest.json 与共享资料同步、SKILL.md 中的相对路径、
 共享资料引用闭合（SKILL.md 和 references/ 下各 .md 中出现的 references/_shared/ 路径都要存在）、
-evals、README.md、.claude-plugin/marketplace.json，以及全仓库的字体文件、大文件和 JSON 合法性。
+共享副本登记（scripts/、references/ 下文件头带"由 tools/sync_shared.py 生成"的，必须登记在 manifest.json 的 shared 里）、
+evals、README.md（含成熟度标签与 manifest.json 的 status 是否一致）、
+行业包工程门槛（references 必备文件与核验日期、evals 覆盖、必错/必过标本）、
+.claude-plugin/marketplace.json，以及全仓库的字体文件、大文件和 JSON 合法性。
 
 可选检查 --eval-overlap（默认不运行，结果记为警告）：评测材料（evals/files/、evals.json 的 prompt、
 expected_output、expectations，以及 trigger.json 的 query）中带单位的数字和完整日期，是否出现在
@@ -15,6 +18,7 @@ expected_output、expectations，以及 trigger.json 的 query）中带单位的
 """
 from __future__ import annotations
 
+import datetime
 import fnmatch
 import os
 import re
@@ -81,6 +85,32 @@ DESCRIPTION_MAX_CHARS = 1024
 NAME_MAX_CHARS = 64
 MIN_EVALS = 12
 TRIGGER_COUNT = 20
+
+# README.md 成熟度标签：既认第 3 行的"成熟度：Beta（测试版）"，也认"成熟度为 Stable（v1.0.0）"，
+# 以及粗体写法"成熟度：**Stable（稳定版）**"和"**成熟度**：Stable"（冒号前后、标签前允许夹 Markdown 的 *）。
+# 文末"## 成熟度"小节的正文是"Beta。……"，不带冒号，不会被匹配到；不扩展到该小节，避免误报。只取第一处匹配。
+MATURITY_LABEL_RE = re.compile(r"成熟度\**\s*(?:[：:]|为)\s*\**\s*(Beta|Stable)", re.IGNORECASE)
+STATUS_TO_LABEL = {"beta": "Beta", "stable": "Stable"}
+# 共享副本文件头标记（shared/scripts/ 源文件的文档字符串里写明）
+SHARED_COPY_MARK = "由 tools/sync_shared.py 生成"
+SHARED_COPY_HEAD_BYTES = 2048
+SHARED_COPY_DIRS = ("scripts", "references")
+
+# ---- 行业包工程门槛（CONTRIBUTING"成熟度从 Beta 升到 Stable"一节）----
+# 行业包的识别依据与安装器（tools/install.py）一致：.claude-plugin/marketplace.json 中
+# 名字不是核心插件 gongwen 的 plugin 就是行业包，短名为去掉 "gongwen-" 前缀后的部分（--pack 的取值）。
+CORE_PLUGIN = "gongwen"
+PACK_PREFIX = "gongwen-"
+PACK_DATED_REFERENCES = ("glossary.md", "redlines.md", "calendar.md", "profile-detail.md")
+PACK_REQUIRED_REFERENCES = PACK_DATED_REFERENCES + ("quick-cards.md", "review-addon.md")
+VERIFIED_DATE_RE = re.compile(r"^>\s*核验日期[：:]\s*(\d{4})-(\d{2})-(\d{2})(?!\d)")
+VERIFIED_DATE_HEAD_LINES = 5
+PACK_MIN_REVIEW = 3        # role_mode 为"审稿模式"的用例数
+PACK_MIN_FABRICATION = 3   # tags 含"防编造"的用例数
+PACK_MIN_SECRECY = 3       # tags 含"保密"的用例数
+PACK_MIN_HANDOFF = 2       # is_handoff_case 判定为转交/交接卡的用例数
+SPECIMEN_FAIL_MARKS = ("必错", "must_fail")
+SPECIMEN_PASS_MARKS = ("必过", "must_pass")
 
 # 规范第 6 节统一词表
 UNIT_TYPES = ("党政机关", "基层", "社区", "公立医院", "高校", "中小学", "国有企业")
@@ -507,6 +537,74 @@ def check_manifest(repo_root: Path, name: str, skill_dir: Path, rep: Report) -> 
     return data
 
 
+def check_maturity_label(name: str, skill_dir: Path, status: Optional[str], rep: Report) -> None:
+    """README.md 的"成熟度"标签须与 manifest.json 的 status 一致（beta↔Beta，stable↔Stable）。
+
+    README 里没有该标签、或 status 不是 beta/stable（如 draft）时不报。
+    """
+    expected = STATUS_TO_LABEL.get(status or "")
+    readme = skill_dir / "README.md"
+    if expected is None or not readme.is_file():
+        return
+    try:
+        text = readme.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return  # 读不了的文件由其他检查负责
+    match = MATURITY_LABEL_RE.search(text)
+    if not match:
+        return
+    label = match.group(1).capitalize()
+    if label != expected:
+        rep.error(name, f"README.md 的成熟度标签为 {label}，与 manifest.json 的 status \"{status}\"（应为 {expected}）不一致")
+
+
+def _declared_dests(manifest: object) -> Set[str]:
+    """manifest.json 的 shared 登记的 dest 集合（未写 dest 的按同步脚本默认值 references/_shared/<src>）。"""
+    dests: Set[str] = set()
+    shared = manifest.get("shared") if isinstance(manifest, dict) else None
+    if not isinstance(shared, list):
+        return dests
+    for item in shared:
+        if not isinstance(item, dict):
+            continue
+        dest_raw = item.get("dest")
+        if dest_raw is None:
+            src, _ = normalize_rel_path(item.get("src"))
+            dest = f"{SHARED_PREFIX}{src}" if src else None
+        else:
+            dest, _ = normalize_rel_path(dest_raw)
+        if dest:
+            dests.add(dest)
+    return dests
+
+
+def check_shared_copies_registered(name: str, skill_dir: Path, manifest: Optional[dict], rep: Report) -> None:
+    """scripts/、references/ 下文件头带"由 tools/sync_shared.py 生成"的共享副本，必须登记在 manifest.json 的 shared 里。
+
+    否则 sync_shared.py 不会维护它，源文件改了副本就悄悄过期，或被当成手写文件误改。
+    """
+    if not isinstance(manifest, dict):
+        return  # manifest 本身有问题时已另行报错
+    declared = _declared_dests(manifest)
+    for top in SHARED_COPY_DIRS:
+        base = skill_dir / top
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            try:
+                with path.open("rb") as handle:
+                    head = handle.read(SHARED_COPY_HEAD_BYTES)
+            except OSError:
+                continue
+            if SHARED_COPY_MARK not in head.decode("utf-8", errors="ignore"):
+                continue
+            rel = path.relative_to(skill_dir).as_posix()
+            if rel not in declared:
+                rep.error(name, f"{rel} 是共享副本（文件头写明{SHARED_COPY_MARK}），但未登记在 manifest.json 的 shared 的 dest 中")
+
+
 def _is_str_list(value: object) -> bool:
     return isinstance(value, list) and all(isinstance(x, str) for x in value)
 
@@ -672,8 +770,138 @@ def _check_evals_data(name: str, skill_dir: Path, data: dict, is_draft: bool, re
         rep.error(name, "evals 中缺少交接卡或转交场景的用例（tags 含\"交接卡\"或\"转交\"，或 expectations 提到交接卡）")
 
 
+def load_pack_shorts(repo_root: Path) -> Dict[str, str]:
+    """行业包 skill 目录名 -> 包短名，依据与安装器一致：marketplace.json 中非核心插件 gongwen 的 plugin。
+
+    文件缺失或不合规时返回空字典（此时不做行业包检查；marketplace.json 本身的问题由 check_marketplace 报告）。
+    """
+    path = repo_root / ".claude-plugin" / "marketplace.json"
+    if not path.is_file():
+        return {}
+    data, err = load_json_file(path)
+    if err or not isinstance(data, dict) or not isinstance(data.get("plugins"), list):
+        return {}
+    packs: Dict[str, str] = {}
+    for plugin in data["plugins"]:
+        if not isinstance(plugin, dict) or not isinstance(plugin.get("name"), str):
+            continue
+        pname = plugin["name"]
+        if pname == CORE_PLUGIN:
+            continue
+        short = pname[len(PACK_PREFIX):] if pname.startswith(PACK_PREFIX) else pname
+        skills = plugin.get("skills")
+        if not _is_str_list(skills):
+            continue
+        for rel in skills:
+            parts = [p for p in rel.replace("\\", "/").split("/") if p not in ("", ".")]
+            if len(parts) == 2 and parts[0] == "skills":
+                packs[parts[1]] = short
+    return packs
+
+
+def _valid_date_line(line: str) -> bool:
+    match = VERIFIED_DATE_RE.match(line.strip())
+    if not match:
+        return False
+    try:
+        datetime.date(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    except ValueError:
+        return False
+    return True
+
+
+def count_pack_evals(evals: object) -> Dict[str, int]:
+    """行业包 evals 的四类用例计数，口径与 _check_evals_data 的既有计数一致。
+
+    - review：role_mode 恰为"审稿模式"（5 个包都用 role_mode 标审稿用例，取值在统一词表 ROLE_MODES 内）；
+    - fabrication：tags 含"防编造"（与既有的"防编造 ≥2"检查同一口径）；
+    - secrecy：tags 含"保密"（与既有的"保密 ≥1"检查同一口径）；
+    - handoff：is_handoff_case（tags 含"交接卡"或"转交"，或 expectations 提到交接卡），与既有的交接卡检查同一口径。
+    一条用例可同时计入多类。
+    """
+    counts = {"review": 0, "fabrication": 0, "secrecy": 0, "handoff": 0}
+    if not isinstance(evals, list):
+        return counts
+    for item in evals:
+        if not isinstance(item, dict):
+            continue
+        if item.get("role_mode") == "审稿模式":
+            counts["review"] += 1
+        tags = item.get("tags")
+        if _is_str_list(tags):
+            if "防编造" in tags:
+                counts["fabrication"] += 1
+            if "保密" in tags:
+                counts["secrecy"] += 1
+        if is_handoff_case(item):
+            counts["handoff"] += 1
+    return counts
+
+
+def check_pack_gates(repo_root: Path, name: str, skill_dir: Path, short: str, rep: Report) -> None:
+    """行业包工程门槛（对应 CONTRIBUTING 的 Stable 升级条件中可机检的几项）。
+
+    a. glossary/redlines/calendar/profile-detail 存在，前 5 行内有"> 核验日期：YYYY-MM-DD"（日期合法）；
+    b. references/ 下有 quick-cards.md 与 review-addon.md，templates/ 目录非空；
+    c. evals：审稿模式、防编造、保密各不少于 3 条，转交边界不少于 2 条（口径见 count_pack_evals）；
+    d. tests/<包短名>/ 下有文件名含"必错"（或 must_fail）和含"必过"（或 must_pass）的标本文件。
+    "行业事实注明出处与年份"无法机检，仍靠人工核对。
+    """
+    refs = skill_dir / "references"
+    for fname in PACK_REQUIRED_REFERENCES:
+        path = refs / fname
+        if not path.is_file():
+            rep.error(name, f"行业包工程门槛：缺少 references/{fname}")
+            continue
+        if fname not in PACK_DATED_REFERENCES:
+            continue
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeDecodeError):
+            continue  # 读不了的文件由其他检查负责
+        head = text.replace("\r\n", "\n").split("\n")[:VERIFIED_DATE_HEAD_LINES]
+        if not any(_valid_date_line(line) for line in head):
+            rep.error(name, f"行业包工程门槛：references/{fname} 前 {VERIFIED_DATE_HEAD_LINES} 行内缺少合法的"
+                            f"\"> 核验日期：YYYY-MM-DD\"")
+
+    templates = refs / "templates"
+    if not templates.is_dir() or not any(p.is_file() for p in templates.rglob("*")):
+        rep.error(name, "行业包工程门槛：references/templates/ 不存在或为空")
+
+    evals_path = skill_dir / "evals" / "evals.json"
+    data, err = load_json_file(evals_path) if evals_path.is_file() else (None, "文件不存在")
+    if err or not isinstance(data, dict):
+        rep.error(name, "行业包工程门槛：evals/evals.json 无法读取，无法统计用例覆盖")
+    else:
+        counts = count_pack_evals(data.get("evals"))
+        for key, label, need in (
+            ("review", "审稿模式（role_mode）", PACK_MIN_REVIEW),
+            ("fabrication", "防编造（tags）", PACK_MIN_FABRICATION),
+            ("secrecy", "保密（tags）", PACK_MIN_SECRECY),
+            ("handoff", "转交边界（tags 含交接卡/转交，或期望提到交接卡）", PACK_MIN_HANDOFF),
+        ):
+            if counts[key] < need:
+                rep.error(name, f"行业包工程门槛：evals 中{label}用例 {counts[key]} 条，行业包要求至少 {need} 条")
+
+    tests_dir = repo_root / "tests" / short
+    fail_found = pass_found = False
+    if tests_dir.is_dir():
+        for path in tests_dir.rglob("*"):
+            if not path.is_file() or "__pycache__" in path.parts or path.suffix == ".pyc":
+                continue
+            lowered = path.name.lower()
+            if any(mark in lowered for mark in SPECIMEN_FAIL_MARKS):
+                fail_found = True
+            if any(mark in lowered for mark in SPECIMEN_PASS_MARKS):
+                pass_found = True
+    if not (fail_found and pass_found):
+        missing = [n for n, ok in (("必错", fail_found), ("必过", pass_found)) if not ok]
+        rep.error(name, f"行业包工程门槛：tests/{short}/ 下缺少{'、'.join(missing)}标本文件（文件名含"
+                        f"\"必错\"/\"必过\"或 must_fail/must_pass）")
+
+
 def check_skill(repo_root: Path, skill_dir: Path, rep: Report, checked_json: Set[Path],
-                eval_overlap: bool = False) -> None:
+                eval_overlap: bool = False, pack_shorts: Optional[Dict[str, str]] = None) -> None:
     name = skill_dir.name
     rep.touch(name)
     check_skill_md(name, skill_dir, rep)
@@ -685,7 +913,11 @@ def check_skill(repo_root: Path, skill_dir: Path, rep: Report, checked_json: Set
         checked_json.add(manifest_path.resolve())
     manifest = check_manifest(repo_root, name, skill_dir, rep)
     status = manifest.get("status") if isinstance(manifest, dict) else None
+    check_maturity_label(name, skill_dir, status, rep)
+    check_shared_copies_registered(name, skill_dir, manifest, rep)
     check_evals(name, skill_dir, status, rep, checked_json)
+    if pack_shorts and name in pack_shorts:
+        check_pack_gates(repo_root, name, skill_dir, pack_shorts[name], rep)
     if eval_overlap:
         check_eval_overlap(name, skill_dir, rep)
 
@@ -1010,18 +1242,19 @@ def run_validation(repo_root: Path, skill: Optional[str] = None,
     rep = Report()
     checked_json: Set[Path] = set()
     skill_dirs = list_skill_dirs(repo_root)
+    pack_shorts = load_pack_shorts(repo_root)
     if skill:
         selected = [d for d in skill_dirs if d.name == skill]
         if not selected:
             raise LookupError(skill)
         for skill_dir in selected:
-            check_skill(repo_root, skill_dir, rep, checked_json, eval_overlap)
+            check_skill(repo_root, skill_dir, rep, checked_json, eval_overlap, pack_shorts)
         return rep, len(selected)
 
     if not skill_dirs:
         rep.warn(REPO_SCOPE, "skills/ 下还没有任何 skill，已跳过 skill 检查")
     for skill_dir in skill_dirs:
-        check_skill(repo_root, skill_dir, rep, checked_json, eval_overlap)
+        check_skill(repo_root, skill_dir, rep, checked_json, eval_overlap, pack_shorts)
     check_marketplace(repo_root, skill_dirs, rep, checked_json)
     check_repository(repo_root, rep, checked_json)
     if eval_overlap:

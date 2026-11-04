@@ -148,7 +148,7 @@ For the web edition, use the matching file in `dist/prompts/`, e.g. `gongwen-hos
 
 17 core skills ship in one plugin; 5 sector packs install separately.
 
-Maturity: **Stable** = real-model eval pass rate >= 80%, zero fabrications, correct triggering. **Beta** = sample-tested; will be upgraded after field feedback.
+Maturity: **Stable** = real-model eval pass rate (group A expectations) >= 80%, fabrications confirmed on review = 0, trigger eval >= 9/10 positives and 10/10 negatives. Sector packs must also meet engineering gates (required references files present, with verification dates; sector facts cited with source and year; evals with >= 3 cases each for review mode, confidentiality and anti-fabrication, and >= 2 handoff-boundary cases; specimen tests (must-fail and must-pass) for any dedicated checker script; web prompt <= 29,000 characters). **Beta** = sample-tested, not yet meeting all of the above. Field feedback and human blind review are collected continuously after upgrade; a confirmed serious issue (e.g. fabrication, red-line error) drops the skill back to Beta. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Router & configuration**
 
@@ -191,10 +191,10 @@ Maturity: **Stable** = real-model eval pass rate >= 80%, zero fabrications, corr
 
 | Skill | What it does | Maturity |
 |---|---|---|
-| [`gongwen-grassroots`](skills/gongwen-grassroots/) Township/community | Inspection briefings, resident notices, emergency notices, work logs, village/community affairs disclosure | Beta |
-| [`gongwen-hospital`](skills/gongwen-hospital/) Public hospital | Accreditation self-assessment, performance analysis, RCA/PDCA, department chief report (DRG/CMI), party committee and director office agenda | Beta |
-| [`gongwen-university`](skills/gongwen-university/) University | Audit self-assessment, discipline evaluation, grant application review, college summary, sign-off routing decisions | Beta |
-| [`gongwen-k12`](skills/gongwen-k12/) K-12 school | Semester plans and summaries, inspection self-assessment, parent-meeting speech, student comments, parent letters | Beta |
+| [`gongwen-grassroots`](skills/gongwen-grassroots/) Township/community | Inspection briefings, resident notices, emergency notices, work logs, village/community affairs disclosure | Stable |
+| [`gongwen-hospital`](skills/gongwen-hospital/) Public hospital | Accreditation self-assessment, performance analysis, RCA/PDCA, department chief report (DRG/CMI), party committee and director office agenda | Stable |
+| [`gongwen-university`](skills/gongwen-university/) University | Audit self-assessment, discipline evaluation, grant application review, college summary, sign-off routing decisions | Stable |
+| [`gongwen-k12`](skills/gongwen-k12/) K-12 school | Semester plans and summaries, inspection self-assessment, parent-meeting speech, student comments, parent letters | Stable |
 | [`gongwen-soe`](skills/gongwen-soe/) State-owned enterprise | "Three major decisions" agenda, board resolutions, GM-office minutes, ESG report, compliance management report | Beta |
 
 ---
@@ -293,7 +293,7 @@ Test model: claude-sonnet-5-5. 372 test cases, 2,671 check items, all materials 
 
 > In the second round the with-skills group was re-run at max reasoning effort while the without-skills group reused the first round's outputs, so this is not a like-for-like comparison. The like-for-like first round is 97.1% vs 54.0% (universal items 97.7% vs 68.5%). Each case ran once, and the grader is the same model as the one under test.
 
-All 17 core skills: pass rate >= 97.4%, zero fabrications, correct triggering -- rated Stable. The 5 sector packs meet the numeric thresholds; staying Beta until field feedback and human blind-test. Full methodology and limitations: [v1.0 evaluation report](evals/results/v1.0-benchmark.md).
+All 17 core skills: pass rate >= 97.4%, zero fabrications, correct triggering -- rated Stable. In v1.1.0 the 5 sector packs were re-assessed against the Stable criteria in [CONTRIBUTING.md](CONTRIBUTING.md) (numeric thresholds plus engineering gates): grassroots, hospital, k12 and university passed a sampled re-test (group A pass rate 80.9%-94.7%, zero fabrications after review) and are now Stable; soe still showed fabrications on review, rules have been added, and it stays Beta pending a small-sample re-test. Sampling method and limitations: [v1.1 sector-pack sample report](evals/results/v1.1-industry-sample.md) (Chinese); full methodology: [v1.0 evaluation report](evals/results/v1.0-benchmark.md).
 
 ---
 
@@ -356,7 +356,7 @@ The project does not bundle fonts and will not substitute alternatives. When sta
 **Planned**
 
 - [ ] Cross-model evaluation: prompt edition on DeepSeek, Qwen, Kimi
-- [ ] Field feedback and human blind-test; upgrade sector packs from Beta when benchmarks pass
+- [ ] Re-test the soe pack on a small sample and upgrade it from Beta once it passes; keep collecting field feedback and human blind review on the four Stable sector packs to refine the rules
 - [ ] Real-device test of Word/WPS formatting and font detection on macOS/Linux
 - [ ] Word tracked-changes output (currently writes comments only)
 

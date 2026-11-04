@@ -28,7 +28,7 @@
 
 ## 二、行业包（5 个）
 
-行业包要单独安装，成熟度均为 Beta。装有行业包时，本行业专用文书交行业包，通用文书（通知、总结、讲话等）仍交核心 skill。没有安装的，由核心 skill 按单位画像处理（`references/routes.md` 第三部分）。
+行业包要单独安装；成熟度见各包 README（四包 Stable，国企包 Beta）。装有行业包时，本行业专用文书交行业包，通用文书（通知、总结、讲话等）仍交核心 skill。没有安装的，由核心 skill 按单位画像处理（`references/routes.md` 第三部分）。
 
 | 行业包 | 专用文书 |
 |---|---|
@@ -65,7 +65,7 @@
 4. 把关和交付：核稿（gongwen-review）、排成国标 Word（gongwen-format）。
 5. 单位画像：简版我来建，完整画像和学文风找 gongwen-profile。
 6. 行业包（单独安装）：gongwen-grassroots 乡镇街道社区、gongwen-hospital 医院、gongwen-university 高校、gongwen-k12 中小学、gongwen-soe 国企，各管本行业专用文书；没装的由对应模块按单位画像处理。
-核心 skill 已通过真实模型评测（稳定版，Stable）；行业包是测试版（Beta），边界情况可能有问题。
+核心 skill 已通过真实模型评测（稳定版，Stable）；行业包成熟度见各包 README。
 我不做的：处理涉密材料、编造数据和案例、保证“检测不出 AI”、代写须本人亲历的材料、做 PPT。
 你可以这样说：
 - “领导让我给县里写个东西要补助”

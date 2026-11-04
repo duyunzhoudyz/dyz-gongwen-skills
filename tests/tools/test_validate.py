@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import shutil
 import unittest
 import zipfile
 from pathlib import Path
@@ -557,6 +558,276 @@ class EvalOverlapTest(ValidateTestBase):
         self.assertIn("examples/A-演示/正文.txt 第 1 行", joined)
         self.assertIn("examples/A-演示/成稿.docx", joined)
         self.assertNotIn("2026年12月31日", joined)
+
+
+class MaturityLabelTest(ValidateTestBase):
+    """README.md 的成熟度标签与 manifest.json 的 status 一致。"""
+
+    def set_readme(self, text, skill="gongwen-demo"):
+        write_text(self.repo.skill_dir(skill) / "README.md", text)
+
+    def test_matching_labels_pass(self):
+        text_a = "# a\n\n> 版本 0.1.0　成熟度：Beta（测试版）\n\n## 成熟度\n\nBeta。\n"
+        text_b = "# b\n\n成熟度为 Stable（v0.1.0），详见文末。\n"
+        # 先确认正则确实匹配到了标签，避免"没匹配到所以没报错"的假通过
+        self.assertEqual(validate.MATURITY_LABEL_RE.search(text_a).group(1), "Beta")
+        self.assertEqual(validate.MATURITY_LABEL_RE.search(text_b).group(1), "Stable")
+        self.repo.add_skill("gongwen-a", status="beta")
+        self.set_readme(text_a, "gongwen-a")
+        self.repo.add_skill("gongwen-b", status="stable")
+        self.set_readme(text_b, "gongwen-b")
+        rep = self.run_checks()
+        self.assert_not_has(rep.errors, "成熟度标签")
+
+    def test_bold_labels_matched(self):
+        for text, expected in (
+            ("> 成熟度：**Stable（稳定版）**\n", "Stable"),
+            ("> 版本 1.0.0　成熟度：**Beta（测试版）**\n", "Beta"),
+            ("> **成熟度**：Stable\n", "Stable"),
+            ("成熟度为 **Stable**\n", "Stable"),
+        ):
+            match = validate.MATURITY_LABEL_RE.search(text)
+            self.assertIsNotNone(match, text)
+            self.assertEqual(match.group(1), expected, text)
+
+    def test_bold_label_mismatch_reported_and_match_passes(self):
+        self.repo.add_skill(status="stable")
+        self.set_readme("# demo\n\n> 版本 1.0.0　成熟度：**Beta（测试版）**\n")
+        rep = self.run_checks("gongwen-demo")
+        self.assert_has(rep.errors, "成熟度标签为 Beta")
+        self.set_readme("# demo\n\n> 版本 1.0.0　成熟度：**Stable（稳定版）**\n")
+        rep = self.run_checks("gongwen-demo")
+        self.assert_not_has(rep.errors, "成熟度标签")
+
+    def test_maturity_section_not_matched(self):
+        # 不扩展到"## 成熟度"小节：小节正文没有冒号，不能误报
+        self.assertIsNone(validate.MATURITY_LABEL_RE.search("## 成熟度\n\n**Beta**。尚未达标。\n"))
+        self.assertIsNone(validate.MATURITY_LABEL_RE.search("## 成熟度\n\nBeta。\n"))
+
+    def test_mismatch_reported(self):
+        self.repo.add_skill(status="stable")
+        self.set_readme("# demo\n\n> 版本 0.1.0　成熟度：Beta（测试版）\n")
+        rep = self.run_checks("gongwen-demo")
+        self.assert_has(rep.errors, "成熟度标签为 Beta")
+        self.assert_has(rep.errors, "应为 Stable")
+        self.set_readme("# demo\n\n> 版本 0.1.0　成熟度：Stable（稳定版）\n")
+        self.edit_manifest({"status": "beta"})
+        rep = self.run_checks("gongwen-demo")
+        self.assert_has(rep.errors, "成熟度标签为 Stable")
+
+    def test_no_label_or_draft_not_reported(self):
+        self.repo.add_skill(status="stable")  # 夹具 README 不带标签
+        rep = self.run_checks("gongwen-demo")
+        self.assert_not_has(rep.errors, "成熟度标签")
+        self.set_readme("# demo\n\n> 成熟度：Beta（测试版）\n")
+        self.edit_manifest({"status": "draft"})
+        rep = self.run_checks("gongwen-demo")
+        self.assert_not_has(rep.errors, "成熟度标签")
+
+
+class SharedCopyRegisteredTest(ValidateTestBase):
+    """带"由 tools/sync_shared.py 生成"文件头的副本，必须登记在 manifest.json 的 shared 里。"""
+
+    HEADER = '"""演示脚本。\n\n源文件位于仓库 shared/scripts/，各 skill 中的副本由 tools/sync_shared.py 生成。\n"""\n'
+    BASE_SHARED = ("guardrails.md", "style/output-format.md", "style/ai-tone.md", "style/defensive.md")
+
+    def test_registered_copy_passes(self):
+        write_text(self.root / "shared/scripts/demo_tool.py", self.HEADER + "print(1)\n")
+        shared = [{"src": s} for s in self.BASE_SHARED]
+        shared.append({"src": "scripts/demo_tool.py", "dest": "scripts/demo_tool.py"})
+        self.repo.add_skill(shared=shared)
+        self.assertTrue((self.repo.skill_dir("gongwen-demo") / "scripts/demo_tool.py").is_file())
+        rep = self.run_checks("gongwen-demo")
+        self.assertEqual(rep.errors, [])
+
+    def test_unregistered_copy_reported(self):
+        self.repo.add_skill()
+        d = self.repo.skill_dir("gongwen-demo")
+        write_text(d / "scripts/stray_tool.py", self.HEADER + "print(1)\n")
+        write_text(d / "references/stray_copy.md", "<!-- 由 tools/sync_shared.py 生成 -->\n# 野副本\n")
+        write_text(d / "scripts/own_tool.py", '"""自己写的脚本。"""\nprint(1)\n')
+        write_text(d / "scripts/__pycache__/stray_tool.cpython-313.pyc", self.HEADER)
+        rep = self.run_checks("gongwen-demo")
+        self.assert_has(rep.errors, "scripts/stray_tool.py 是共享副本")
+        self.assert_has(rep.errors, "references/stray_copy.md 是共享副本")
+        self.assert_not_has(rep.errors, "own_tool.py")
+        self.assert_not_has(rep.errors, "__pycache__")
+
+    def test_default_dest_registered(self):
+        # 未写 dest 时落在 references/_shared/<src>，视为已登记
+        write_text(self.root / "shared/rules/demo.md", "<!-- 由 tools/sync_shared.py 生成 -->\n# 要点\n")
+        shared = [{"src": s} for s in self.BASE_SHARED]
+        shared.append({"src": "rules/demo.md"})
+        self.repo.add_skill(shared=shared)
+        rep = self.run_checks("gongwen-demo")
+        self.assert_not_has(rep.errors, "共享副本")
+
+
+class PackGatesTest(ValidateTestBase):
+    """行业包工程门槛：只对 marketplace.json 里非核心插件的 skill 生效，每项一正一反。"""
+
+    SKILL = "gongwen-demo"
+    SHORT = "demo"
+    DATED = ("glossary.md", "redlines.md", "calendar.md", "profile-detail.md")
+
+    def setUp(self):
+        super().setUp()
+        self.repo.add_skill("gongwen-core")
+
+    def make_pack(self, *, pack=True, review=3, fabrication=3, secrecy=3, handoff=2):
+        """在临时仓库里造一个完全合格的行业包，再按参数调整 evals 计数。"""
+        d = self.repo.add_skill(self.SKILL)
+        ref = d / "references"
+        for fname in self.DATED:
+            write_text(ref / fname, f"# {fname}\n\n> 核验日期：2026-10-16\n\n正文。\n")
+        write_text(ref / "quick-cards.md", "# 速查卡\n")
+        write_text(ref / "review-addon.md", "# 审稿附加\n")
+        write_text(ref / "templates" / "yiti.md", "# 模板\n")
+        evals = []
+        for i in range(1, 13):
+            evals.append({
+                "id": i, "prompt": f"第 {i} 份材料", "expected_output": "合规材料",
+                "files": [], "expectations": ["正文不含 Markdown 符号"],
+                "unit_type": validate.UNIT_TYPES[i % 4], "role_mode": validate.ROLE_MODES[i % 3],
+                "tags": ["测试"],
+            })
+        for item in evals[:review]:
+            item["role_mode"] = "审稿模式"
+        for item in evals[:fabrication]:
+            item["tags"].append("防编造")
+        for item in evals[3:3 + secrecy]:
+            item["tags"].append("保密")
+        for item in evals[6:6 + handoff]:
+            item["tags"].append("转交")
+        if handoff == 0:
+            # 至少留 1 条交接卡用例，避免触发既有的"缺少交接卡用例"错误干扰断言
+            evals[11]["expectations"].append("末尾附交接卡")
+        write_json(d / "evals" / "evals.json", {"skill_name": self.SKILL, "evals": evals})
+        specimens = self.root / "tests" / self.SHORT / "specimens"
+        write_text(specimens / "必错-演示.txt", "错稿\n")
+        write_text(specimens / "必过-演示.txt", "好稿\n")
+        self.write_marketplace(pack)
+        return d
+
+    def write_marketplace(self, pack=True):
+        plugins = [{"name": "gongwen", "source": "./", "strict": False, "skills": ["./skills/gongwen-core"]}]
+        if pack:
+            plugins.append({"name": self.SKILL, "source": "./", "strict": False,
+                            "skills": [f"./skills/{self.SKILL}"]})
+        else:
+            plugins[0]["skills"].append(f"./skills/{self.SKILL}")
+        write_json(self.root / ".claude-plugin" / "marketplace.json",
+                   {"name": "t", "owner": {"name": "t"}, "plugins": plugins,
+                    "metadata": {"description": "测试", "version": "0.1.0"}})
+
+    def gate_errors(self):
+        rep = self.run_checks()
+        return [m for _s, m in rep.errors if "行业包工程门槛" in m]
+
+    def test_good_pack_passes(self):
+        self.make_pack()
+        self.assertEqual(self.gate_errors(), [])
+        rep = self.run_checks()
+        self.assertEqual(rep.errors, [])
+
+    def test_core_skill_not_checked(self):
+        # 同样是缺文件、缺标本，但不在行业包插件里，不检查
+        self.make_pack(pack=False)
+        (self.repo.skill_dir(self.SKILL) / "references" / "glossary.md").unlink()
+        self.assertEqual(self.gate_errors(), [])
+
+    def test_load_pack_shorts_follows_marketplace(self):
+        self.make_pack()
+        self.assertEqual(validate.load_pack_shorts(self.root), {self.SKILL: self.SHORT})
+        self.write_marketplace(pack=False)
+        self.assertEqual(validate.load_pack_shorts(self.root), {})
+
+    def test_missing_dated_reference(self):
+        d = self.make_pack()
+        (d / "references" / "calendar.md").unlink()
+        self.assertTrue(any("缺少 references/calendar.md" in m for m in self.gate_errors()))
+
+    def test_verified_date_missing_late_or_invalid(self):
+        d = self.make_pack()
+        ref = d / "references"
+        write_text(ref / "glossary.md", "# 词表\n\n正文。\n")
+        write_text(ref / "redlines.md", "# 红线\n\n> 核验日期：2026-13-45\n")
+        write_text(ref / "calendar.md", "# 日历\n\n" + "占位\n" * 5 + "> 核验日期：2026-10-16\n")  # 第 8 行，超出前 5 行
+        write_text(ref / "profile-detail.md", "# 画像\n\n核验日期：2026-10-16\n")  # 缺少 > 前缀
+        errors = self.gate_errors()
+        for fname in self.DATED:
+            self.assertTrue(any(f"references/{fname} 前 5 行内缺少合法的" in m for m in errors), (fname, errors))
+
+    def test_verified_date_with_trailing_text_passes(self):
+        d = self.make_pack()
+        write_text(d / "references" / "glossary.md", "# 词表\n\n> 核验日期：2026-10-22。法规修订后以最新公布版本为准。\n")
+        self.assertEqual(self.gate_errors(), [])
+
+    def test_missing_quick_cards_or_review_addon(self):
+        d = self.make_pack()
+        (d / "references" / "quick-cards.md").unlink()
+        (d / "references" / "review-addon.md").unlink()
+        errors = self.gate_errors()
+        self.assertTrue(any("缺少 references/quick-cards.md" in m for m in errors))
+        self.assertTrue(any("缺少 references/review-addon.md" in m for m in errors))
+
+    def test_templates_empty_or_missing(self):
+        d = self.make_pack()
+        (d / "references" / "templates" / "yiti.md").unlink()
+        self.assertTrue(any("templates/ 不存在或为空" in m for m in self.gate_errors()))
+        (d / "references" / "templates").rmdir()
+        self.assertTrue(any("templates/ 不存在或为空" in m for m in self.gate_errors()))
+
+    def test_eval_counts_at_threshold_pass(self):
+        self.make_pack(review=3, fabrication=3, secrecy=3, handoff=2)
+        self.assertEqual(self.gate_errors(), [])
+
+    def test_review_count_too_low(self):
+        self.make_pack(review=2)
+        errors = self.gate_errors()
+        self.assertTrue(any("审稿模式" in m and "2 条" in m for m in errors), errors)
+
+    def test_fabrication_count_too_low(self):
+        self.make_pack(fabrication=2)
+        self.assertTrue(any("防编造" in m and "2 条" in m for m in self.gate_errors()))
+
+    def test_secrecy_count_too_low(self):
+        self.make_pack(secrecy=2)
+        self.assertTrue(any("保密" in m and "2 条" in m for m in self.gate_errors()))
+
+    def test_handoff_count_too_low(self):
+        self.make_pack(handoff=1)
+        self.assertTrue(any("转交边界" in m and "1 条" in m for m in self.gate_errors()))
+
+    def test_count_pack_evals_rules(self):
+        counts = validate.count_pack_evals([
+            {"role_mode": "审稿模式", "tags": ["防编造", "保密"], "expectations": ["a"]},
+            {"role_mode": "高效模式", "tags": ["交接卡"], "expectations": ["a"]},
+            {"role_mode": "审稿", "tags": ["转交行业包"], "expectations": ["a"]},  # role_mode 须恰为"审稿模式"
+            {"tags": [], "expectations": ["末尾附交接卡"]},
+            "不是对象",
+        ])
+        self.assertEqual(counts, {"review": 1, "fabrication": 1, "secrecy": 1, "handoff": 3})
+        self.assertEqual(validate.count_pack_evals(None)["review"], 0)
+
+    def test_specimens_missing(self):
+        self.make_pack()
+        shutil.rmtree(self.root / "tests" / self.SHORT)
+        self.assertTrue(any("缺少必错、必过标本文件" in m for m in self.gate_errors()))
+
+    def test_only_one_kind_of_specimen(self):
+        self.make_pack()
+        (self.root / "tests" / self.SHORT / "specimens" / "必过-演示.txt").unlink()
+        errors = self.gate_errors()
+        self.assertTrue(any("缺少必过标本文件" in m for m in errors), errors)
+        self.assertFalse(any("必错标本" in m for m in errors), errors)
+
+    def test_english_specimen_names_accepted(self):
+        self.make_pack()
+        shutil.rmtree(self.root / "tests" / self.SHORT)
+        write_text(self.root / "tests" / self.SHORT / "samples" / "comments_must_fail.txt", "错\n")
+        write_text(self.root / "tests" / self.SHORT / "samples" / "comments_must_pass.txt", "对\n")
+        self.assertEqual(self.gate_errors(), [])
 
 
 class RepoChecksTest(ValidateTestBase):

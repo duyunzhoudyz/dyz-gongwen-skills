@@ -80,7 +80,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 ## 工作流程
 
-用户拿来的是成稿、要挑问题的（审稿模式），跳过第一至四步，按 review-addon.md 第一部分逐项查，网页版按 `references/quick-ref.md` 第十部分的检查项和级别查；再做第五步机检，输出问题清单，格式见“角色适配”。
+用户拿来的是成稿、要挑问题的（审稿模式），跳过第一至四步，按 review-addon.md 第一部分逐项查，网页版按 `references/quick-cards.md` 第十部分的检查项和级别查；再做第五步机检，输出问题清单，格式见“角色适配”。
 
 ### 第一步　任务卡
 
@@ -135,7 +135,7 @@ license: PolyForm-Noncommercial-1.0.0
    - 家长信、家长会讲话：`python scripts/k12_check.py parents 正文.txt [--stage 高中]`；
    - 总结、督导自评：`python scripts/fact_diff.py 素材台账.md 正文.txt --ledger`，列出的“正文中有、台账中没有”的数字逐条处理。
 2. P0 必改，P1 逐条判断，P2 酌情处理；【待补】机检报 P2，保留并汇总进起草说明。级别说明见 review-addon.md 第二部分。
-3. 不能运行脚本时，按 review-addon.md 第三部分人工检查，网页版按 `references/quick-ref.md` 第十部分检查，起草说明写“未运行机检，已按人工清单检查”。以实际能否运行为准：脚本能运行的，即使用户自称网页版，也如实写“已运行”；交付格式按用户声明或交接卡。
+3. 不能运行脚本时，按 review-addon.md 第三部分人工检查，网页版按 `references/quick-cards.md` 第十部分检查，起草说明写“未运行机检，已按人工清单检查”。以实际能否运行为准：脚本能运行的，即使用户自称网页版，也如实写“已运行”；交付格式按用户声明或交接卡。
 4. 最后过一遍本文“自检清单”。
 
 ### 第六步　交付
@@ -201,12 +201,12 @@ license: PolyForm-Noncommercial-1.0.0
 
 ## 参考资料
 
-没有文件系统（网页版、内网提示词版）时，读不到的文件按本文和附录执行，模板按 `references/quick-ref.md` 速查，不向用户索要。
+没有文件系统（网页版、内网提示词版）时，读不到的文件按本文和附录执行，模板按 `references/quick-cards.md` 速查，不向用户索要。
 
 | 文件 | 何时读取 |
 |---|---|
 | `references/templates/` 下 9 个模板 | 定文书后读对应模板 |
-| `references/quick-ref.md` | 网页环境代替模板；人工检查 |
+| `references/quick-cards.md` | 网页环境代替模板；人工检查 |
 | `references/redlines.md`、`references/_shared/guardrails.md` | 开工前；与用户要求冲突时 |
 | `references/review-addon.md` | 第五步自检；审稿模式 |
 | `references/profile-detail.md`、`references/_shared/profiles/units/` | 读完画像后；搭板块；判断单位差异 |

@@ -149,7 +149,7 @@ bash install.sh --pack hospital
 
 17 个核心 skill 装在一个插件里，5 个行业包按需选装。
 
-成熟度：**Stable** = 真实模型评测通过率 ≥ 80%、防编造 0 次、触发正确；**Beta** = 样例测试通过，一线反馈后升级。
+成熟度：**Stable** = 真实模型评测 A 组期望通过率 ≥ 80%、编造经复核为 0、触发评测正例 ≥ 9/10 且反例 10/10；行业包另需满足工程门槛（references 必备文件齐全且带核验日期；行业事实注明出处与年份；evals 中审稿、保密、防编造用例各 ≥ 3 条，转交边界用例 ≥ 2 条；配有机检脚本的要有必错和必过标本测试；提示词版不超过 29000 字符）。**Beta** = 样例测试通过，尚未全部达标。升级后持续收集一线测试者反馈和人工盲评，收到确认的严重问题（如编造、红线错误）时降回 Beta，详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 **入口与配置**
 
@@ -192,10 +192,10 @@ bash install.sh --pack hospital
 
 | Skill | 能力摘要 | 成熟度 |
 |---|---|---|
-| [`gongwen-grassroots`](skills/gongwen-grassroots/) 乡镇街道社区 | 迎检汇报、居民通知、应急通知、工作台账、村居务公开 | Beta |
-| [`gongwen-hospital`](skills/gongwen-hospital/) 公立医院 | 等级评审自评、绩效分析、RCA/PDCA、科室述职（DRG/CMI）、党委会/院长办公会议题 | Beta |
-| [`gongwen-university`](skills/gongwen-university/) 高校 | 审核评估自评、学科评估、申报书审查、学院总结、签报和两级发文判断 | Beta |
-| [`gongwen-k12`](skills/gongwen-k12/) 中小学 | 学期计划总结、督导评估自评、家长会讲话、学生评语、致家长一封信 | Beta |
+| [`gongwen-grassroots`](skills/gongwen-grassroots/) 乡镇街道社区 | 迎检汇报、居民通知、应急通知、工作台账、村居务公开 | Stable |
+| [`gongwen-hospital`](skills/gongwen-hospital/) 公立医院 | 等级评审自评、绩效分析、RCA/PDCA、科室述职（DRG/CMI）、党委会/院长办公会议题 | Stable |
+| [`gongwen-university`](skills/gongwen-university/) 高校 | 审核评估自评、学科评估、申报书审查、学院总结、签报和两级发文判断 | Stable |
+| [`gongwen-k12`](skills/gongwen-k12/) 中小学 | 学期计划总结、督导评估自评、家长会讲话、学生评语、致家长一封信 | Stable |
 | [`gongwen-soe`](skills/gongwen-soe/) 国有企业 | "三重一大"议题、董事会议案、总经理办公会纪要、ESG 报告、合规管理报告 | Beta |
 
 ---
@@ -312,7 +312,7 @@ bash install.sh --pack hospital
 
 > 第二轮装 skill 的一组在 max 推理强度下重跑，不装 skill 的一组沿用第一轮输出，不是等条件对比；条件完全一致的第一轮是 97.1% 对 54.0%（通用检查项 97.7% 对 68.5%）。每条用例只跑一次，评分员与被评模型是同一个模型。
 
-17 个核心 skill 通过率均不低于 97.4%，防编造 0 次，触发达标，标 Stable；5 个行业包数字也达标，按约定等一线反馈再升级。完整方法和局限见 [v1.0 评测报告](evals/results/v1.0-benchmark.md)。
+17 个核心 skill 通过率均不低于 97.4%，防编造 0 次，触发达标，标 Stable；5 个行业包在 v1.1.0 按 [CONTRIBUTING.md](CONTRIBUTING.md) 的 Stable 标准（数字标准加行业包工程门槛）重新评定：grassroots、hospital、k12、university 四包抽样复测达标（A 组期望通过率 80.9%～94.7%，复核后编造 0 次），升为 Stable；soe 复核仍有编造，已补规则，待小样本复测，暂标 Beta。抽样方法和局限见 [v1.1 行业包抽样评测](evals/results/v1.1-industry-sample.md)，完整方法和局限见 [v1.0 评测报告](evals/results/v1.0-benchmark.md)。
 
 ---
 
@@ -387,7 +387,7 @@ gongwen-skills 是给机关事业单位、国企文字工作者用的公文写�
 **后续计划**
 
 - [ ] 跨模型评测：提示词版在 DeepSeek、Qwen、Kimi 上的表现
-- [ ] 收集测试者反馈，做人工盲评，据此修订规则，行业包达标后从 Beta 升级
+- [ ] 国企包 soe 小样本复测，达标后从 Beta 升级；已升 Stable 的四个行业包持续收集测试者反馈、做人工盲评，据此修订规则
 - [ ] 在 Word、WPS 中实测排版效果；在 macOS、Linux 上实测字体检测
 - [ ] 输出 Word 修订痕迹（目前只写批注）
 

@@ -1,5 +1,7 @@
 # 中小学行业画像（详版）
 
+> 核验日期：2026-10-16
+
 在共享画像 `references/_shared/profiles/units/zhongxiaoxue.md` 的基础上，补充本包起草时要用的细节。取值顺序：用户提供的本校制度、学校画像 `.gongwen/单位画像.md`、本文件和共享画像、国家规则基线。出处见 `references/sources.md`。
 
 ## 目录

@@ -9,6 +9,7 @@
 公开期限不足（含标题带起止日期、含低保子项、末尾空行后的“公示时间”）、低保公示期不足 7 天、
 公示含病情、预警无来源、只有金额没有电话、村委会通知取消分红资格、签责任书、“不得进山”（NTC-018）。
 期限恰好 15 日、低保恰好 7 日的报 NTC-019（P2）。
+成对的必错、必过标本放在 tests/grassroots/specimens/（居民通知、村务公开、防汛提示各一对），由 SpecimenTest 读文件断言。
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "skills" / "gongwen-grassroots" / "scripts"
+SPECIMENS = Path(__file__).resolve().parent / "specimens"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
@@ -771,6 +773,73 @@ class BehaviourTest(NoticeCheckTestCase):
         code, out, _err = self.run_main(str(path), "--json")
         self.assertEqual(code, 0)
         self.assertIn("NTC-006", [i["id"] for i in json.loads(out)["issues"]])
+
+
+class SpecimenTest(NoticeCheckTestCase):
+    """成对的必错、必过标本：从 specimens/ 读文件，断言 notice_check.py 的结果。"""
+
+    def check_specimen(self, name: str) -> dict:
+        path = SPECIMENS / name
+        self.assertTrue(path.is_file(), f"标本文件不存在：{path}")
+        code, out, _err = self.run_main(str(path), "--json")
+        self.assertEqual(code, 0)
+        return json.loads(out)
+
+    def test_pairs_exist(self):
+        for stem in ("居民通知", "村务公开", "防汛提示"):
+            self.assertTrue((SPECIMENS / f"必错-{stem}.txt").is_file(), stem)
+            self.assertTrue((SPECIMENS / f"必过-{stem}.txt").is_file(), stem)
+
+    def test_must_fail_resident_notice(self):
+        result = self.check_specimen("必错-居民通知.txt")
+        self.assertEqual(result["kind"], "通知")
+        ids = self.ids(result)
+        # 2026年11月14日是星期六，标本写成星期五
+        self.assertIn("NTC-006", self.ids(result, "P0"))
+        self.assertIn("NTC-003", self.ids(result, "P1"))
+        # 兹定于、届时、务必等公文腔用语，对居民发的通知应改为通俗说法
+        self.assertIn("NTC-008", ids)
+
+    def test_must_pass_resident_notice(self):
+        result = self.check_specimen("必过-居民通知.txt")
+        self.assertEqual(result["kind"], "通知")
+        self.assertEqual(result["audience"], "群众")
+        self.assert_clean(result)
+        self.assertEqual(self.ids(result), [])
+
+    def test_must_fail_wugongkai(self):
+        result = self.check_specimen("必错-村务公开.txt")
+        self.assertEqual(result["kind"], "公示")
+        p1 = self.ids(result, "P1")
+        self.assertIn("NTC-012", p1)  # 公开期限只有 12 天，不足十五日
+        self.assertIn("NTC-017", p1)  # 低保初审公示期只有 5 天
+        self.assertIn("NTC-013", p1)  # 公示里写了病情和家庭住址
+
+    def test_must_pass_wugongkai(self):
+        result = self.check_specimen("必过-村务公开.txt")
+        self.assertEqual(result["kind"], "公示")
+        self.assert_clean(result)
+        # 低保公示恰好 7 天，只提示起止日期的算法（P2）
+        self.assertEqual(self.ids(result), ["NTC-019"])
+
+    def test_must_fail_flood_tip(self):
+        result = self.check_specimen("必错-防汛提示.txt")
+        self.assertEqual(result["kind"], "应急通知")
+        self.assertIn("NTC-018", self.ids(result, "P0"))  # 村委会取消评优资格、签责任书
+        self.assertIn("NTC-014", self.ids(result, "P1"))  # 预警没有发布单位和时间
+
+    def test_must_pass_flood_tip(self):
+        result = self.check_specimen("必过-防汛提示.txt")
+        self.assertEqual(result["kind"], "应急通知")
+        self.assert_clean(result)
+        self.assertEqual(self.ids(result), [])
+
+    def test_every_must_fail_has_serious_and_must_pass_has_none(self):
+        for path in sorted(SPECIMENS.glob("必错-*.txt")):
+            result = self.check_specimen(path.name)
+            self.assertTrue(self.ids(result, "P0") or self.ids(result, "P1"), path.name)
+        for path in sorted(SPECIMENS.glob("必过-*.txt")):
+            self.assert_clean(self.check_specimen(path.name))
 
 
 if __name__ == "__main__":

@@ -118,6 +118,38 @@ class SpecimenTest(HospitalCheckBase):
         # 【起草说明】之后的“责任心不强”不参与检查
         self.assertEqual(found.count("HOS-018"), 1)
 
+    def test_must_fail_quality_specimen(self) -> None:
+        """质量分析必错标本：指标名称、百分点、CMI 百分号、俗称“国考”、疗效保证、党政联席会议都要查出。"""
+        result = hc.check_file(SPECIMENS / "必错-质量分析.txt", "质量分析", ruleset=self.ruleset)
+        found = ids_of(result)
+        expected = ("HOS-001", "HOS-003", "HOS-004", "HOS-006", "HOS-007", "HOS-008", "HOS-009",
+                    "HOS-010", "HOS-011", "HOS-012", "HOS-013", "HOS-014", "HOS-015")
+        for rid in expected:
+            with self.subTest(rule=rid):
+                self.assertIn(rid, found)
+        # RCA 专用规则不适用于质量分析
+        for rid in ("HOS-018", "HOS-019", "HOS-020"):
+            self.assertNotIn(rid, found)
+        self.assertEqual(result["summary"]["P1"], 5)
+        self.assertEqual(result["summary"]["P0"], 0)
+        # 【起草说明】之后的“大手术比例”“抗生素使用强度”不参与检查
+        self.assertEqual(found.count("HOS-008"), 1)
+        self.assertEqual(found.count("HOS-010"), 1)
+
+    def test_must_fail_quality_specimen_external_escalates(self) -> None:
+        """同一份标本按对外宣传检查，保证治愈升为 P0。"""
+        result = hc.check_file(SPECIMENS / "必错-质量分析.txt", "对外宣传", ruleset=self.ruleset)
+        self.assertGreaterEqual(result["summary"]["P0"], 1)
+        self.assertIn("HOS-001", ids_of(result))
+
+    def test_must_fail_quality_specimen_without_type(self) -> None:
+        """不指定文书类型时，“国考”俗称不查（HOS-015 只查正式文书），其余照查。"""
+        result = hc.check_file(SPECIMENS / "必错-质量分析.txt", None, ruleset=self.ruleset)
+        found = ids_of(result)
+        self.assertNotIn("HOS-015", found)
+        for rid in ("HOS-006", "HOS-007", "HOS-008", "HOS-004"):
+            self.assertIn(rid, found)
+
     def test_must_fail_specimen_without_type_skips_rca_rules(self) -> None:
         result = hc.check_file(SPECIMENS / "必错-根因分析.txt", None, ruleset=self.ruleset)
         found = ids_of(result)
