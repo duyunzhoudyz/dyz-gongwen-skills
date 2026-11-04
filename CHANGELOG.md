@@ -2,7 +2,7 @@
 
 ## v1.1.0（2026-11-04）
 
-行业包专项修订：四个行业包升为 Stable，国企包版本升到 1.1.0，成熟度仍为 Beta。
+行业包专项修订：五个行业包均升为 Stable（国企包 soe 经补规则、复测后升级），国企包版本升到 1.1.0。
 
 ### 行业包
 
@@ -22,9 +22,9 @@
 按新标准做了 A 组抽样评测（48/116 条用例，Sonnet 5.5，max 推理强度，Haiku 5.5 评分；没有 B 组），结果：
 
 - grassroots 94.7%、hospital 91.7%、k12 80.9%、university 90.9%，复核后编造为 0，**升为 Stable**，版本 1.1.0。
-- soe 86.5%，复核确认仍有编造，已补规则，**保持 Beta**，版本 1.1.0，待小样本复测。
+- soe 首轮 86.5%，复核确认有编造，已补规则。规则修补后重跑用例 17–22 共 6 例，期望通过率 90.9%（30/33），复核后编造 0 次；与首轮用例 13–16 合计，评分员口径 92.7%（51/55），严格口径 85.5%（47/55；复测 6 例严格口径 81.8%，余量小）。**升为 Stable**，版本 1.1.0。复测后另补的两处规则（医院自身议题在回复里用描述性说法另行处理；合规报告提交时间以本企业董事会年度计划为准）未再复测。
 
-抽样方法、污染说明和局限见 [`evals/results/v1.1-industry-sample.md`](evals/results/v1.1-industry-sample.md)，原始汇总见 [`evals/results/v1.1-industry-sample.json`](evals/results/v1.1-industry-sample.json)。
+抽样方法、污染说明、soe 复测和局限见 [`evals/results/v1.1-industry-sample.md`](evals/results/v1.1-industry-sample.md)，原始汇总见 [`evals/results/v1.1-industry-sample.json`](evals/results/v1.1-industry-sample.json)，soe 复测汇总见 [`evals/results/v1.1-soe-retest.json`](evals/results/v1.1-soe-retest.json)。
 
 ## v1.0.0（2026-10-23 发布）
 

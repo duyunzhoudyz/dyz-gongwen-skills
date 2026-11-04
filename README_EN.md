@@ -195,7 +195,7 @@ Maturity: **Stable** = real-model eval pass rate (group A expectations) >= 80%, 
 | [`gongwen-hospital`](skills/gongwen-hospital/) Public hospital | Accreditation self-assessment, performance analysis, RCA/PDCA, department chief report (DRG/CMI), party committee and director office agenda | Stable |
 | [`gongwen-university`](skills/gongwen-university/) University | Audit self-assessment, discipline evaluation, grant application review, college summary, sign-off routing decisions | Stable |
 | [`gongwen-k12`](skills/gongwen-k12/) K-12 school | Semester plans and summaries, inspection self-assessment, parent-meeting speech, student comments, parent letters | Stable |
-| [`gongwen-soe`](skills/gongwen-soe/) State-owned enterprise | "Three major decisions" agenda, board resolutions, GM-office minutes, ESG report, compliance management report | Beta |
+| [`gongwen-soe`](skills/gongwen-soe/) State-owned enterprise | "Three major decisions" agenda, board resolutions, GM-office minutes, ESG report, compliance management report | Stable |
 
 ---
 
@@ -293,7 +293,7 @@ Test model: claude-sonnet-5-5. 372 test cases, 2,671 check items, all materials 
 
 > In the second round the with-skills group was re-run at max reasoning effort while the without-skills group reused the first round's outputs, so this is not a like-for-like comparison. The like-for-like first round is 97.1% vs 54.0% (universal items 97.7% vs 68.5%). Each case ran once, and the grader is the same model as the one under test.
 
-All 17 core skills: pass rate >= 97.4%, zero fabrications, correct triggering -- rated Stable. In v1.1.0 the 5 sector packs were re-assessed against the Stable criteria in [CONTRIBUTING.md](CONTRIBUTING.md) (numeric thresholds plus engineering gates): grassroots, hospital, k12 and university passed a sampled re-test (group A pass rate 80.9%-94.7%, zero fabrications after review) and are now Stable; soe still showed fabrications on review, rules have been added, and it stays Beta pending a small-sample re-test. Sampling method and limitations: [v1.1 sector-pack sample report](evals/results/v1.1-industry-sample.md) (Chinese); full methodology: [v1.0 evaluation report](evals/results/v1.0-benchmark.md).
+All 17 core skills: pass rate >= 97.4%, zero fabrications, correct triggering -- rated Stable. In v1.1.0 the 5 sector packs were re-assessed against the Stable criteria in [CONTRIBUTING.md](CONTRIBUTING.md) (numeric thresholds plus engineering gates): grassroots, hospital, k12 and university passed a sampled re-test (group A pass rate 80.9%-94.7%, zero fabrications after review) and are now Stable; soe showed fabrications on the first review, so rules were added and cases 17-22 were re-run (pass rate 90.9%, zero fabrications after review; 92.7% combined with the first-round cases 13-16, grader basis), and it is now Stable too -- all five sector packs are Stable. Sampling method and limitations: [v1.1 sector-pack sample report](evals/results/v1.1-industry-sample.md) (Chinese); full methodology: [v1.0 evaluation report](evals/results/v1.0-benchmark.md).
 
 ---
 
@@ -356,7 +356,7 @@ The project does not bundle fonts and will not substitute alternatives. When sta
 **Planned**
 
 - [ ] Cross-model evaluation: prompt edition on DeepSeek, Qwen, Kimi
-- [ ] Re-test the soe pack on a small sample and upgrade it from Beta once it passes; keep collecting field feedback and human blind review on the four Stable sector packs to refine the rules
+- [ ] All five sector packs are now Stable; keep collecting field feedback and human blind review to refine the rules
 - [ ] Real-device test of Word/WPS formatting and font detection on macOS/Linux
 - [ ] Word tracked-changes output (currently writes comments only)
 

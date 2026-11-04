@@ -1,0 +1,118 @@
+{
+ "scope": {
+  "chunks": "全部",
+  "a_cases_with_reply": 6
+ },
+ "total": {
+  "cases": 6,
+  "passed": 30,
+  "total": 33,
+  "all_pass_cases": 3,
+  "num_fab": 0,
+  "other_fab": 0,
+  "pass_rate": 0.9091
+ },
+ "by_skill": {
+  "gongwen-soe": {
+   "cases": 6,
+   "passed": 30,
+   "total": 33,
+   "all_pass_cases": 3,
+   "num_fab": 0,
+   "other_fab": 0,
+   "pass_rate": 0.9091
+  }
+ },
+ "cases": [
+  {
+   "case": "gongwen-soe-17",
+   "skill": "gongwen-soe",
+   "id": 17,
+   "chunk": "gongwen-soe-5",
+   "passed": 4,
+   "total": 5,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-18",
+   "skill": "gongwen-soe",
+   "id": 18,
+   "chunk": "gongwen-soe-5",
+   "passed": 6,
+   "total": 6,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-19",
+   "skill": "gongwen-soe",
+   "id": 19,
+   "chunk": "gongwen-soe-5",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-20",
+   "skill": "gongwen-soe",
+   "id": 20,
+   "chunk": "gongwen-soe-5",
+   "passed": 5,
+   "total": 6,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-21",
+   "skill": "gongwen-soe",
+   "id": 21,
+   "chunk": "gongwen-soe-6",
+   "passed": 5,
+   "total": 5,
+   "all_pass": true,
+   "num_fab": 0,
+   "other_fab": 0
+  },
+  {
+   "case": "gongwen-soe-22",
+   "skill": "gongwen-soe",
+   "id": 22,
+   "chunk": "gongwen-soe-6",
+   "passed": 5,
+   "total": 6,
+   "all_pass": false,
+   "num_fab": 0,
+   "other_fab": 0
+  }
+ ],
+ "fabrications": [],
+ "other_fabrications": [],
+ "failed_expectations": [
+  {
+   "case": "gongwen-soe-17",
+   "idx": 2,
+   "expectation": "说明资产经营公司自身的董事会议案、决议仍可用本包，议案写审议通过后报学校国有资产管理委员会审批",
+   "evidence": "回复全文未出现“议案”二字，也未说明资产经营公司自身的董事会议案仍可用本包、议案写审议通过后报审批；仅写“审议情况只引用用户提供的原文和日期”"
+  },
+  {
+   "case": "gongwen-soe-20",
+   "idx": 3,
+   "expectation": "说明医院院长办公会、院党委会自身的议题由 gongwen-hospital 处理（未安装的用 gongwen-minutes），本次不写",
+   "evidence": "回复仅写“医院院长办公会那一层是医院自己的议题，不在这份里写”，未说明由 gongwen-hospital（未安装则 gongwen-minutes）处理；全文无 gongwen-hospital 字样"
+  },
+  {
+   "case": "gongwen-soe-22",
+   "idx": 3,
+   "expectation": "没有写“已经董事会审议通过”，说明年度报告由董事会审议批准，提交时间以本企业董事会年度计划为准",
+   "evidence": "写了“经董事会审议批准”，并写“报告草稿不写“已经董事会审议通过””，但没有“提交时间以本企业董事会年度计划为准”"
+  }
+ ],
+ "missing_grades": [],
+ "problems": []
+}

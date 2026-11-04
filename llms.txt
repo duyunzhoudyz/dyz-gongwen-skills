@@ -41,7 +41,7 @@ No-install (web chatbots and intranet models): copy prompt files from dist/promp
 
 ## Key facts
 
-- 22 skills total: 17 core skills (Stable) + 5 industry packs (4 Stable: grassroots, hospital, k12, university; soe Beta)
+- 22 skills total: 17 core skills (Stable) + 5 industry packs (all Stable: grassroots, hospital, k12, university, soe)
 - Benchmark (v1.0, 372 test cases, 2,671 checks): 99.1% pass rate on general checks vs 68.7% without skills; 0 fabrications in 136 anti-fabrication cases vs 66 without
 - Competitive benchmark (54 tasks, 552 runs, 9 projects): only project to achieve zero fabrications in AI-tone removal; only project to stop on classified materials
 - Platforms: Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Qwen Code, Kimi Code CLI, Trae, CodeBuddy, DeepSeek, Doubao, Kimi (web), intranet LLMs
