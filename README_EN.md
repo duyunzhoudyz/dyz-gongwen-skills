@@ -46,7 +46,7 @@ If this project solves a real problem for you, a Star helps others with the same
 **Evaluation summary**: run head-to-head against 8 similar official-document skills on GitHub and a no-skill control group — same model, same tasks, 2 runs per task — and ranked by two LLM judges, Claude and DeepSeek (not human reviewers).
 
 - **Formatting, clearly first**: all 16 runs ranked 1st by the Claude judge; GB/T 9704 layout audit 97.2 (next best 79.6); when fonts are missing it names the standard fonts and tells the user, 16/16 times, never substituting
-- **Confidentiality and fabrication, ahead**: on the classified-document task (mark on the first page) this project passed 91.7% of checkpoints and every competitor 0%; fewest fabrication runs in the writing track (Claude judge 7/20, DeepSeek judge 13/40); 99.6% fact preservation in the de-AI-tone track
+- **Confidentiality and fabrication, ahead**: on the classified-document task (mark on the first page) this project passed 91.7% of checkpoints and every competitor 0% (compete-v7 figures; see the caveats below for the v9 re-test); fewest fabrication runs in the writing track (Claude judge 7/20, DeepSeek judge 13/40); 99.6% fact preservation in the de-AI-tone track
 - **Writing and de-AI-tone, top cluster**: 1st in both tracks by the DeepSeek judge; within 0.5 rank of the best result by the Claude judge
 - **Latest re-test (v9, writing track)**: 81.0% of automated checkpoints, 1st (next best 77.5%)
 
@@ -256,7 +256,7 @@ This project was run against 8 similar official-document skills on GitHub and a 
 | Formatting: GB/T 9704 layout audit (16 runs) | **97.2** | 79.6 |
 | Formatting: avg rank, Claude judge | **1.00, 1st in all 16 runs** | 2.25 |
 | Formatting: font honesty | **16/16 names the standard fonts and reports missing ones** | One project substituted fonts in 16 runs, 2 without telling the user; no-skill control substituted silently in 16 |
-| Classified document (mark on first page), checkpoint pass rate | **91.7%** (both judges agree) | 0% for every competitor |
+| Classified document (mark on first page), checkpoint pass rate | **91.7%** (both judges agree; compete-v7 figures, see caveats below for the v9 re-test) | 0% for every competitor |
 | Writing: runs with fabrications (Claude judge, 20 runs) | **7/20** (fewest) | 8/20; no-skill control 11/20 |
 | Writing: judgements with fabrications (DeepSeek, 40) | **13/40** (fewest) | 14/40 |
 | Writing: avg rank, Claude judge (1 = best) | 3.45, tied with two other projects | No-skill control 2.95 |
@@ -275,6 +275,7 @@ Caveats:
 - The judges are two LLMs, not humans, and the Claude judge is the same model that was tested (claude-sonnet-5-5). Rank agreement between the two judges (Kendall τ): 0.50 for writing, 0.65 for de-AI-tone. Human blind review is on the [Roadmap](#roadmap).
 - Each contender ran each task only twice (20 runs for writing, 16 for formatting, 16 for de-AI-tone), so rank gaps of 0.1–0.5 should not be read as a stable ordering.
 - These are not fresh held-out tasks: v7 used the original task set and v9 used tasks-v3, and both had been used for debugging in earlier rounds. Treat this as a re-test after iteration, not a blind test. The earlier held-out rounds (c4, c5) and the iteration history are in the [compete report](evals/results/compete-report.md).
+- Scope of the classified-document figure: the 91.7% in the table is from compete-v7. In compete-v9, W11 (classified-mark interception; the mark is in the document header) scored 6/10 for this project: run 1 5/5, run 2 1/5. In run 2 the agent read the body text with python-docx, missed the mark in the header, and still polished the classified file. The gap was fixed in commit 38dcd28 and has not been re-tested.
 - The tasks were designed by this project, and there is only one classified-content task (2 runs), so that sample is tiny.
 - Results reflect the versions tested at the time; the other projects may have improved since.
 

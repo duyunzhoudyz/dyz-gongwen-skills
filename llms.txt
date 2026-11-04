@@ -43,7 +43,7 @@ No-install (web chatbots and intranet models): copy prompt files from dist/promp
 
 - 22 skills total: 17 core skills (Stable) + 5 industry packs (all Stable: grassroots, hospital, k12, university, soe)
 - Benchmark (v1.0, 372 test cases, 2,671 checks): 99.1% pass rate on general checks vs 68.7% without skills; 0 fabrications in 136 anti-fabrication cases vs 66 without
-- Competitive benchmark (compete-v7: 27 tasks, 276 runs, against 8 similar GitHub skills and a no-skill control; judged by two LLMs, not humans): best GB/T 9704 layout audit score (97.2 vs 79.6 for the best alternative); classified-material checkpoints passed 91.7% vs 0% for every competitor; AI-tone removal keeps 99.6% of facts, with added facts in 1/16 runs (Claude judge) and 2/32 (DeepSeek judge). Details and limitations are in the README
+- Competitive benchmark (compete-v7: 27 tasks, 276 runs, against 8 similar GitHub skills and a no-skill control; judged by two LLMs, not humans): best GB/T 9704 layout audit score (97.2 vs 79.6 for the best alternative); AI-tone removal keeps 99.6% of facts, with added facts in 1/16 runs (Claude judge) and 2/32 (DeepSeek judge). Details and limitations are in the README
 - Platforms: Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, Qwen Code, Kimi Code CLI, Trae, CodeBuddy, DeepSeek, Doubao, Kimi (web), intranet LLMs
 - License: PolyForm Noncommercial 1.0.0 (free for personal/noncommercial use; commercial use requires authorization)
 - Language: all skills, prompts and outputs are in Chinese; this project does not write English documents
