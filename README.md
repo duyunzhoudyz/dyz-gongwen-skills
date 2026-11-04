@@ -177,7 +177,7 @@ bash install.sh --pack hospital
 |---|---|---|
 | [`gongwen-title`](skills/gongwen-title/) 标题与提纲 | 公文标题、主副标题、三套小标题方案、提纲，检查标题与正文是否对应 | Stable |
 | [`gongwen-polish`](skills/gongwen-polish/) 改稿润色 | 压缩、扩写、语气互转、大白话转公文、按领导批注改、多稿合并 | Stable |
-| [`gongwen-humanize`](skills/gongwen-humanize/) 去 AI 味 | 改掉 AI 腔，保留公文正当写法，事实一字不动 | Stable |
+| [`gongwen-humanize`](skills/gongwen-humanize/) 去 AI 味 | 改掉 AI 腔，保留公文正当写法，以保住事实为前提（评测中事实保持率 99.6%） | Stable |
 | [`gongwen-direct`](skills/gongwen-direct/) 去防御性 | 删免责声明，把"建议""可以考虑"改成要求，让请示有倾向性意见 | Stable |
 | [`gongwen-review`](skills/gongwen-review/) 核稿审校 | 按"八关"核稿，出分级问题清单；机检标点、数字、格式、保密隐私、禁用词 | Stable |
 

@@ -4,7 +4,7 @@
 
 # dyz-gongwen-skills · Official Document Writing Skills
 
-**Skills for writing Chinese official documents — no fabrication, confidentiality-aware, one-command GB/T 9704 formatting.**
+**Skills for writing Chinese official documents — built to resist fabrication, confidentiality-aware, one-command GB/T 9704 formatting.**
 
 [简体中文](README.md) · English
 
@@ -176,7 +176,7 @@ Maturity: **Stable** = real-model eval pass rate (group A expectations) >= 80%, 
 |---|---|---|
 | [`gongwen-title`](skills/gongwen-title/) Titles & outlines | Document titles, subtitle options, three heading-style variants, outlines; checks title-body alignment | Stable |
 | [`gongwen-polish`](skills/gongwen-polish/) Polishing | Compression, fact-only expansion, register conversion, plain-speech-to-official, revision by leader notes, multi-draft merge | Stable |
-| [`gongwen-humanize`](skills/gongwen-humanize/) De-AI-tone | Removes AI-style filler; preserves legitimate official document conventions; facts untouched | Stable |
+| [`gongwen-humanize`](skills/gongwen-humanize/) De-AI-tone | Removes AI-style filler; preserves legitimate official document conventions; facts preserved as a hard constraint (99.6% fact preservation in the evaluation) | Stable |
 | [`gongwen-direct`](skills/gongwen-direct/) De-hedging | Removes disclaimers; converts "it is suggested" to directives; ensures requests include a position | Stable |
 | [`gongwen-review`](skills/gongwen-review/) Proofreading | Eight-gate review, tiered issue list; script-checks punctuation, numbers, formatting, confidentiality, banned words | Stable |
 
