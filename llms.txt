@@ -4,7 +4,7 @@
 
 ## What this project does
 
-dyz-gongwen-skills is a collection of agent skills (also called prompts, slash-command skills, or coding-assistant plugins) that help users write Chinese official documents (公文, gōngwén). It enforces Chinese regulations and national standards (GB/T 9704-2012 layout, GB/T 15834-2011 punctuation, GB/T 15835-2011 numerals), adapts to the type of organization and the writer's role, is built to use only the materials the user provides (gaps are marked [TO FILL] rather than invented), stops processing when classified material is detected, and cuts length rather than padding it.
+dyz-gongwen-skills is a collection of agent skills (also called prompts, slash-command skills, or coding-assistant plugins) that help users write Chinese official documents (公文, gōngwén). It enforces Chinese regulations and national standards (GB/T 9704-2012 layout, GB/T 15834-2011 punctuation, GB/T 15835-2011 numerals), adapts to the type of organization and the writer's role, is built to use only the materials the user provides (gaps are marked [TO FILL] rather than invented), is designed to stop and ask for confirmation when it detects classification markings, and cuts length rather than padding it.
 
 ## Document types covered
 

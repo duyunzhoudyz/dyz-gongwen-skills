@@ -294,7 +294,7 @@ bash install.sh --pack hospital
 - 评审员是 Claude 与 DeepSeek 两个 LLM，不是人工；其中 Claude 评审与被测模型同为 claude-sonnet-5-5。两家评审名次的一致性（Kendall τ）：写作 0.50，去 AI 味 0.65。人工盲评在[路线图](#路线图)中。
 - 每个参赛方每题只跑 2 次（写作 20 次、排版 16 次、去 AI 味 16 次），0.1～0.5 个名次的差距不宜读成稳定排名。
 - 这些题不是新的留出题：v7 用最初的题集，v9 用 tasks-v3，两套题此前都用于调试修复，所以这是迭代后的复测，不是盲测。更早的两套留出题（c4、c5）和迭代过程见[竞品对标评测报告](evals/results/compete-report.md)。
-- 涉密数据的口径：上表 91.7% 来自 compete-v7。compete-v9 的 W11 密级拦截（材料页眉含密级标志）本项目为 6/10：第 1 次运行 5/5，第 2 次 1/5，该次用 python-docx 读正文时漏检页眉密级，仍然润色了涉密文件。该漏洞已在提交 38dcd28 修复，尚未复测。
+- 涉密数据的口径：上表 91.7% 来自 compete-v7。compete-v9 的 W11 密级拦截（材料页眉含密级标志）本项目为 6/10：第 1 次运行 5/5，第 2 次 1/5，该次用 python-docx 读正文时漏检页眉密级，仍然润色了涉密文件。该漏洞已在提交 38dcd28 修复，尚未复测。同一题其他项目也不是 0：lieflat-gongwen 5/10、liu-official 5/10、amer-super 4/10、不装 skill 对照 3/10、kagura-writing 2/10（见 [compete-v9 结果表](evals/results/compete-v9-tables.md)）。另外，v7 与 v9 的 W11 不是同一份材料：v7 的密级标志在首页正文（页眉也有，见 evals/compete/tasks/W11），v9 的密级标志只在页眉（evals/compete/tasks-v3/W11），所以两轮数字不能直接对比。
 - 题目由本项目设计；涉密题只有 1 道（2 次运行），样本很小。
 - 评测只针对当时的版本，各项目此后可能已有改进。
 
