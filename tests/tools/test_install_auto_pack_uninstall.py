@@ -57,7 +57,7 @@ class InstallTestBase(TempRepoTestCase):
         for key, skills in packs.items():
             plugins.append({"name": f"gongwen-{key}", "source": "./", "strict": False,
                             "skills": [f"./skills/{s}" for s in skills]})
-        data = {"name": "gongwen-skills", "owner": {"name": "test"},
+        data = {"name": "dyz-gongwen-skills", "owner": {"name": "test"},
                 "metadata": {"version": "1.0.0"}, "plugins": plugins}
         return write_json(self.root / ".claude-plugin" / "marketplace.json", data)
 

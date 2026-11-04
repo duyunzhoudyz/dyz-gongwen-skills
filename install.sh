@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gongwen-skills 一键安装脚本（macOS、Linux）
+# dyz-gongwen-skills 一键安装脚本（macOS、Linux）
 #
 # 用法：在仓库根目录打开终端，运行
 #   bash install.sh                    # 安装到本机探测到的全部 Agent 工具
@@ -89,7 +89,7 @@ show_python_guide() {
   fi
   echo "  装好后重新打开终端，再运行：bash install.sh"
   echo "暂时不装 Python 也能用："
-  echo "  Claude Code 用户：在 Claude Code 中运行 /plugin marketplace add duyunzhoudyz/gongwen-skills"
+  echo "  Claude Code 用户：在 Claude Code 中运行 /plugin marketplace add duyunzhoudyz/dyz-gongwen-skills"
   echo "  网页大模型用户：打开 dist/prompts/，把提示词文件内容复制到对话开头。"
 }
 
@@ -101,7 +101,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 if [ ! -f "$INSTALL_PY" ]; then
-  warn "找不到 $INSTALL_PY。请在 gongwen-skills 仓库根目录运行本脚本，并确认下载的文件完整。"
+  warn "找不到 $INSTALL_PY。请在 dyz-gongwen-skills 仓库根目录运行本脚本，并确认下载的文件完整。"
   exit 2
 fi
 

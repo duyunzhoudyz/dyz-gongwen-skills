@@ -194,7 +194,7 @@ class BuildPromptsTest(TempRepoTestCase):
         write_text(self.root / "skills/gongwen-demo/scripts/__pycache__/x.pyc", "缓存")
         code, out = self.build("--offline")
         self.assertEqual(code, 0, out)
-        target = self.root / "dist/offline/gongwen-skills-offline-1.2.3.zip"
+        target = self.root / "dist/offline/dyz-gongwen-skills-offline-1.2.3.zip"
         self.assertTrue(target.is_file())
         with zipfile.ZipFile(target) as zf:
             names = zf.namelist()
@@ -224,7 +224,7 @@ class BuildPromptsTest(TempRepoTestCase):
         code, out = self.build("--offline")
         self.assertEqual(code, 0, out)
         self.assertNotIn("找不到", out)
-        target = self.root / "dist/offline/gongwen-skills-offline-1.2.3.zip"
+        target = self.root / "dist/offline/dyz-gongwen-skills-offline-1.2.3.zip"
         with zipfile.ZipFile(target) as zf:
             names = zf.namelist()
             for name in ("install.ps1", "install.sh", "tools/install.py", ".claude-plugin/marketplace.json"):
@@ -273,7 +273,7 @@ class BuildPromptsTest(TempRepoTestCase):
         write_text(d / "references/公文样例.md", "# 样例\n")  # 同名前缀的普通文件照常打包
         code, out = self.build("--offline")
         self.assertEqual(code, 0, out)
-        target = self.root / "dist/offline/gongwen-skills-offline-0.0.0.zip"
+        target = self.root / "dist/offline/dyz-gongwen-skills-offline-0.0.0.zip"
         with zipfile.ZipFile(target) as zf:
             names = zf.namelist()
         self.assertFalse(any(".gongwen" in n for n in names), names)
@@ -295,7 +295,7 @@ class BuildPromptsTest(TempRepoTestCase):
         self.repo.add_skill()
         code, out = self.build("--offline")
         self.assertEqual(code, 0, out)
-        self.assertTrue((self.root / "dist/offline/gongwen-skills-offline-0.0.0.zip").is_file())
+        self.assertTrue((self.root / "dist/offline/dyz-gongwen-skills-offline-0.0.0.zip").is_file())
         self.assertIn("0.0.0", out)
 
     def test_helpers(self):

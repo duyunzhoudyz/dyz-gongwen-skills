@@ -2,7 +2,7 @@
 
 <div align="center">
 
-# gongwen-skills · Official Document Writing Skills
+# dyz-gongwen-skills · Official Document Writing Skills
 
 **Skills for writing Chinese official documents — no fabrication, confidentiality-aware, one-command GB/T 9704 formatting.**
 
@@ -10,10 +10,10 @@
 
 If this project solves a real problem for you, a Star helps others with the same need find it.
 
-[![GitHub stars](https://img.shields.io/github/stars/duyunzhoudyz/gongwen-skills?style=flat&logo=github&label=Stars)](https://github.com/duyunzhoudyz/gongwen-skills/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/duyunzhoudyz/dyz-gongwen-skills?style=flat&logo=github&label=Stars)](https://github.com/duyunzhoudyz/dyz-gongwen-skills/stargazers)
 [![License: PolyForm NC](https://img.shields.io/badge/License-PolyForm%20NC%201.0-blue.svg)](LICENSE)
 ![Skills](https://img.shields.io/badge/skills-22-brightgreen)
-[![Version](https://img.shields.io/badge/version-1.0.0-orange)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-orange)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-7%20Agent%20tools%20%7C%20web%20LLM-lightgrey)](#quick-start)
 
 [Quick Start](#quick-start) · [Skill Map](#skill-map) · [Just Say It](#just-say-it) · [Results](#results) · [FAQ](#faq) · [Community](#community)
@@ -24,7 +24,7 @@ If this project solves a real problem for you, a Star helps others with the same
 
 <div align="center">
 
-<img src="docs/assets/hero-before-after.png" width="860" alt="An AI-sounding notice before and after gongwen-skills: 5 must-fix issues to 0, 31 suggestions to 0, then a GB/T 9704 compliant .docx" />
+<img src="docs/assets/hero-before-after.png" width="860" alt="An AI-sounding notice before and after dyz-gongwen-skills: 5 must-fix issues to 0, 31 suggestions to 0, then a GB/T 9704 compliant .docx" />
 
 *Fictional district education bureau notice; full walkthrough in [examples/B-AI稿体检](examples/B-AI稿体检/). The final-draft view is an approximate render; actual fonts depend on your machine. Image text is in Chinese.*
 
@@ -34,7 +34,7 @@ If this project solves a real problem for you, a Star helps others with the same
 
 ## What makes this different from plain AI writing
 
-| | Plain AI writing | gongwen-skills |
+| | Plain AI writing | dyz-gongwen-skills |
 |---|---|---|
 | Facts and figures | Fabricates when missing | Uses only your materials; gaps marked `[TO FILL]` |
 | Length | Pads to fill space | Writes to your specified length; no invented content |
@@ -69,7 +69,7 @@ The skills-directory paths for Trae and CodeBuddy are not fully verified. The in
 
 ### Option 1: One-line install script
 
-1. Download the repo. With git, run `git clone https://github.com/duyunzhoudyz/gongwen-skills.git`; without it, click the green **Code** button at the top of the page, choose **Download ZIP**, and unzip it.
+1. Download the repo. With git, run `git clone https://github.com/duyunzhoudyz/dyz-gongwen-skills.git`; without it, click the green **Code** button at the top of the page, choose **Download ZIP**, and unzip it.
 2. Run the script from the repo folder (on Windows, type `powershell` in the folder address bar; on macOS/Linux, open a terminal in that folder):
 
 ```powershell
@@ -92,14 +92,14 @@ python tools/install.py --target qwen
 ### Option 2: Claude Code plugin marketplace
 
 ```text
-/plugin marketplace add duyunzhoudyz/gongwen-skills
-/plugin install gongwen@gongwen-skills
+/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills
+/plugin install gongwen@dyz-gongwen-skills
 ```
 
 ### Option 3: npx skills (requires Node.js)
 
 ```bash
-npx skills add duyunzhoudyz/gongwen-skills
+npx skills add duyunzhoudyz/dyz-gongwen-skills
 ```
 
 ### Option 4: Web LLM or on-premises (no install)
@@ -116,7 +116,7 @@ Send this to your Agent:
 
 ```text
 Please install the skills from the skills/ directory of
-https://github.com/duyunzhoudyz/gongwen-skills into your skills directory.
+https://github.com/duyunzhoudyz/dyz-gongwen-skills into your skills directory.
 The following are sector packs — install only gongwen-hospital for now:
 gongwen-grassroots, gongwen-hospital, gongwen-university, gongwen-k12, gongwen-soe.
 Tell me which skills are available once done.
@@ -127,7 +127,7 @@ Tell me which skills are available once done.
 Sector packs extend the core skills for industry-specific documents. Example for hospitals:
 
 ```text
-/plugin install gongwen-hospital@gongwen-skills
+/plugin install gongwen-hospital@dyz-gongwen-skills
 ```
 
 ```bash
@@ -351,7 +351,8 @@ The project does not bundle fonts and will not substitute alternatives. When sta
 - [x] v0.2: Org profile, statutory documents, speeches, party-affairs materials, polishing
 - [x] v0.3: Policy implementation, rectification, meeting minutes, briefs, data & charts
 - [x] v0.4: Sector packs -- township, hospital, university, K-12, SOE
-- [x] **v1.0.0** (current version): All 22 skills in one release; real-model evaluation; one-line install script and sector-pack selection
+- [x] **v1.0.0**: All 22 skills in one release; real-model evaluation; one-line install script and sector-pack selection
+- [x] **v1.1.0** (current version): All five sector packs promoted to Stable; repository and suite renamed to dyz-gongwen-skills
 
 **Planned**
 
@@ -370,13 +371,13 @@ To help with testing, see [测试者手册](docs/评测/测试者手册.md). Use
 
 <img src="docs/assets/wecom.jpg" width="180" alt="WeChat Work QR code" />
 
-**Scan to join the gongwen-skills discussion group (WeChat Work)**
+**Scan to join the dyz-gongwen-skills discussion group (WeChat Work)**
 
 Commercial licensing and partnership inquiries welcome through the same channel.
 
 </div>
 
-Bug reports, rule corrections, and new scenarios: open an [Issue](https://github.com/duyunzhoudyz/gongwen-skills/issues/new/choose). Usage tips and experience are welcome as Issues too, or scan the QR code above to join the group. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
+Bug reports, rule corrections, and new scenarios: open an [Issue](https://github.com/duyunzhoudyz/dyz-gongwen-skills/issues/new/choose). Usage tips and experience are welcome as Issues too, or scan the QR code above to join the group. Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 If this project has helped you, a Star or a coffee keeps it going.
 

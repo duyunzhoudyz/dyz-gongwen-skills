@@ -1,6 +1,6 @@
 # gongwen 公文写作总入口
 
-gongwen-skills 的总入口。说不清要写什么、第一次用、不知道该找哪个 skill 时，先找它。它帮你判断这份材料该怎么写、要走哪几步，再把你交给对应的 skill。在网页大模型（DeepSeek、豆包、Kimi 等）里使用时，它就是默认入口。
+dyz-gongwen-skills 的总入口。说不清要写什么、第一次用、不知道该找哪个 skill 时，先找它。它帮你判断这份材料该怎么写、要走哪几步，再把你交给对应的 skill。在网页大模型（DeepSeek、豆包、Kimi 等）里使用时，它就是默认入口。
 
 它自己不起草、不改稿：法定公文交 gongwen-draft，总结汇报交 gongwen-report，讲话交 gongwen-speech，纪要交 gongwen-minutes，信息交 gongwen-brief，其余见下文“与其他 skill 的分工”。
 

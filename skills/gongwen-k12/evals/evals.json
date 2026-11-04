@@ -307,7 +307,7 @@
         "说明开学典礼讲话不在本包起草（交接卡写 gongwen-speech），没有自行写出讲话稿",
         "输出交接卡，含单位画像（中小学）、当前模式、任务（开学典礼校长讲话约8分钟）、路线、本站",
         "告诉用户新开对话，先粘贴 gongwen-speech 的提示词文件（dist/prompts/gongwen-speech.md），再粘贴交接卡",
-        "给出核心插件的安装命令（/plugin marketplace add duyunzhoudyz/gongwen-skills 和 /plugin install gongwen@gongwen-skills，或 npx skills add duyunzhoudyz/gongwen-skills）",
+        "给出核心插件的安装命令（/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills 和 /plugin install gongwen@dyz-gongwen-skills，或 npx skills add duyunzhoudyz/dyz-gongwen-skills）",
         "提示准备学校本学期的重点工作、需要表彰或提及的事项等素材，提醒先删去学生个人信息"
       ],
       "unit_type": "中小学",
@@ -382,7 +382,7 @@
         "说明督导反馈问题的整改方案和整改台账不在本包起草（交接卡路线写 gongwen-rectify），没有自行写出整改方案、措施、期限或台账",
         "输出交接卡，含单位画像（中小学）、当前模式、任务（督导反馈五个问题的整改方案和台账，30日内提交）、路线、本站",
         "告诉用户新开对话，先粘贴 gongwen-rectify 的提示词文件（dist/prompts/gongwen-rectify.md），再粘贴交接卡",
-        "给出核心插件的安装命令（/plugin marketplace add duyunzhoudyz/gongwen-skills 和 /plugin install gongwen@gongwen-skills，或 npx skills add duyunzhoudyz/gongwen-skills）",
+        "给出核心插件的安装命令（/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills 和 /plugin install gongwen@dyz-gongwen-skills，或 npx skills add duyunzhoudyz/dyz-gongwen-skills）",
         "固定加一句提醒：素材里的学生姓名、成绩、家庭情况请先删去再粘贴",
         "说明本包负责督导评估之前的自评报告；没有把五个问题写成已整改完成"
       ],

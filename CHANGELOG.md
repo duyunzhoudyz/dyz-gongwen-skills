@@ -1,8 +1,12 @@
 # 更新日志
 
-## v1.1.0（2026-11-04）
+## v1.1.0（2026-11-05 发布）
 
 行业包专项修订：五个行业包均升为 Stable（国企包 soe 经补规则、复测后升级），国企包版本升到 1.1.0。
+
+### 更名
+
+- 仓库与套件更名为 dyz-gongwen-skills，旧地址 GitHub 会自动跳转。已经安装过的用户需重新执行 `/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills`。22 个 skill 自己的名称（gongwen、gongwen-draft 等）不变。
 
 ### 行业包
 

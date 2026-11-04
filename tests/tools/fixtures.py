@@ -160,7 +160,7 @@ class FakeRepo:
         if skills is None:
             skills = sorted(p.name for p in (self.root / "skills").iterdir() if p.is_dir())
         data = {
-            "name": "gongwen-skills",
+            "name": "dyz-gongwen-skills",
             "owner": {"name": "test"},
             "plugins": [{
                 "name": plugin_name,

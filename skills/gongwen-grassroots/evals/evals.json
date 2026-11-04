@@ -439,7 +439,7 @@
       "expectations": [
         "识别出年终总结和工作计划属于通用文书、不在本包起草；用描述性说法说明，或在交接卡路线中写明 gongwen-report",
         "没有在本包内起草年终总结或工作计划正文",
-        "转交方式二者择一满足即可：①能调用其他 skill 的环境直接转交 gongwen-report；②未安装或在网页环境的，输出交接卡（路线写 gongwen-report，单位类型写基层），并给出安装命令（如 /plugin install gongwen@gongwen-skills 或 npx skills add duyunzhoudyz/gongwen-skills）",
+        "转交方式二者择一满足即可：①能调用其他 skill 的环境直接转交 gongwen-report；②未安装或在网页环境的，输出交接卡（路线写 gongwen-report，单位类型写基层），并给出安装命令（如 /plugin install gongwen@dyz-gongwen-skills 或 npx skills add duyunzhoudyz/dyz-gongwen-skills）",
         "输出交接卡的，交接卡不含原始材料",
         "走交接卡的，说明下一步操作：新开对话，先粘贴 gongwen-report 的提示词文件（dist/prompts/gongwen-report.md），再粘贴交接卡和素材；直接转交的本条视为满足"
       ],
@@ -533,7 +533,7 @@
       "expectations": [
         "识别出讲话稿属于通用文书、不在本包起草；用描述性说法说明，或在交接卡路线中写明 gongwen-speech",
         "没有在本包内起草讲话稿正文",
-        "转交方式二者择一满足即可：①能调用其他 skill 的环境直接转交 gongwen-speech；②未安装或在网页环境的，输出交接卡（路线写 gongwen-speech，单位类型写基层），并给出安装命令（如 /plugin install gongwen@gongwen-skills 或 npx skills add duyunzhoudyz/gongwen-skills）",
+        "转交方式二者择一满足即可：①能调用其他 skill 的环境直接转交 gongwen-speech；②未安装或在网页环境的，输出交接卡（路线写 gongwen-speech，单位类型写基层），并给出安装命令（如 /plugin install gongwen@dyz-gongwen-skills 或 npx skills add duyunzhoudyz/dyz-gongwen-skills）",
         "走交接卡的，交接卡写明时长约十分钟、场合为全镇防汛工作会议，不含原始材料；任何分支都不编用户没给的素材",
         "走交接卡的，说明下一步操作：新开对话，先粘贴 gongwen-speech 的提示词文件（dist/prompts/gongwen-speech.md），再粘贴交接卡；直接转交的本条视为满足",
         "没有因用户说“赶时间，别问了”而在本包内硬写，也没有重复追问"

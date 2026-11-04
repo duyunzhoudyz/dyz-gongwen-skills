@@ -5,7 +5,7 @@
 产物：
   dist/prompts/<skill>.md   信息块 + SKILL.md 正文（去掉 frontmatter）+ 按 prompt_bundle 顺序的附录
   dist/prompts/README.md    索引表
-  dist/offline/gongwen-skills-offline-<版本>.zip（--offline 时生成）
+  dist/offline/dyz-gongwen-skills-offline-<版本>.zip（--offline 时生成）
     内含 skills/、dist/prompts/、一键安装脚本（install.ps1、install.sh、tools/install.py、
     .claude-plugin/marketplace.json）、根目录文档，以及由 tools/offline_readme.md 生成的"离线使用说明.md"
 
@@ -554,7 +554,7 @@ def write_offline_zip(repo_root: Path, version: str) -> Tuple[Path, int]:
     """生成离线包；固定时间戳与权限，保证同样输入得到同样内容。"""
     out_dir = repo_root / OFFLINE_REL
     out_dir.mkdir(parents=True, exist_ok=True)
-    target = out_dir / f"gongwen-skills-offline-{version}.zip"
+    target = out_dir / f"dyz-gongwen-skills-offline-{version}.zip"
     tmp = target.with_name(target.name + ".tmp")
     files = collect_offline_files(repo_root)
     with zipfile.ZipFile(tmp, "w") as zf:
@@ -583,7 +583,7 @@ def main(argv: Optional[Sequence[str]] = None, repo_root: Optional[Path] = None)
     parser.add_argument(
         "--offline",
         action="store_true",
-        help="额外生成 dist/offline/gongwen-skills-offline-<版本>.zip（含 skills/、dist/prompts/、"
+        help="额外生成 dist/offline/dyz-gongwen-skills-offline-<版本>.zip（含 skills/、dist/prompts/、"
              "install.ps1、install.sh、tools/install.py、.claude-plugin/marketplace.json、"
              "README.md、LICENSE、使用须知.md、THIRD_PARTY_NOTICES.md、CHANGELOG.md，"
              "以及由 tools/offline_readme.md 生成的根目录\"离线使用说明.md\"）",

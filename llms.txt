@@ -1,10 +1,10 @@
-# gongwen-skills
+# dyz-gongwen-skills
 
 > AI Agent Skills for writing Chinese official documents (公文). 22 skills covering drafting, revision, review, and GB/T 9704 standard Word layout. Supports Claude Code, Codex, Cursor, Gemini CLI, Qwen Code, Kimi Code CLI, Trae, and web chatbots (DeepSeek, Doubao, Kimi) via copyable prompts.
 
 ## What this project does
 
-gongwen-skills is a collection of agent skills (also called prompts, slash-command skills, or coding-assistant plugins) that help users write Chinese official documents (公文, gōngwén). It enforces Chinese regulations and national standards (GB/T 9704-2012 layout, GB/T 15834-2011 punctuation, GB/T 15835-2011 numerals), adapts to the type of organization and the writer's role, never fabricates facts, stops processing when classified material is detected, and cuts length rather than padding it.
+dyz-gongwen-skills is a collection of agent skills (also called prompts, slash-command skills, or coding-assistant plugins) that help users write Chinese official documents (公文, gōngwén). It enforces Chinese regulations and national standards (GB/T 9704-2012 layout, GB/T 15834-2011 punctuation, GB/T 15835-2011 numerals), adapts to the type of organization and the writer's role, never fabricates facts, stops processing when classified material is detected, and cuts length rather than padding it.
 
 ## Document types covered
 
@@ -28,11 +28,11 @@ gongwen-skills is a collection of agent skills (also called prompts, slash-comma
 ## Installation
 
 Claude Code plugin marketplace:
-/plugin marketplace add duyunzhoudyz/gongwen-skills
-/plugin install gongwen@gongwen-skills
+/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills
+/plugin install gongwen@dyz-gongwen-skills
 
 npx (Codex, Cursor, Gemini CLI, GitHub Copilot, and others):
-npx skills add duyunzhoudyz/gongwen-skills
+npx skills add duyunzhoudyz/dyz-gongwen-skills
 
 One-click script (Windows): powershell -ExecutionPolicy Bypass -File .\install.ps1
 One-click script (macOS/Linux): bash install.sh
@@ -50,4 +50,4 @@ No-install (web chatbots and intranet models): copy prompt files from dist/promp
 
 ## Repository
 
-https://github.com/duyunzhoudyz/gongwen-skills
+https://github.com/duyunzhoudyz/dyz-gongwen-skills

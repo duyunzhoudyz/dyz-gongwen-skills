@@ -1,5 +1,5 @@
 ﻿<#
-gongwen-skills 一键安装脚本（Windows PowerShell 5.1 及以上）
+dyz-gongwen-skills 一键安装脚本（Windows PowerShell 5.1 及以上）
 
 用法：在仓库根目录打开 PowerShell，运行
   powershell -ExecutionPolicy Bypass -File .\install.ps1                    # 安装到本机探测到的全部 Agent 工具
@@ -89,7 +89,7 @@ function Show-PythonGuide {
     Write-Host '  3. 装好后关闭并重新打开 PowerShell，再运行本脚本。'
     Write-Host '  也可以用系统自带的 winget 安装：winget install Python.Python.3.12'
     Write-Host '暂时不装 Python 也能用：'
-    Write-Host '  Claude Code 用户：在 Claude Code 中运行 /plugin marketplace add duyunzhoudyz/gongwen-skills'
+    Write-Host '  Claude Code 用户：在 Claude Code 中运行 /plugin marketplace add duyunzhoudyz/dyz-gongwen-skills'
     Write-Host '  网页大模型用户：打开 dist\prompts\，把提示词文件内容复制到对话开头。'
 }
 
@@ -125,7 +125,7 @@ try {
         }
 
         if (-not (Test-Path -LiteralPath $InstallPy)) {
-            Write-Warn "找不到 $InstallPy。请在 gongwen-skills 仓库根目录运行本脚本，并确认下载的文件完整。"
+            Write-Warn "找不到 $InstallPy。请在 dyz-gongwen-skills 仓库根目录运行本脚本，并确认下载的文件完整。"
             $ExitCode = 2
             break
         }

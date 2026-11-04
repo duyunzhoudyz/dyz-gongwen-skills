@@ -2,7 +2,7 @@
 
 <div align="center">
 
-# 公文 Skills · gongwen-skills
+# 公文 Skills · dyz-gongwen-skills
 
 **面向机关事业单位和国企文字工作者的公文写作 Skills：防编造、守保密、一键 GB/T 9704 排版。**
 
@@ -10,10 +10,10 @@
 
 如果这个项目帮了你，点一个 Star，方便回来，也让更多有同样需求的人更容易发现它。
 
-[![GitHub stars](https://img.shields.io/github/stars/duyunzhoudyz/gongwen-skills?style=flat&logo=github&label=Stars)](https://github.com/duyunzhoudyz/gongwen-skills/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/duyunzhoudyz/dyz-gongwen-skills?style=flat&logo=github&label=Stars)](https://github.com/duyunzhoudyz/dyz-gongwen-skills/stargazers)
 [![License: PolyForm NC](https://img.shields.io/badge/License-PolyForm%20NC%201.0-blue.svg)](LICENSE)
 ![Skills](https://img.shields.io/badge/skills-22-brightgreen)
-[![Version](https://img.shields.io/badge/version-1.0.0-orange)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-orange)](CHANGELOG.md)
 [![Platforms](https://img.shields.io/badge/platforms-7%20Agent%20tools%20%7C%20web%20LLM-lightgrey)](#快速开始)
 
 [快速开始](#快速开始) · [技能地图](#技能地图) · [直接这样说](#直接这样说) · [效果](#效果) · [常见问题](#常见问题) · [关注与交流](#关注与交流)
@@ -24,7 +24,7 @@
 
 <div align="center">
 
-<img src="docs/assets/hero-before-after.png" width="860" alt="AI 腔通知经过 gongwen-skills 处理前后对比：P0 必改 5 处降到 0，P1 建议改 31 处降到 0，生成国标红头 docx" />
+<img src="docs/assets/hero-before-after.png" width="860" alt="AI 腔通知经过 dyz-gongwen-skills 处理前后对比：P0 必改 5 处降到 0，P1 建议改 31 处降到 0，生成国标红头 docx" />
 
 *示例为虚构的区教育局通知，完整过程见 [examples/B-AI稿体检](examples/B-AI稿体检/)；成稿截图为近似渲染，实际字体以本机安装为准。*
 
@@ -34,7 +34,7 @@
 
 ## 和普通 AI 写材料有什么不同
 
-| | 一般的 AI 写作 | gongwen-skills |
+| | 一般的 AI 写作 | dyz-gongwen-skills |
 |---|---|---|
 | 数据和案例 | 缺了就编 | 只用你给的材料，缺的标【待补】 |
 | 篇幅 | 越写越长，素材不够就注水 | 你定了字数就按字数写，不新增事实、不注水 |
@@ -71,7 +71,7 @@ Trae、CodeBuddy 的 skills 目录路径尚未完全核实，一键脚本提供�
 
 ### 方式一：一键安装脚本（Windows、macOS、Linux）
 
-1. 下载本仓库。会用 git 的运行 `git clone https://github.com/duyunzhoudyz/gongwen-skills.git`；不会的，点本页上方绿色 **Code** 按钮，选 **Download ZIP**，下载后解压。
+1. 下载本仓库。会用 git 的运行 `git clone https://github.com/duyunzhoudyz/dyz-gongwen-skills.git`；不会的，点本页上方绿色 **Code** 按钮，选 **Download ZIP**，下载后解压。
 2. 在仓库文件夹里运行（Windows 在文件夹地址栏输入 `powershell` 回车；macOS、Linux 在终端里进入该文件夹）：
 
 ```powershell
@@ -94,14 +94,14 @@ python tools/install.py --target qwen
 ### 方式二：Claude Code 插件市场
 
 ```text
-/plugin marketplace add duyunzhoudyz/gongwen-skills
-/plugin install gongwen@gongwen-skills
+/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills
+/plugin install gongwen@dyz-gongwen-skills
 ```
 
 ### 方式三：npx skills（需要 Node.js）
 
 ```bash
-npx skills add duyunzhoudyz/gongwen-skills
+npx skills add duyunzhoudyz/dyz-gongwen-skills
 ```
 
 ### 方式四：网页大模型或内网模型（不用安装）
@@ -117,7 +117,7 @@ npx skills add duyunzhoudyz/gongwen-skills
 把这段话发给你的 Agent：
 
 ```text
-请把 https://github.com/duyunzhoudyz/gongwen-skills 中 skills/ 目录下的 skill 安装到你的 skills 目录。
+请把 https://github.com/duyunzhoudyz/dyz-gongwen-skills 中 skills/ 目录下的 skill 安装到你的 skills 目录。
 其中 gongwen-grassroots、gongwen-hospital、gongwen-university、gongwen-k12、gongwen-soe 是行业包，
 只装我需要的 gongwen-hospital。装好后告诉我有哪些可用。
 ```
@@ -127,7 +127,7 @@ npx skills add duyunzhoudyz/gongwen-skills
 行业包装在核心 skill 之上，按需选装。以医院为例：
 
 ```text
-/plugin install gongwen-hospital@gongwen-skills
+/plugin install gongwen-hospital@dyz-gongwen-skills
 ```
 
 ```bash
@@ -350,7 +350,7 @@ bash install.sh --pack hospital
 
 **1. 这个项目是什么，收费吗？**
 
-gongwen-skills 是给机关事业单位、国企文字工作者用的公文写作 Skills 集合，v1.0.0 有 22 个 skill。按 PolyForm Noncommercial 1.0.0 许可证源码公开（source-available，不是 OSI 意义上的开源），个人及非商业用途免费；商业用途请联系作者。
+dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文写作 Skills 集合，v1.1.0 有 22 个 skill。按 PolyForm Noncommercial 1.0.0 许可证源码公开（source-available，不是 OSI 意义上的开源），个人及非商业用途免费；商业用途请联系作者。
 
 **2. 没有 Claude，能用吗？**
 
@@ -382,7 +382,8 @@ gongwen-skills 是给机关事业单位、国企文字工作者用的公文写�
 - [x] **v0.2「开年版」**：单位画像、法定公文、讲话稿、党建材料、改稿润色
 - [x] **v0.3「落实版」**：上级文件转化、整改材料、会议纪要、信息简报、数据与图表
 - [x] **v0.4「行业包」**：基层、医院、高校、中小学、国企
-- [x] **v1.0.0**（当前版本）：22 个 skill 一次发布；真实模型评测；一键安装脚本和行业包选装
+- [x] **v1.0.0**：22 个 skill 一次发布；真实模型评测；一键安装脚本和行业包选装
+- [x] **v1.1.0**（当前版本）：五个行业包均升为 Stable；仓库与套件更名为 dyz-gongwen-skills
 
 **后续计划**
 
@@ -407,7 +408,7 @@ gongwen-skills 是给机关事业单位、国企文字工作者用的公文写�
 
 </div>
 
-规则写错了、遇到新场景、发现 bug，请到 [Issues](https://github.com/duyunzhoudyz/gongwen-skills/issues/new/choose) 选对应表单；使用心得也可以提 Issue，或扫上面的二维码进群交流。参与开发见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+规则写错了、遇到新场景、发现 bug，请到 [Issues](https://github.com/duyunzhoudyz/dyz-gongwen-skills/issues/new/choose) 选对应表单；使用心得也可以提 Issue，或扫上面的二维码进群交流。参与开发见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 如果这个项目在你最需要的时候帮了你，可以点一个 Star，或者请作者喝杯茶。
 

@@ -1,6 +1,6 @@
 > **公立医院行业包（gongwen-hospital）**（提示词版）
 >
-> 版本：1.1.0　成熟度：Stable（稳定版）　全文约 28898 字符
+> 版本：1.1.0　成熟度：Stable（稳定版）　全文约 28910 字符
 >
 > 使用方法：
 > 1. 复制全文，粘贴到对话开头；
@@ -324,7 +324,7 @@
 ### （一）转交与未安装兜底
 
 1. 能调用其他 skill 且目标 skill 已安装的环境，直接调用，不需要交接卡。
-2. 目标 skill 未安装，或在网页环境的，同时给出三样：（1）交接卡；（2）说明“可以新开对话，先粘贴 `dist/prompts/<skill 名>.md` 全文，再粘贴交接卡和材料继续”；（3）安装命令：Claude Code 为 `/plugin marketplace add duyunzhoudyz/gongwen-skills` 和 `/plugin install gongwen@gongwen-skills`（行业包把 gongwen 换成包名，如 gongwen-hospital），其他工具为 `npx skills add duyunzhoudyz/gongwen-skills`。不用不对口的 skill 代写。请用户准备素材的，同时提醒先删去素材里的姓名、学号、成绩、家庭情况等个人信息。
+2. 目标 skill 未安装，或在网页环境的，同时给出三样：（1）交接卡；（2）说明“可以新开对话，先粘贴 `dist/prompts/<skill 名>.md` 全文，再粘贴交接卡和材料继续”；（3）安装命令：Claude Code 为 `/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills` 和 `/plugin install gongwen@dyz-gongwen-skills`（行业包把 gongwen 换成包名，如 gongwen-hospital），其他工具为 `npx skills add duyunzhoudyz/dyz-gongwen-skills`。不用不对口的 skill 代写。请用户准备素材的，同时提醒先删去素材里的姓名、学号、成绩、家庭情况等个人信息。
 3. 用户在 Agent 环境里贴了交接卡的，同样按卡开工，本站完成后输出更新后的交接卡。
 
 

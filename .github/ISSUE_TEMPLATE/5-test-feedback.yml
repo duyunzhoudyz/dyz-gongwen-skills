@@ -17,7 +17,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        一个问题填一份。填写方法、必测场景和脱敏做法见 [测试者手册](https://github.com/duyunzhoudyz/gongwen-skills/blob/main/docs/%E8%AF%84%E6%B5%8B/%E6%B5%8B%E8%AF%95%E8%80%85%E6%89%8B%E5%86%8C.md)。
+        一个问题填一份。填写方法、必测场景和脱敏做法见 [测试者手册](https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/docs/%E8%AF%84%E6%B5%8B/%E6%B5%8B%E8%AF%95%E8%80%85%E6%89%8B%E5%86%8C.md)。
         截图请先涂黑遮挡，再上传。规则本身写错了（与国标或条例原文不符）的，请改用“规则纠错”表单。
 
   - type: dropdown

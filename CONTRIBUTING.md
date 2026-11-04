@@ -9,14 +9,14 @@
 
 ## 提交入口
 
-- **Issue 表单。**到 [Issues](https://github.com/duyunzhoudyz/gongwen-skills/issues/new/choose) 选对应的表单，表单文件在 `.github/ISSUE_TEMPLATE/`。
+- **Issue 表单。**到 [Issues](https://github.com/duyunzhoudyz/dyz-gongwen-skills/issues/new/choose) 选对应的表单，表单文件在 `.github/ISSUE_TEMPLATE/`。
   - 规则纠错，用于规则与文件原文或行业惯例不符。
   - 新场景需求，用于现有 skill 写不好的材料。
   - 行业包投稿，用于行业模板、术语、红线、评测用例。
   - Bug 报告，用于安装失败、脚本报错、skill 没有触发。
   - 测试反馈，用于试用中发现的问题，也可以记录好用的地方。
 - **Pull Request。**提交时按 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 填写，里面的“提交前检查”要全部过一遍。
-- **Discussions。**使用心得、写作经验、行业素材的讨论，到 [Discussions](https://github.com/duyunzhoudyz/gongwen-skills/discussions)。
+- **Discussions。**使用心得、写作经验、行业素材的讨论，到 [Discussions](https://github.com/duyunzhoudyz/dyz-gongwen-skills/discussions)。
 
 ## 提交前必读
 
@@ -87,7 +87,7 @@
 
 **升级后持续收集反馈。**一线测试者反馈和人工盲评不再是升级的前置条件，改为升级后持续收集：
 
-- 测试者通过 [测试反馈表单](https://github.com/duyunzhoudyz/gongwen-skills/issues/new/choose)（`.github/ISSUE_TEMPLATE/5-test-feedback.yml`）提交，或按 [测试者手册](docs/评测/测试者手册.md) 填写 `docs/评测/测试记录表.csv`；
+- 测试者通过 [测试反馈表单](https://github.com/duyunzhoudyz/dyz-gongwen-skills/issues/new/choose)（`.github/ISSUE_TEMPLATE/5-test-feedback.yml`）提交，或按 [测试者手册](docs/评测/测试者手册.md) 填写 `docs/评测/测试记录表.csv`；
 - 人工盲评按 [人工盲评说明](docs/评测/人工盲评说明.md) 进行，记入 `docs/评测/人工盲评打分表.csv`；
 - 收到经确认的严重问题（如编造、红线错误）时，该 skill 降回 Beta：同一个 PR 里改回 `status`、README 标签和技能地图标签，并在 `CHANGELOG.md` 说明原因，修复并重新达标后再升级。
 
