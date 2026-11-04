@@ -31,6 +31,10 @@
 
 抽样方法、污染说明、soe 复测和局限见 [`evals/results/v1.1-industry-sample.md`](evals/results/v1.1-industry-sample.md)，原始汇总见 [`evals/results/v1.1-industry-sample.json`](evals/results/v1.1-industry-sample.json)，soe 复测汇总见 [`evals/results/v1.1-soe-retest.json`](evals/results/v1.1-soe-retest.json)。
 
+### 修复
+
+- 修复 macOS 自带 bash 3.2 下一键安装脚本报 “unbound variable” 的问题（变量名与紧随其后的全角字符粘连）。
+
 ## v1.0.0（2026-10-23 发布）
 
 原计划分 v0.2「开年版」、v0.3「落实版」、v0.4「行业包」三次发布的 15 个 skill 已全部完成，与 v0.1 的 7 个 skill 合并为 v1.0.0 一次发布，共 22 个 skill，其中核心 skill 17 个，行业包 5 个。各 skill 用成熟度标签区分，真实模型评测通过率不低于 80%、防编造 0 次、触发正确的标 Stable，其余标 Beta；行业包统一标 Beta，待测试者反馈后再升级。各 skill 的成熟度见 README 技能地图。

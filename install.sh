@@ -101,7 +101,7 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 
 if [ ! -f "$INSTALL_PY" ]; then
-  warn "找不到 $INSTALL_PY。请在 dyz-gongwen-skills 仓库根目录运行本脚本，并确认下载的文件完整。"
+  warn "找不到 ${INSTALL_PY}。请在 dyz-gongwen-skills 仓库根目录运行本脚本，并确认下载的文件完整。"
   exit 2
 fi
 
@@ -110,7 +110,7 @@ if ! find_python; then
   show_python_guide
   exit 1
 fi
-echo "已找到 Python $PY_VERSION（$PY）"
+echo "已找到 Python ${PY_VERSION}（${PY}）"
 
 if [ "$SKIP_DEPS" -eq 0 ]; then
   step "检查排版依赖（python-docx、openpyxl）"
@@ -120,7 +120,7 @@ if [ "$SKIP_DEPS" -eq 0 ]; then
     echo "依赖齐全，排版功能可以直接使用。"
   else
     PIP_SHOWN="$PY -m pip install python-docx openpyxl"
-    warn "缺少：$MISSING。不装也能写公文，只是排版会改为输出 WPS/Word 手动设置清单。"
+    warn "缺少：${MISSING}。不装也能写公文，只是排版会改为输出 WPS/Word 手动设置清单。"
     DO_INSTALL=0
     if [ "$DRY_RUN" -eq 1 ]; then
       echo "[演练] 不安装依赖。正式安装时可加 --install-deps，或手动运行：$PIP_SHOWN"
@@ -135,7 +135,7 @@ if [ "$SKIP_DEPS" -eq 0 ]; then
         *) echo "已跳过。需要时运行：$PIP_SHOWN" ;;
       esac
     else
-      echo "已跳过。需要时运行：$PIP_SHOWN（或给本脚本加 --install-deps）"
+      echo "已跳过。需要时运行：${PIP_SHOWN}（或给本脚本加 --install-deps）"
     fi
     if [ "$DO_INSTALL" -eq 1 ]; then
       echo "正在运行：$PIP_SHOWN"
@@ -167,6 +167,6 @@ CODE=$?
 if [ "$CODE" -eq 3 ]; then
   warn "可以先安装 Claude Code、Qwen Code 等 Agent 工具后重新运行，或用 --target 指定目标。"
 elif [ "$CODE" -ne 0 ]; then
-  warn "安装器返回错误（退出码 $CODE），请查看上方提示。"
+  warn "安装器返回错误（退出码 ${CODE}），请查看上方提示。"
 fi
 exit "$CODE"
