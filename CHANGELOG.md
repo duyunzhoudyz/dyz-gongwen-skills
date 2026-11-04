@@ -16,6 +16,7 @@
 - `tools/validate.py` 新增三项检查：成熟度标签一致性（README 标签与 `manifest.json` 的 `status`）、共享副本登记、行业包工程门槛。
 - 升级标准修订：`CONTRIBUTING.md` 的 Stable 标准改为数字标准加行业包工程门槛，不再等一线反馈和人工盲评，升级后持续收集。
 - 文档中的提示词版字符上限更正为 29000。
+- 触发评测全量重跑（440/440，22 个 skill 均为 10/10、10/10），详见 `evals/results/v1.1-trigger.md`。
 
 ### 成熟度
 
