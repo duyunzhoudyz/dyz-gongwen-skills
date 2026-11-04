@@ -1,0 +1,654 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公文写作 AI Skills｜dyz-gongwen-skills</title>
+<meta name="description" content="dyz-gongwen-skills 是面向机关事业单位和国企文字工作者的公文写作 AI Skills：22 个 skill 覆盖起草、改稿、核稿，防编造、守保密，安装版一键生成 GB/T 9704 国标 Word（网页版提供手动设置清单）；支持 Claude Code、Codex、Cursor 等，网页大模型可复制提示词使用。">
+<meta name="keywords" content="公文写作, AI 公文写作, 公文写作 AI, 公文 Skills, 公文写作 Skills, GB/T 9704 排版, 国标排版, 红头文件, Claude Code Skills, Agent Skills, 去 AI 味, 会议纪要, 机关事业单位, 国企, 通知 请示 报告 函">
+<meta name="author" content="duyunzhoudyz">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#f6f6f4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#131315" media="(prefers-color-scheme: dark)">
+<link rel="canonical" href="https://duyunzhoudyz.github.io/dyz-gongwen-skills/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="dyz-gongwen-skills">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:title" content="公文写作 AI Skills｜dyz-gongwen-skills">
+<meta property="og:description" content="面向机关事业单位和国企文字工作者：22 个公文写作 skill，防编造、守保密，安装版一键生成 GB/T 9704 国标 Word。">
+<meta property="og:url" content="https://duyunzhoudyz.github.io/dyz-gongwen-skills/">
+<meta property="og:image" content="https://duyunzhoudyz.github.io/dyz-gongwen-skills/assets/social-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="dyz-gongwen-skills 公文写作 AI Skills 宣传图：左侧是标题与定位，右侧是一页红头通知的成稿示意">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="公文写作 AI Skills｜dyz-gongwen-skills">
+<meta name="twitter:description" content="面向机关事业单位和国企文字工作者：22 个公文写作 skill，防编造、守保密，安装版一键生成 GB/T 9704 国标 Word。">
+<meta name="twitter:image" content="https://duyunzhoudyz.github.io/dyz-gongwen-skills/assets/social-preview.png">
+<meta name="twitter:image:alt" content="dyz-gongwen-skills 公文写作 AI Skills 宣传图：左侧是标题与定位，右侧是一页红头通知的成稿示意">
+
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
+<link rel="stylesheet" href="assets/styles.css">
+
+<script>
+  // 脚本可用时才启用进场动画；4 秒内主脚本没有就绪就直接显示全部内容，避免内容被藏住
+  document.documentElement.classList.add('js');
+  setTimeout(function () {
+    if (!window.__gwReady) document.documentElement.classList.add('reveal-all');
+  }, 4000);
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://duyunzhoudyz.github.io/dyz-gongwen-skills/#website",
+      "url": "https://duyunzhoudyz.github.io/dyz-gongwen-skills/",
+      "name": "dyz-gongwen-skills",
+      "alternateName": "公文写作 AI Skills",
+      "inLanguage": "zh-CN"
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://duyunzhoudyz.github.io/dyz-gongwen-skills/#software",
+      "name": "dyz-gongwen-skills",
+      "alternateName": ["公文 Skills", "公文写作 AI Skills"],
+      "description": "面向机关事业单位和国企文字工作者的公文写作 Skills 集合，共 22 个 skill（17 个核心、5 个行业包），防编造、守保密，安装版可一键生成 GB/T 9704 国标 Word（网页版提供手动设置清单）。",
+      "applicationCategory": "BusinessApplication",
+      "applicationSubCategory": "公文写作",
+      "operatingSystem": "Windows, macOS, Linux",
+      "inLanguage": "zh-CN",
+      "url": "https://duyunzhoudyz.github.io/dyz-gongwen-skills/",
+      "sameAs": "https://github.com/duyunzhoudyz/dyz-gongwen-skills",
+      "installUrl": "https://github.com/duyunzhoudyz/dyz-gongwen-skills",
+      "image": "https://duyunzhoudyz.github.io/dyz-gongwen-skills/assets/social-preview.png",
+      "license": "https://polyformproject.org/licenses/noncommercial/1.0.0/",
+      "isAccessibleForFree": true,
+      "author": {
+        "@type": "Person",
+        "name": "duyunzhoudyz",
+        "url": "https://github.com/duyunzhoudyz"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "CNY",
+        "description": "个人及非商业用途免费；商业使用需事先取得商业授权。"
+      },
+      "softwareVersion": "1.1.0",
+      "keywords": "公文写作, AI 公文写作, 公文 Skills, GB/T 9704 排版, Claude Code Skills, Agent Skills"
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "这个项目是什么，收费吗？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文写作 Skills 集合，共 22 个 skill。按 PolyForm Noncommercial 1.0.0 许可证源码公开（source-available，不是 OSI 意义上的开源），个人及非商业用途免费；商业用途请联系作者。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "没有 Claude，能用吗？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "能。Skill 版支持 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Qwen Code、Kimi Code CLI 等工具。没有这些工具的，用提示词版：打开仓库的 dist/prompts/，复制文件内容粘贴到 DeepSeek、豆包、Kimi 等网页大模型，或单位内网部署的模型。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "单位的材料能直接贴进去吗？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "涉密材料和标注“内部资料”“工作秘密”的材料，不能输入任何联网 AI 工具。处理内部材料请用单位内网部署的模型；提示词版和离线包可以在内网使用。skill 发现密级标识时会先停下来提醒，但判断责任在使用者。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "它会不会编数据？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "规则要求只用你给的材料，必须由你补的标【待补】，存疑的列在起草说明。v1.0 评测中，修复后第二轮重测的 136 条故意少给材料的用例，装 skill 编造 0 次（第一轮 134 条中有 8 次）。模型输出有随机性，定稿前请逐条核对数字、人名、文号。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "去 AI 味能让稿子查不出是 AI 写的吗？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "不能，也不承诺这种效果。去 AI 味改的是文风质量，目的是让稿子更好读。"
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "排出来的 Word 字体不对，或者没有 Python，怎么办？",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "项目不随附字体，也不会用别的字体顶替。缺字体时，排版 skill 会在回复开头指出缺哪几款，并告诉你怎么安装；装好后重启 Word/WPS 再核对。没有 Python 时，排版 skill 给出 WPS/Word 手动设置清单。"
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+</head>
+
+<body>
+<a class="skip" href="#main">跳到正文</a>
+
+<header class="site-header" id="top">
+  <div class="wrap nav">
+    <a class="brand" href="#top" aria-label="dyz-gongwen-skills 回到顶部"><span class="brand-mark" aria-hidden="true"></span>公文 Skills</a>
+    <nav class="nav-links" aria-label="页面导航">
+      <a href="#different">不同之处</a>
+      <a href="#example">前后对比</a>
+      <a href="#skills">22 个 skill</a>
+      <a href="#install">安装</a>
+      <a href="#license">许可证</a>
+      <a href="#faq">常见问题</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="btn btn-quiet" href="#install">快速开始</a>
+      <a class="btn btn-primary" href="https://github.com/duyunzhoudyz/dyz-gongwen-skills" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+<!-- 首屏 -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap hero-grid hero-layout">
+    <div class="hero-copy">
+      <h1 id="hero-title" data-reveal>公文写作<span class="latin">AI Skills</span></h1>
+      <p class="lead" data-reveal style="--d:90ms">面向机关事业单位和国企文字工作者：防编造，守保密，安装版一键输出 GB/T 9704 国标 Word。</p>
+      <div class="hero-actions" data-reveal style="--d:180ms">
+        <a class="btn btn-primary" href="https://github.com/duyunzhoudyz/dyz-gongwen-skills" rel="noopener">查看 GitHub 仓库 <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-quiet" href="#install">快速开始</a>
+      </div>
+      <p class="hero-tools small" data-reveal style="--d:260ms">Skill 版支持 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Qwen Code、Kimi Code CLI；DeepSeek、豆包、Kimi 等网页大模型和单位内网模型，复制提示词即可使用，网页版不直接输出 Word，只提供手动设置清单。</p>
+    </div>
+
+    <figure class="sheet-wrap" data-reveal style="--d:200ms">
+      <div class="sheet" data-ui role="img" aria-label="红头通知成稿示意：红色版头“某区教育局文件”，下方依次是发文字号、红色分隔线、标题“某区教育局关于开展2026年冬季校园安全检查的通知”和正文第一部分“总体要求”">
+        <div class="sheet-in" aria-hidden="true">
+          <div class="sheet-head">某区教育局文件</div>
+          <div class="sheet-no">某区教发〔2026〕12号</div>
+          <div class="sheet-red"></div>
+          <div class="sheet-title">某区教育局关于开展2026年<br>冬季校园安全检查的通知</div>
+          <p class="to">各中小学、幼儿园：</p>
+          <p>为全面筑牢校园安全防线，经研究，决定在全区开展2026年冬季校园安全检查。现将有关事项通知如下：</p>
+          <p class="h">一、总体要求</p>
+          <p>冬季取暖用电增多、道路结冰、流感高发，是校园安全事故的高发期。部分学校仍存在重检查轻整改的问题。各学校要以此次检查为抓手，建设校园安全管理体系，运用信息化手段提升校园安全管理水平，打通教育、公安、应急管理等部门的隐患数据，实现隐患发现、整改、销号全流程闭环管理。</p>
+          <p class="h">二、检查范围和重点内容</p>
+          <p>本次检查覆盖全区82所中小学和幼儿园，重点检查以下四个方面：</p>
+        </div>
+      </div>
+      <figcaption class="small soft" style="margin-top:16px;max-width:460px;margin-inline:auto">示例为虚构的区教育局通知，内文取自仓库中的 AI 稿体检示例；成稿为近似渲染，实际字体以本机安装为准。</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- 评测数字 -->
+<section class="figures" aria-labelledby="figures-title">
+  <div class="wrap">
+    <h2 class="sr-only" id="figures-title">公文写作 Skills 的几个关键数字</h2>
+    <div class="fig-grid">
+      <div data-reveal>
+        <p class="fig-num">22<small>个</small></p>
+        <p class="fig-label">skill：17 个核心 skill 加 5 个行业包（基层、医院、高校、中小学、国企），均标 Stable。</p>
+      </div>
+      <div data-reveal style="--d:80ms">
+        <p class="fig-num">97.2<small>分</small></p>
+        <p class="fig-label">GB/T 9704 版式审计均分，同台评测中次优为 79.6 分；Claude 评审的 16 次运行全部排第 1。</p>
+      </div>
+      <div data-reveal style="--d:160ms">
+        <p class="fig-num">0<small>次</small></p>
+        <p class="fig-label">编造：v1.0 评测修复后第二轮重测，136 条防编造用例装 skill 编造 0 次（第一轮 134 条中 8 次）；不装 skill 的对照为 66 次。</p>
+      </div>
+      <div data-reveal style="--d:240ms">
+        <p class="fig-num">99.6<small>%</small></p>
+        <p class="fig-label">去 AI 味：同台评测中的事实保持率，以保住事实为前提改写，不追求改得越多越好。</p>
+      </div>
+    </div>
+    <p class="fig-note small" data-reveal>评审是 Claude、DeepSeek 两个 LLM，不是人工；每个参赛方每题只跑 2 次，题目由本项目设计。编造 0 次指 v1.0 评测的防编造用例：第一轮 134 条中 8 次出现编造，修复后第二轮重测 136 条为 0 次，不装 skill 的对照第二轮为 66 次。数据口径、局限和复现脚本见仓库的
+      <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/evals/compete/README.md" rel="noopener">同台评测说明</a>和
+      <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/evals/results/v1.0-benchmark.md" rel="noopener">v1.0 评测报告</a>。</p>
+  </div>
+</section>
+
+<!-- 一、不同之处 -->
+<section class="sec" id="different" aria-labelledby="different-title">
+  <div class="wrap">
+    <h2 id="different-title" data-reveal><span class="num">一、</span>和普通 AI 写材料有什么不同</h2>
+    <div class="sec-grid diff-grid">
+    <div class="diff-head">
+      <p class="lede" data-reveal style="--d:80ms">公文写作最怕编造、泄密和格式出错。这套 skill 把这几件事写成规则，并尽量用脚本检查，而不是靠模型自觉。</p>
+    </div>
+    <div class="diff-body" data-reveal style="--d:120ms">
+      <table class="diff-table">
+        <thead>
+          <tr><th scope="col"><span class="sr-only">比较项</span></th><th scope="col">一般的 AI 写作</th><th scope="col">dyz-gongwen-skills</th></tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">数据和案例</th><td>缺了就编</td><td>只用你给的材料，缺的标【待补】</td></tr>
+          <tr><th scope="row">篇幅</th><td>越写越长，素材不够就注水</td><td>你定了字数就按字数写，不新增事实、不注水</td></tr>
+          <tr><th scope="row">文风</th><td>AI 腔、新八股</td><td>去掉 AI 腔，保留“一是二是”、排比小标题这些公文正当写法</td></tr>
+          <tr><th scope="row">态度</th><td>对冲、免责声明</td><td>措辞明确，需要核实的事项放到正文之外</td></tr>
+          <tr><th scope="row">格式</th><td>自己排</td><td>安装版一键生成 GB/T 9704 国标 docx，机检标点、数字、发文字号；网页版提供手动设置清单</td></tr>
+          <tr><th scope="row">单位差异</th><td>一刀切</td><td>7 类单位画像、5 种角色模式、5 个行业包</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- 六条红线 -->
+<section class="sec sec-tint" id="guardrails" aria-labelledby="guardrails-title">
+  <div class="wrap">
+    <h2 id="guardrails-title" data-reveal>所有 skill 都遵守的六条写作红线</h2>
+    <p class="lede" data-reveal style="--d:80ms">这六条的优先级高于任何具体流程。规则依据《党政机关公文处理工作条例》、GB/T 9704-2012、GB/T 15834-2011、GB/T 15835-2011 和《整治形式主义为基层减负若干规定》，每条规则标注条款号。</p>
+    <ul class="rules-grid">
+      <li class="rule" data-reveal><h3>保密先于生成</h3><p>发现密级标识、“内部资料”“工作秘密”字样或个人敏感信息，先停下来提醒。</p></li>
+      <li class="rule" data-reveal style="--d:70ms"><h3>事实只来自用户</h3><p>数据、案例、文号、政策依据都只取自你的材料；必须由你补的标【待补】，存疑的列在起草说明里。</p></li>
+      <li class="rule" data-reveal style="--d:140ms"><h3>正文干净，提示外置</h3><p>正文里没有免责声明和 AI 自述，需要核实的放到“起草说明”。</p></li>
+      <li class="rule" data-reveal><h3>默认做减法</h3><p>开门见山，遵守减负规定的篇幅要求，不照抄上级文件；你指定字数就按字数写，不新增事实、不注水。</p></li>
+      <li class="rule" data-reveal style="--d:70ms"><h3>规则可溯源、可机检</h3><p>每条格式、标点、数字规则都标注条款号，能用脚本检查的就不靠模型自觉。</p></li>
+      <li class="rule" data-reveal style="--d:140ms"><h3>辅助不代笔</h3><p>对照检查、述职等需要本人经历的材料，没有素材就只给提纲。</p></li>
+    </ul>
+    <p class="rules-foot small" data-reveal>机检引擎按这些规则做 12 类检查，覆盖 41 类文书。全文见仓库中的
+      <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/shared/guardrails.md" rel="noopener">shared/guardrails.md</a>。</p>
+  </div>
+</section>
+
+<!-- 二、前后对比 -->
+<section class="sec" id="example" aria-labelledby="example-title">
+  <div class="wrap">
+    <h2 id="example-title" data-reveal><span class="num">二、</span>前后对比：一篇 AI 腔通知的体检</h2>
+    <p class="lede" data-reveal style="--d:80ms">模拟 AI 起草的区教育局冬季校园安全检查通知，依次经过 gongwen-direct、gongwen-humanize、gongwen-review 三个 skill，再由 gongwen-format 生成红头 docx。单位、人名、数据全部虚构。</p>
+
+    <dl class="delta" data-reveal style="--d:120ms">
+      <div><dt>P0 必改</dt><dd>5 <span class="to">→ 0</span></dd></div>
+      <div><dt>P1 建议改</dt><dd>31 <span class="to">→ 0</span></dd></div>
+      <div><dt>篇幅</dt><dd>1092 字 <span class="to">→ 814 字</span></dd></div>
+      <div><dt>发文字号</dt><dd>[2026]第12号 <span class="to block">→ 〔2026〕12号</span></dd></div>
+    </dl>
+
+    <div class="cmp">
+      <article class="cmp-card before" data-reveal>
+        <h3>原稿（节选）</h3>
+        <p>某区教发<mark>[2026]第12号</mark></p>
+        <p><mark>随着冬季的到来</mark>，校园安全形势日趋复杂严峻……</p>
+        <p class="doc-title">一、充分认识冬季校园安全检查的重要意义</p>
+        <p><mark>毋庸置疑</mark>，校园安全是教育事业发展的底线和生命线。……各学校要以此次检查为抓手，<mark>打造全方位、全链条</mark>的校园安全管理体系，充分运用信息化手段<mark>赋能</mark>校园安全管理……</p>
+        <p><mark>建议</mark>各学校成立由校长任组长的安全检查工作专班……</p>
+        <p><mark>以上内容仅供参考，请各学校结合实际情况调整。</mark></p>
+      </article>
+      <article class="cmp-card after" data-reveal style="--d:100ms">
+        <h3>体检后（节选）</h3>
+        <p>某区教发〔2026〕12号</p>
+        <p>为全面筑牢校园安全防线，经研究，决定在全区开展2026年冬季校园安全检查。……</p>
+        <p class="doc-title">一、总体要求</p>
+        <p>冬季取暖用电增多、道路结冰、流感高发，是校园安全事故的高发期。部分学校仍存在重检查轻整改的问题。各学校要以此次检查为抓手，建设校园安全管理体系，运用信息化手段提升校园安全管理水平……</p>
+        <p>各学校要成立由校长任组长的安全检查工作专班……</p>
+      </article>
+    </div>
+    <p class="legend small" data-reveal>带底色和下划线的是机检或核稿标出的问题表述。</p>
+
+    <div class="changes" data-reveal>
+      <h3>其他改动</h3>
+      <ul>
+        <li>“建议各学校成立……专班”改成“各学校要成立……专班”。</li>
+        <li>发文字号 [2026]第12号 改成 〔2026〕12号。</li>
+        <li>“对家长一律移交公安机关予以拘留”的表述，核查后发现区教育局没有处罚权，予以删除。</li>
+      </ul>
+    </div>
+
+    <div class="more-links small" data-reveal>
+      <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/examples/B-AI%E7%A8%BF%E4%BD%93%E6%A3%80" rel="noopener">查看完整过程：AI 稿体检示例</a>
+      <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/examples/A-%E5%8C%BB%E9%99%A2%E7%A7%91%E5%AE%A4%E5%B9%B4%E7%BB%88%E6%80%BB%E7%BB%93" rel="noopener">医院科室年终总结示例</a>
+      <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/examples/C-%E6%96%87%E7%A7%8D%E5%88%A4%E6%96%AD-%E5%87%BD" rel="noopener">申请经费该用函还是请示</a>
+    </div>
+  </div>
+</section>
+
+<!-- 三、22 个 skill -->
+<section class="sec sec-tint" id="skills" aria-labelledby="skills-title" style="padding-bottom:0">
+  <div class="wrap">
+    <h2 id="skills-title" data-reveal><span class="num">三、</span>22 个 skill 一览</h2>
+    <p class="lede" data-reveal style="--d:80ms">17 个核心 skill 装在一个插件里，5 个行业包按需选装。不用记 skill 名，直接说需求，总入口会判断文种并转交。</p>
+  </div>
+
+  <div class="skills-bleed">
+    <div class="wrap">
+
+      <div class="skill-group" data-reveal>
+        <div class="group-head">
+          <h3 class="group-title">入口与配置<span class="count">2 个 skill</span></h3>
+          <p class="group-note">先接住需求，再建好单位画像。</p>
+        </div>
+        <ul class="skill-list">
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen" rel="noopener">总入口<span class="sid">gongwen</span></a></h4><p>接住说不清的需求，判断文书类型和行文方向，3 个问题建简版单位画像，规划路线。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-profile" rel="noopener">单位画像<span class="sid">gongwen-profile</span></a></h4><p>完整建档；学本单位历史稿文风；归纳领导改稿偏好；管理禁用词。</p></li>
+        </ul>
+      </div>
+
+      <div class="skill-group" data-reveal>
+        <div class="group-head">
+          <h3 class="group-title">起草<span class="count">8 个 skill</span></h3>
+          <p class="group-note">从法定公文到讲话、纪要、整改材料，先定文种再成稿。</p>
+        </div>
+        <ul class="skill-list">
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-draft" rel="noopener">法定公文<span class="sid">gongwen-draft</span></a></h4><p>通知、请示、报告、函、通报、批复、意见、签报、决定、通告、公告；先定文种再成稿。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-report" rel="noopener">综合文稿<span class="sid">gongwen-report</span></a></h4><p>总结、计划、工作要点、汇报、调研报告、经验材料、述职述责述廉、实施方案、大会报告。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-speech" rel="noopener">讲话类<span class="sid">gongwen-speech</span></a></h4><p>领导讲话、主持词、致辞、表态、交流和代表发言；按时长定字数，写成口语稿。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-party" rel="noopener">党建与组织生活<span class="sid">gongwen-party</span></a></h4><p>对照检查、党建报告、党课、研讨发言、心得汇报、“三会一课”记录整理；无本人事例只给提纲。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-brief" rel="noopener">信息简报<span class="sid">gongwen-brief</span></a></h4><p>政务信息、简报、新闻稿、公众号推文；长材料压成信息；评估能否被采用。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-minutes" rel="noopener">会议纪要<span class="sid">gongwen-minutes</span></a></h4><p>会议记录、纪要、上会议题材料、督办清单；只整理不添加，分清同意、原则同意和暂缓。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-implement" rel="noopener">上级文件转化<span class="sid">gongwen-implement</span></a></h4><p>提取要点、任务分解表、实施方案、落实情况报告；检测照抄原文，提示层层加码。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-rectify" rel="noopener">整改材料<span class="sid">gongwen-rectify</span></a></h4><p>整改方案、台账（可转 Excel）、整改进展报告、自查报告；报告与台账逐条对账。</p></li>
+        </ul>
+      </div>
+
+      <div class="skill-group" data-reveal>
+        <div class="group-head">
+          <h3 class="group-title">改稿质检<span class="count">5 个 skill</span></h3>
+          <p class="group-note">标题、润色、去 AI 味、去防御性、核稿。</p>
+        </div>
+        <ul class="skill-list">
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-title" rel="noopener">标题与提纲<span class="sid">gongwen-title</span></a></h4><p>公文标题、主副标题、三套小标题方案、提纲，检查标题与正文是否对应。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-polish" rel="noopener">改稿润色<span class="sid">gongwen-polish</span></a></h4><p>压缩、扩写、语气互转、大白话转公文、按领导批注改、多稿合并。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-humanize" rel="noopener">去 AI 味<span class="sid">gongwen-humanize</span></a></h4><p>改掉 AI 腔，保留公文正当写法，以保住事实为前提，评测中事实保持率 99.6%。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-direct" rel="noopener">去防御性<span class="sid">gongwen-direct</span></a></h4><p>删免责声明，把“建议”“可以考虑”改成要求，让请示有倾向性意见。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-review" rel="noopener">核稿审校<span class="sid">gongwen-review</span></a></h4><p>按“八关”核稿，出分级问题清单；机检标点、数字、格式、保密隐私、禁用词。</p></li>
+        </ul>
+      </div>
+
+      <div class="skill-group" data-reveal>
+        <div class="group-head">
+          <h3 class="group-title">交付工具<span class="count">2 个 skill</span></h3>
+          <p class="group-note">排成国标 Word，整理数据与图表。</p>
+        </div>
+        <ul class="skill-list">
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-format" rel="noopener">国标排版<span class="sid">gongwen-format</span></a></h4><p>按 GB/T 9704-2012 生成红头、信函、纪要、白头、材料、简报六种版式 Word；修复已有 docx。</p></li>
+          <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-data" rel="noopener">数据与图表<span class="sid">gongwen-data</span></a></h4><p>报表体检、同比环比计算（附算式）、数据写成公文句子、本机生成黑白灰 Excel 图表。</p></li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="sec-tint" style="background:var(--surface-2)">
+      <div class="wrap">
+        <div class="skill-group" data-reveal>
+          <div class="group-head">
+            <h3 class="group-title">行业包<span class="count">5 个 skill，单独安装</span></h3>
+            <p class="group-note">装在核心 skill 之上，按单位类型选装。</p>
+          </div>
+          <ul class="skill-list">
+            <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-grassroots" rel="noopener">乡镇街道社区<span class="sid">gongwen-grassroots</span></a></h4><p>迎检汇报、居民通知、应急通知、工作台账、村居务公开。</p></li>
+            <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-hospital" rel="noopener">公立医院<span class="sid">gongwen-hospital</span></a></h4><p>等级评审自评、绩效分析、RCA/PDCA、科室述职（DRG/CMI）、党委会和院长办公会议题。</p></li>
+            <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-university" rel="noopener">高校<span class="sid">gongwen-university</span></a></h4><p>审核评估自评、学科评估、申报书审查、学院总结、签报和两级发文判断。</p></li>
+            <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-k12" rel="noopener">中小学<span class="sid">gongwen-k12</span></a></h4><p>学期计划总结、督导评估自评、家长会讲话、学生评语、致家长一封信。</p></li>
+            <li class="skill"><h4><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/skills/gongwen-soe" rel="noopener">国有企业<span class="sid">gongwen-soe</span></a></h4><p>“三重一大”议题、董事会议案、总经理办公会纪要、ESG 报告、合规管理报告。</p></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 直接这样说 -->
+<section class="sec" id="say" aria-labelledby="say-title">
+  <div class="wrap">
+    <h2 id="say-title" data-reveal>直接这样说，不用记 skill 名</h2>
+    <p class="lede" data-reveal style="--d:80ms">下面是仓库 README 里的几个示例提问，把需求连同材料发给 Agent 即可。</p>
+
+    <div class="say-list">
+      <div class="say" data-reveal>
+        <p class="ask">这是 AI 写的初稿，把“赋能”“闭环”“全链条”这类 AI 腔去掉，改成正常公文的语气，数字和案例一个不动。（附稿件）</p>
+        <p class="by">由 <b>gongwen-humanize</b> 处理</p>
+      </div>
+      <div class="say" data-reveal>
+        <p class="ask">明天这份请示要送签，先帮我核一遍有没有问题，核完排成标准红头 Word。（附请示）</p>
+        <p class="by"><b>gongwen-review</b> → <b>gongwen-format</b></p>
+      </div>
+      <div class="say" data-reveal>
+        <p class="ask">写一篇科室年度工作总结，2000 字左右，素材在附件里，不要编数据。</p>
+        <p class="by">由 <b>gongwen-report</b> 处理</p>
+      </div>
+      <div class="say" data-reveal>
+        <p class="ask">巡察组反馈了 9 个问题，帮我出整改方案和整改台账，台账最后要能导出 Excel。（附反馈清单）</p>
+        <p class="by">由 <b>gongwen-rectify</b> 处理</p>
+      </div>
+      <div class="say" data-reveal>
+        <p class="ask">子公司增资需要上三重一大，下周党委会，帮我准备上会材料，议题说明和决议草案都要。</p>
+        <p class="by">由 <b>gongwen-soe</b> 行业包处理</p>
+      </div>
+    </div>
+
+    <div class="routes" data-reveal>
+      <h3>一份材料怎么走完</h3>
+      <ol>
+        <li><b>年终总结、述职、汇报材料</b>gongwen 确认需求 → report 建素材台账出稿 → direct、humanize 清理腔调 → review 核稿 → format 排国标 Word</li>
+        <li><b>AI 稿体检（手上已有 AI 稿）</b>direct → humanize → review，要 Word 的再加 format</li>
+        <li><b>上级文件转化</b>implement 提取要点、拆任务表、写实施方案 → direct → review → format</li>
+      </ol>
+      <p class="small soft" style="margin-top:12px">表中省略了 gongwen- 前缀。在能调用多个 skill 的工具里，总入口按路线逐站交接；在网页版里，每站结束给交接卡，粘贴到下一份提示词后继续。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 四、安装与快速开始 -->
+<section class="sec sec-tint" id="install" aria-labelledby="install-title">
+  <div class="wrap">
+    <h2 id="install-title" data-reveal><span class="num">四、</span>安装与快速开始</h2>
+    <p class="lede" data-reveal style="--d:80ms">先看你在用什么工具，选对应的方式。每条命令都可以一键复制。</p>
+
+    <div class="install-grid">
+      <div class="install-main" data-tabs data-reveal style="--d:100ms">
+        <div class="tablist" role="tablist" aria-label="选择你在用的工具">
+          <button class="tab" role="tab" type="button" id="tab-cc" aria-controls="panel-cc" aria-selected="true">Claude Code</button>
+          <button class="tab" role="tab" type="button" id="tab-npx" aria-controls="panel-npx" aria-selected="false" tabindex="-1">Codex、Cursor 等（npx）</button>
+          <button class="tab" role="tab" type="button" id="tab-script" aria-controls="panel-script" aria-selected="false" tabindex="-1">一键脚本</button>
+          <button class="tab" role="tab" type="button" id="tab-web" aria-controls="panel-web" aria-selected="false" tabindex="-1">网页大模型、内网模型</button>
+          <button class="tab" role="tab" type="button" id="tab-agent" aria-controls="panel-agent" aria-selected="false" tabindex="-1">让 Agent 自己装</button>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-cc" aria-labelledby="tab-cc">
+          <h3 class="panel-title">Claude Code：插件市场</h3>
+          <div class="codebox">
+            <pre><code id="c-cc">/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills
+/plugin install gongwen@dyz-gongwen-skills</code></pre>
+            <button class="copy" type="button" data-copy="c-cc">复制</button>
+          </div>
+          <p class="small">两行命令装好 17 个核心 skill。行业包按需选装，以医院为例：</p>
+          <div class="codebox">
+            <pre><code id="c-cc2">/plugin install gongwen-hospital@dyz-gongwen-skills</code></pre>
+            <button class="copy" type="button" data-copy="c-cc2">复制</button>
+          </div>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-npx" aria-labelledby="tab-npx" hidden>
+          <h3 class="panel-title">Codex、Cursor、Gemini CLI、GitHub Copilot 等：npx skills</h3>
+          <div class="codebox">
+            <pre><code id="c-npx">npx skills add duyunzhoudyz/dyz-gongwen-skills</code></pre>
+            <button class="copy" type="button" data-copy="c-npx">复制</button>
+          </div>
+          <p class="small">需要先装 Node.js。</p>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-script" aria-labelledby="tab-script" hidden>
+          <h3 class="panel-title">一键安装脚本（Windows、macOS、Linux）</h3>
+          <p>先下载仓库。会用 git 的运行下面第一条命令；不会的，在仓库页点绿色 Code 按钮，选 Download ZIP，下载后解压。然后在仓库文件夹里运行脚本。</p>
+          <div class="codebox">
+            <span class="label">下载仓库</span>
+            <pre><code id="c-clone">git clone https://github.com/duyunzhoudyz/dyz-gongwen-skills.git</code></pre>
+            <button class="copy" type="button" data-copy="c-clone">复制</button>
+          </div>
+          <div class="codebox">
+            <span class="label">Windows（PowerShell）</span>
+            <pre><code id="c-win">powershell -ExecutionPolicy Bypass -File .\install.ps1</code></pre>
+            <button class="copy" type="button" data-copy="c-win">复制</button>
+          </div>
+          <div class="codebox">
+            <span class="label">macOS、Linux</span>
+            <pre><code id="c-sh">bash install.sh</code></pre>
+            <button class="copy" type="button" data-copy="c-sh">复制</button>
+          </div>
+          <p class="small">脚本检查 Python（3.9+），询问是否安装排版依赖，然后把 17 个核心 skill 装进本机找到的全部 Agent 工具。只想看会装到哪里而不写入文件：Windows 末尾加 -WhatIf，macOS、Linux 加 --dry-run。选装行业包：bash install.sh --pack hospital，可多选，--pack all 装全部。</p>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-web" aria-labelledby="tab-web" hidden>
+          <h3 class="panel-title">DeepSeek、豆包、Kimi 等网页版，或单位内网模型：不用安装</h3>
+          <p>打开仓库里的 <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/dist/prompts" rel="noopener">dist/prompts/</a>，复制提示词文件全文，粘贴到对话开头，再说出你的需求。第一次用，从 gongwen.md（总入口）开始。</p>
+          <p class="small">每个 skill 对应一份提示词，每份不超过 2.9 万字符。需要换到下一个 skill 时，当前对话会给你一张交接卡：新开对话，先粘贴下一份提示词，再粘贴交接卡和材料。单位内网使用，可生成离线包（输出到 dist/offline/）：</p>
+          <div class="codebox">
+            <pre><code id="c-off">python tools/build_prompts.py --offline</code></pre>
+            <button class="copy" type="button" data-copy="c-off">复制</button>
+          </div>
+        </div>
+
+        <div class="panel" role="tabpanel" id="panel-agent" aria-labelledby="tab-agent" hidden>
+          <h3 class="panel-title">已经在用 Agent，不想敲命令：让 Agent 自己装</h3>
+          <p>把这段话发给你的 Agent：</p>
+          <div class="codebox">
+            <pre><code id="c-agent">请把 https://github.com/duyunzhoudyz/dyz-gongwen-skills 中 skills/ 目录下的 skill 安装到你的 skills 目录。
+其中 gongwen-grassroots、gongwen-hospital、gongwen-university、gongwen-k12、gongwen-soe 是行业包，
+只装我需要的 gongwen-hospital。装好后告诉我有哪些可用。</code></pre>
+            <button class="copy" type="button" data-copy="c-agent">复制</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="install-side" data-reveal style="--d:160ms" aria-label="依赖与卸载">
+        <h3>排版依赖</h3>
+        <p>排版和 Excel 图表需要 Python 3.9+ 及 python-docx、openpyxl。没有 Python 时，排版 skill 给出 WPS/Word 手动设置清单。</p>
+        <div class="codebox">
+          <pre><code id="c-pip">pip install python-docx openpyxl</code></pre>
+          <button class="copy" type="button" data-copy="c-pip">复制</button>
+        </div>
+        <h3>其他说明</h3>
+        <p>卸载：安装命令末尾加 --uninstall，确认清单后再加 --yes。Trae、CodeBuddy 的 skills 目录路径尚未完全核实，一键脚本提供了对应目标（--target trae、--target codebuddy），可以试用，遇到问题请提 Issue。</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- 五、使用边界与许可证 -->
+<section class="sec" id="license" aria-labelledby="license-title">
+  <div class="wrap sec-grid">
+    <div class="limits">
+      <h2 id="license-title" data-reveal><span class="num">五、</span>使用边界与许可证</h2>
+      <ul class="limit-list" style="margin-top:28px">
+        <li data-reveal><b>涉密信息不进联网 AI。</b>涉密材料和标注“内部资料”“工作秘密”的材料，严禁输入任何联网 AI 工具。处理内部材料请使用单位内网部署的模型。</li>
+        <li data-reveal style="--d:60ms"><b>判断责任在使用者。</b>skill 发现密级标识时会先停下来提醒，但是否涉密、能否输入，由使用者判断。</li>
+        <li data-reveal style="--d:120ms"><b>定稿前逐条核对。</b>模型输出有随机性，请核对数字、人名、文号。去 AI 味不承诺让稿子查不出是 AI 写的。</li>
+        <li data-reveal style="--d:180ms"><b>规则不替代原文。</b>规则要点整理自公开法规和国家标准，不替代原文，每条标注条款号。</li>
+      </ul>
+      <div class="notice small" data-reveal>
+        <strong>保密提示：</strong>涉密信息严禁输入任何联网 AI 工具。本项目的提示词版和离线包可以直接在内网使用。详见仓库中的
+        <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/%E4%BD%BF%E7%94%A8%E9%A1%BB%E7%9F%A5.md" rel="noopener">使用须知</a>。
+      </div>
+    </div>
+
+    <div class="license-card" data-reveal style="--d:100ms">
+      <h3>PolyForm Noncommercial 1.0.0</h3>
+      <p><strong>源码公开，非商用。</strong>这是 source-available 许可证，不是 OSI 意义上的开源。</p>
+      <p>个人、学习、教育、研究及其他非商业用途，可按许可证免费使用。</p>
+      <p>商业使用需事先取得商业授权，包括商业集成、付费服务、SaaS、企业内部业务流程或商业再分发。</p>
+      <p>商业授权或合作，请联系作者，也可以到仓库 <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/issues" rel="noopener">Issues</a> 留言。许可证全文见仓库的
+        <a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/LICENSE" rel="noopener">LICENSE</a>，
+        也可阅读 <a href="https://polyformproject.org/licenses/noncommercial/1.0.0/" rel="noopener">PolyForm 官方页面</a>。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 常见问题 -->
+<section class="sec sec-tint" id="faq" aria-labelledby="faq-title">
+  <div class="wrap">
+    <h2 id="faq-title" data-reveal>常见问题</h2>
+    <div class="faq-list">
+      <div class="faq-item" data-reveal>
+        <h3>这个项目是什么，收费吗？</h3>
+        <p>dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文写作 Skills 集合，共 22 个 skill。按 PolyForm Noncommercial 1.0.0 许可证源码公开（source-available，不是 OSI 意义上的开源），个人及非商业用途免费；商业用途请联系作者。</p>
+      </div>
+      <div class="faq-item" data-reveal>
+        <h3>没有 Claude，能用吗？</h3>
+        <p>能。Skill 版支持 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Qwen Code、Kimi Code CLI 等工具。没有这些工具的，用提示词版：打开仓库的 dist/prompts/，复制文件内容粘贴到 DeepSeek、豆包、Kimi 等网页大模型，或单位内网部署的模型。</p>
+      </div>
+      <div class="faq-item" data-reveal>
+        <h3>单位的材料能直接贴进去吗？</h3>
+        <p>涉密材料和标注“内部资料”“工作秘密”的材料，不能输入任何联网 AI 工具。处理内部材料请用单位内网部署的模型；提示词版和离线包可以在内网使用。skill 发现密级标识时会先停下来提醒，但判断责任在使用者。</p>
+      </div>
+      <div class="faq-item" data-reveal>
+        <h3>它会不会编数据？</h3>
+        <p>规则要求只用你给的材料，必须由你补的标【待补】，存疑的列在起草说明。v1.0 评测中，修复后第二轮重测的 136 条故意少给材料的用例，装 skill 编造 0 次（第一轮 134 条中有 8 次）。模型输出有随机性，定稿前请逐条核对数字、人名、文号。</p>
+      </div>
+      <div class="faq-item" data-reveal>
+        <h3>去 AI 味能让稿子查不出是 AI 写的吗？</h3>
+        <p>不能，也不承诺这种效果。去 AI 味改的是文风质量，目的是让稿子更好读。</p>
+      </div>
+      <div class="faq-item" data-reveal>
+        <h3>排出来的 Word 字体不对，或者没有 Python，怎么办？</h3>
+        <p>项目不随附字体，也不会用别的字体顶替。缺字体时，排版 skill 会在回复开头指出缺哪几款，并告诉你怎么安装；装好后重启 Word/WPS 再核对。没有 Python 时，排版 skill 给出 WPS/Word 手动设置清单。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-cols">
+      <div>
+        <h2>项目</h2>
+        <ul>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills" rel="noopener">GitHub 仓库</a></li>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/CHANGELOG.md" rel="noopener">更新日志</a></li>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/README_EN.md" rel="noopener">English README</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>使用</h2>
+        <ul>
+          <li><a href="#install">快速开始</a></li>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/tree/main/examples" rel="noopener">示例</a></li>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/%E4%BD%BF%E7%94%A8%E9%A1%BB%E7%9F%A5.md" rel="noopener">使用须知</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>参与</h2>
+        <ul>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/issues/new/choose" rel="noopener">提交 Issue</a></li>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/CONTRIBUTING.md" rel="noopener">参与开发</a></li>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/THIRD_PARTY_NOTICES.md" rel="noopener">致谢与第三方声明</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2>许可证</h2>
+        <ul>
+          <li><a href="https://github.com/duyunzhoudyz/dyz-gongwen-skills/blob/main/LICENSE" rel="noopener">PolyForm Noncommercial 1.0.0</a></li>
+          <li>源码公开，非商用</li>
+        </ul>
+      </div>
+    </div>
+    <p class="foot-note">本页是项目的介绍页，内容以仓库 README 为准。示例中的单位、人名、数据全部虚构。涉密信息严禁输入任何联网 AI 工具。</p>
+    <svg class="wordmark" viewBox="0 0 1000 150" role="img" aria-label="dyz-gongwen-skills" preserveAspectRatio="xMinYMax meet">
+      <text x="0" y="108" font-size="118" textLength="1000" lengthAdjust="spacingAndGlyphs">dyz-gongwen-skills</text>
+    </svg>
+  </div>
+</footer>
+
+<script src="assets/main.js" defer></script>
+</body>
+</html>

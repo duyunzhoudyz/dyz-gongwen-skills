@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://duyunzhoudyz.github.io/dyz-gongwen-skills/sitemap.xml
