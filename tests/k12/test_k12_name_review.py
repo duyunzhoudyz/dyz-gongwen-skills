@@ -447,5 +447,63 @@ class ExampleDRegressionTest(EngineCase):
         self.assertEqual(self.norm(self.tmp / "2-模型生成评语-编号版-姓名版.txt"), self.norm(src / "4-本机还原姓名版.txt"))
 
 
+
+
+
+class MarkdownNameTableTest(EngineCase):
+    def test_parent_document_reports_table_privacy(self) -> None:
+        path = self.write("王秀英回访单.md", "| 学生姓名 | 病史 |\n| --- | --- |\n| 王秀英 | 哮喘 |\n")
+        code, output, err = self.run_main("parents", str(path), "--json", "--strict")
+        self.assertEqual(code, 1, err)
+        report = json.loads(output)
+        rows = [(i["id"], i["level"], i["excerpt"]) for i in report["issues"]]
+        self.assertEqual(rows, [("K12-G04", "P0", "〔姓名1〕")])
+        self.assertEqual(report["file"], "〔姓名1〕回访单.md")
+
+    def run_table(self, name, body):
+        path = self.tmp / name
+        path.write_text(body, encoding="utf-8")
+        code, out, err = self.run_main("general", str(path), "--json")
+        text_code, rendered, text_err = self.run_main("general", str(path))
+        self.assertEqual(code, text_code)
+        self.assertIn(code, (0, 1), err + text_err)
+        return json.loads(out), rendered
+
+    def test_sensitive_and_ordinary_rows_keep_document_numbering(self) -> None:
+        body = ("| 学生姓名 | 困难类型 |\n| --- | --- |\n| 王秀英 | 低保 |\n\n"
+                "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
+        report, screen = self.run_table("王秀英附表.md", body)
+        rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
+                if i["id"] in ("K12-G04", "K12-G04")]
+        self.assertEqual(rows, [("K12-G04", "P0", 3, "〔姓名1〕"),
+                                ("K12-G04", "P1", 7, "〔姓名1〕"),
+                                ("K12-G04", "P1", 8, "〔姓名2〕")])
+        self.assertEqual(report["file"], "〔姓名1〕附表.md")
+        for word in ("王秀英", "欧阳明月"):
+            self.assertNotIn(word, json.dumps(report, ensure_ascii=False))
+            self.assertNotIn(word, screen)
+        for _, _, _, excerpt in rows:
+            self.assertIn(excerpt, screen)
+        sys.stderr.write(f"\nk12 表格姓名正例：命中 {len(rows)}/3。\n")
+
+    def test_absent_public_and_nonnames_are_not_registered(self) -> None:
+        controls = [
+            ("王秀英", "| 编号 | 心理 |\n| --- | --- |\n| 王秀英 | 记录 |\n"),
+            ("王秀英", "| 联系人姓名 | 心理 |\n| --- | --- |\n| 王秀英 | 记录 |\n"),
+        ]
+        controls.extend((cell, f"| 姓名 | 心理 |\n| --- | --- |\n| {cell} | 记录 |\n")
+                        for cell in ("合计", "小计", "无", "/", "—", "高一", "五年级", "宣传科", "123"))
+        misfires = 0
+        for name, body in controls:
+            with self.subTest(name=name, body=body):
+                file_name = ("斜线" if name == "/" else name) + "附表.md"
+                report, screen = self.run_table(file_name, body)
+                rows = [i for i in report["issues"] if i["id"] in ("K12-G04", "K12-G04")]
+                misfires += len(rows)
+                self.assertEqual(rows, [])
+                self.assertEqual(report["file"], file_name)
+                self.assertNotIn("〔姓名", screen)
+        sys.stderr.write(f"\nk12 表格姓名反例：误报 {misfires}/{len(controls)}。\n")
+
 if __name__ == "__main__":
     unittest.main()

@@ -342,6 +342,21 @@
    ],
    "allow_extra_p0": [],
    "note": "第 9 行“一期已投入使用……提请董事会审议平台二期建设方案”按设计报 SOE-001 P1（提请事项可能与已执行事项不同），不是埋点，也不是 P0。"
+  },
+  {
+   "file": "A_s12_职工安置汇总.txt",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "V_s14_职工安置明细.txt",
+   "kind": "violation",
+   "names": ["沈文悦"],
+   "expect": [
+    {"mark": "S7", "id": "SOE-023", "level": "P0", "line": 7}
+   ],
+   "allow_extra_p0": []
   }
  ]
 }

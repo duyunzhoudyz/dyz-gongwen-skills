@@ -45,7 +45,7 @@
     5. 带“·”的姓名、外文名、昵称识别不了；“受到处分”的写法只覆盖后接“学生、同学”的情形，
        “该生因打架受到处分”这类写法不报。
     6. 敏感身份词是固定清单：残疾、受助、留守学生、被记过的学生、患病学生、“学生 + 姓名 + 的 + 亲属 + 敏感事件”等不在内，不报。
-    7. 表格行里的姓名识别不了；锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+    7. Markdown 表格中姓名列默认报 P1、有困难类型或心理等敏感列时报 P0，无姓名类表头或非 Markdown 表格的姓名仍可能漏报。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
     缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 输入：.txt、.md、.csv；.docx 需要 python-docx，.xlsx 需要 openpyxl，未安装时给出安装提示并返回 2。
@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -1357,12 +1357,18 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
         lines, _ = cut_at_boundary(doc.lines)
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
+    table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
     for index, line in enumerate(lines, start=1):
         if not line.strip():
             continue
-        for name in _g04_analyze(line)[1]:
-            table.add(name)
+        names = _g04_analyze(line)[1]
+        row = table_rows.get(index - 1)
+        if row:
+            issues.append(_table_name_issue(row, table, index, line, names, gw.SCORE_HIGH))
+        else:
+            for name in names:
+                table.add(name)
         for rule in PARENT_RULES:
             level = rule.level if compulsory else rule.level_other
             if level == "skip":
@@ -1413,6 +1419,14 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     }
 
 
+G04_RULE = (
+    "K12-G04", "P0", "P0", "学生隐私",
+    None,  # 由 _g04_analyze 按“锚点 + 候选姓名 + 打分”判定
+    "校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私",
+    "删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数",
+    "《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条",
+)
+
 GENERAL_RULES = (
     (
         "K12-G01", "P0", "P1", "考试排名",
@@ -1435,13 +1449,7 @@ GENERAL_RULES = (
         "写明自愿报名原则，课后服务用于作业辅导、阅读、体育、艺术等素质拓展活动",
         "中办发〔2021〕40号；gongwen-k12 references/redlines.md 第六条",
     ),
-    (
-        "K12-G04", "P0", "P0", "学生隐私",
-        None,  # 不再用单条正则：由 _g04_analyze 按“锚点 + 候选姓名 + 打分”判定，见下方 K12 学生隐私识别
-        "校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私",
-        "删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数",
-        "《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条",
-    ),
+    G04_RULE,
 )
 
 
@@ -1565,11 +1573,23 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
     return best[2], mask_digits((line[c["start"]:c["end"]] + tail).strip())
 
 
+def _table_name_issue(row: Any, table: Any, line: int, text: str, prose_names: Sequence[str], high_score: int) -> Issue:
+    rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
+    positions = [(text.find(name), name) for name in prose_names]
+    positions.extend((hit.start, hit.name) for hit in row.hits)
+    for _start, name in sorted(positions):
+        table.add(name)
+    level = "P0" if row.hits[0].score >= high_score else "P1"
+    excerpt = "、".join(table.placeholder(hit.name) for hit in row.hits)
+    return Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
+                 suggestion=suggest, basis=basis, line=line, excerpt=excerpt)
+
+
 def check_general(path: Path, stage: str = "义务教育") -> dict:
     """校内综合文书检查（学期计划总结、督导自评、课后服务方案、安全教育/教研记录）。
 
     K12-G04 由 _g04_analyze 识别学生实名（锚点 + 打分）；识别出的姓名进全文姓名表，所有 excerpt 在输出前统一遮蔽。"""
-    gw, _lex = shared_names()
+    gw, lex = shared_names()
     doc = load_document(path)
     if doc.kind == "table":
         lines = [" ".join(row) for table in doc.tables for row in table]
@@ -1578,6 +1598,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
     table = gw.NameTable()
+    table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
     for index, line in enumerate(lines, start=1):
         if not line.strip():
@@ -1586,8 +1607,12 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
             level = lv_c if compulsory else lv_o
             if pat is None:  # K12-G04：锚点 + 候选姓名 + 打分
                 cands, names = _g04_analyze(line)
-                for name in names:
-                    table.add(name)
+                row = table_rows.get(index - 1)
+                if row:
+                    issues.append(_table_name_issue(row, table, index, line, names, gw.SCORE_HIGH))
+                else:
+                    for name in names:
+                        table.add(name)
                 picked = _g04_pick(line, cands, level)
                 if picked is not None and (rid, index) not in seen:
                     seen.add((rid, index))

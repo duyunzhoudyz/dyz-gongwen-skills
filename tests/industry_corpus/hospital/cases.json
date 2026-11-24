@@ -509,6 +509,23 @@
     }
    ],
    "allow_extra_p0": []
+  },
+  {
+   "file": "A_h14_投诉回访汇总.txt",
+   "type": "整改",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "V_h08_投诉回访明细.txt",
+   "type": "整改",
+   "kind": "violation",
+   "names": ["江若宁"],
+   "expect": [
+    {"mark": "N11", "id": "HOS-031", "level": "P0", "line": 7}
+   ],
+   "allow_extra_p0": []
   }
  ]
 }

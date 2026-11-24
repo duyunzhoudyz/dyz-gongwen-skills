@@ -349,6 +349,16 @@
     }
    ],
    "source": "heldout"
+  },
+  {
+   "mark": "S7",
+   "file": "V_s14_职工安置明细.txt",
+   "line": 7,
+   "desc": "流转表同时记录职工姓名与安置去向",
+   "rules": [
+    {"id": "SOE-023", "level": "P0"}
+   ],
+   "source": "author"
   }
  ]
 }

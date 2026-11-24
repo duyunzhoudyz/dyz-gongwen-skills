@@ -35,7 +35,8 @@ _RUN_RE = re.compile(r"[一-鿿]+")
 # counts 字段统计的数据项（字符串按字数，列表按条数，word_bigrams 按二字串个数）
 COUNT_KEYS = ("surnames_common", "surnames_rare", "compound", "ambiguous", "nongiven_chars", "soft_given_chars",
               "given_chars", "place_end", "place_end_2char", "stopwords", "stopwords_exact", "right_strong",
-              "right_weak", "left_words", "word_bigrams")
+              "right_weak", "left_words", "word_bigrams", "table_names", "table_public", "table_nonnames",
+              "table_sensitive_hospital", "table_sensitive_soe", "table_sensitive_k12", "org_abbr_end")
 
 
 # 人工剔除的跨词噪声（统计里达到文档频次、但不是词）。重新统计后须人工过目新增项，不是词的补到这里

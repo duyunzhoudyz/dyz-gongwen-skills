@@ -29,6 +29,9 @@
 无锚点、并列链之外的同形名仍识别不了。
 NameTable.mask 还会把“已登记姓名 + 、 + 姓氏开头的 2～3 字 + 并列尾巴（、等 两人 同志 分别 标点）”里没登记的后项也遮蔽（宁可多遮）。
 
+Markdown 表格以姓名类表头作锚点，同表出现行业敏感列时报高置信。国企可传入全文识别出的单位简称；
+有单位佐证的候选跳过，末字形似单位简称但缺少人名证据的候选只给低置信。
+
 本模块只做识别、编号遮蔽和结果去重，不读文件、不联网，只用标准库（re、json、pathlib、dataclasses）。
 数据缺失或损坏时抛 LexiconError，由引擎转成输入错误（退出码 2），不做静默降级。
 """
@@ -76,6 +79,18 @@ PEOPLE_RE = re.compile(r"[二两三四五六七八九十几]人|[二两三四五
 _PAREN_RE = re.compile(r"[（(][^）)]*[）)]")
 _ITEM_TAIL_RE = re.compile(r"(?:同志|同学)$")
 _ETC_TAIL_RE = re.compile(r"等(?:\d+|[一二三四五六七八九十]+)?[人名位]*$")
+_MD_PIPE_RE = re.compile(r"\\.|(?P<pipe>\|)")
+_MD_SEPARATOR_RE = re.compile(r":?-+:?")
+_MD_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+_MD_CELL_RE = re.compile(r"(?P<mark>\*\*|__|\*|_|`)(?P<value>.+)(?P=mark)")
+_ORG_SUFFIX_RE = re.compile(r"(?=集团|公司|股份|有限责任公司|有限公司)")
+_ORG_ALIAS_RE = re.compile(r"以下简称[：:\s]*[“\"‘（(《]?([一-鿿]{2,3})(?![一-鿿])")
+_PERSON_TITLE = r"(?:董事长|副?总经理(?:助理)?|副?(?:部长|主任|经理|处长|科长)|书记|会计|出纳|工程师|职工|员工|干部)"
+_LIST_TITLE_RE = re.compile(_PERSON_TITLE + r"\s*")
+_TITLE_NOTE_RE = re.compile(r"[（(][^）)]{0,12}" + _PERSON_TITLE + r"\s*[）)]")
+# 开除党籍、开除公职、诫勉谈话针对自然人，可作处分框架里的人名证据。
+_PERSON_ACTION_RE = re.compile(r"\s*(?:被给予|被处以|受到|被|给予|进行(?:了)?|予以|作出)?(?:开除党籍|开除公职|诫勉谈话)")
+ABBREVIATION_HINT = "可能是单位简称，请人工确认"
 _HANG_RE = re.compile(r"[、，,：:（(]([一-鿿]{1,2})$")   # 摘录末尾“分隔符 + 1～2 个汉字”：可能是被截断的姓名
 _PAREN_SKIP_MAX = 12   # 并列项之间可跳过的括注最大字数
 CONNECT = "和与及同跟"          # 并列连词：“程鹏和邓景行”“张三与李四”
@@ -113,6 +128,11 @@ class Lexicon:
     word_bigrams: FrozenSet[str] = frozenset()   # 常见二字词（开发期工具从规范文档统计）
     # 按首字建的排除词索引，加载时生成
     stop_index: Mapping[str, Tuple[str, ...]] = field(default_factory=dict, compare=False, repr=False)
+    table_names: FrozenSet[str] = frozenset()
+    table_public: FrozenSet[str] = frozenset()
+    table_nonnames: FrozenSet[str] = frozenset()
+    table_sensitive: Mapping[str, Tuple[str, ...]] = field(default_factory=dict)
+    org_abbr_end: FrozenSet[str] = frozenset()
 
     @property
     def surnames(self) -> FrozenSet[str]:
@@ -139,8 +159,14 @@ class NameHit:
     score: int
     pseudo: bool
     anchor: str
-    anchor_start: int = -1  # 锚点起点；前锚点、名单、处分框架为锚点文字起点，后锚点为姓名自身起点
+    anchor_start: int = -1  # 正文锚点起点；后锚点为姓名自身起点，表格命中为 -1
     table_only: bool = False  # 并列后项：形态合法但分数不足 SCORE_LOW，只登记进姓名表（用于遮蔽），引擎不要单独报问题
+    maybe_org: bool = False
+
+
+class TableNameRow(NamedTuple):
+    headers: Tuple[str, ...]
+    hits: List[NameHit]
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +195,8 @@ MIN_SIZES: Dict[str, int] = {
     "surnames_common": 200, "surnames_rare": 100, "compound": 15, "ambiguous": 15, "nongiven_chars": 100,
     "soft_given_chars": 5, "given_chars": 400, "place_end": 30, "place_end_2char": 5, "stopwords": 800,
     "stopwords_exact": 50, "right_strong": 20, "right_weak": 10, "left_words": 20, "word_bigrams": 2000,
+    "table_names": 8, "table_public": 4, "table_nonnames": 4, "org_abbr_end": 20,
+    "table_sensitive_hospital": 5, "table_sensitive_soe": 4, "table_sensitive_k12": 5,
 }
 # 哨兵：这些最基本的数据必须在
 SENTINELS = (("surnames_common", "王"), ("surnames_common", "李"), ("compound", "欧阳"))
@@ -211,6 +239,11 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
     right_weak = _need_list(data, "right_weak")
     left_words = _need_list(data, "left_words")
     bigram_list = _need_str(data, "word_bigrams").split()
+    table_names = frozenset(_need_list(data, "table_names"))
+    table_public = frozenset(_need_list(data, "table_public"))
+    table_nonnames = frozenset(_need_list(data, "table_nonnames"))
+    org_abbr_end = frozenset(_need_str(data, "org_abbr_end"))
+    table_sensitive = {domain: _need_list(data, "table_sensitive_" + domain) for domain in ("hospital", "soe", "k12")}
 
     # 规模下限与 counts 一致性
     sizes = {
@@ -219,6 +252,9 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
         "given_chars": len(given), "place_end": len(place_end), "place_end_2char": len(place_end_2),
         "stopwords": len(stopwords), "stopwords_exact": len(stop_exact), "right_strong": len(right_strong),
         "right_weak": len(right_weak), "left_words": len(left_words), "word_bigrams": len(set(bigram_list)),
+        "table_names": len(table_names), "table_public": len(table_public), "table_nonnames": len(table_nonnames),
+        "org_abbr_end": len(org_abbr_end),
+        **{"table_sensitive_" + domain: len(set(words)) for domain, words in table_sensitive.items()},
     }
     for name, floor in MIN_SIZES.items():
         if sizes[name] < floor:
@@ -255,6 +291,8 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
         stopwords=stopwords, right_strong=right_strong, right_weak=right_weak, left_words=left_words,
         given=given, soft_given=soft_given, stopwords_exact=frozenset(stop_exact), word_bigrams=frozenset(bigram_list),
         stop_index={k: tuple(v) for k, v in index.items()},
+        table_names=table_names, table_public=table_public, table_nonnames=table_nonnames,
+        table_sensitive=table_sensitive, org_abbr_end=org_abbr_end,
     )
     _LEX_CACHE[key] = lex
     return lex
@@ -885,11 +923,16 @@ def _scan_list(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], Na
             core = _ITEM_TAIL_RE.sub("", core)
             if not core:
                 continue
+            title = _LIST_TITLE_RE.match(core)
+            titled = bool(title and _shape(core[title.end():], lex, evidence=True, tail_ok=True))
+            if title and titled:
+                a0 += title.end()
+                core = core[title.end():]
             word = core
             s = t0 + a0
             e = s + len(word)
             items.append((s, e, word))
-            sh = _shape(word, lex, common_ambig=(a.strength >= 3), tail_ok=True)
+            sh = _shape(word, lex, evidence=titled, common_ambig=(a.strength >= 3), tail_ok=True)
             if sh is None:
                 continue
             score = a.strength + 2 + sh.form
@@ -908,11 +951,52 @@ def _scan_list(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], Na
 _SCANNERS = {"prefix": _scan_prefix, "postfix": _scan_postfix, "frame": _scan_frame, "list": _scan_list}
 
 
-def find_names(text: str, anchors: Sequence[Anchor], lex: Lexicon) -> List[NameHit]:
+def organization_names(lines: Iterable[str], lex: Lexicon) -> FrozenSet[str]:
+    """提取正文的单位简称声明与紧接单位名称后缀的姓氏形候选。"""
+    found = set()
+    for line in lines:
+        found.update(m[1] for m in _ORG_ALIAS_RE.finditer(line) if has_surname_prefix(m[1], lex))
+        for m in _ORG_SUFFIX_RE.finditer(line):
+            end = m.start()
+            for n in (2, 3):
+                word = line[max(0, end - n):end]
+                if len(word) == n and _CJK_RE.fullmatch(word) and has_surname_prefix(word, lex):
+                    found.add(word)
+    return frozenset(found)
+
+
+def _organization_candidate(text: str, hit: NameHit, anchor: Anchor) -> bool:
+    """只在缺少同志、身份括注或职务称谓等人名证据时判为可能的单位。"""
+    if hit.pseudo or len(hit.name) not in (2, 3):
+        return False
+    tail = text[hit.end:].lstrip()
+    if R3_RE.match(tail) or _TITLE_NOTE_RE.match(tail):
+        return False
+    head = text[:hit.start].rstrip()
+    title = anchor.left_ok.search(head) if anchor.left_ok else None
+    return not ((title and title[0] not in ("原", "时任", "现任", "该")) or
+                re.search(_PERSON_TITLE + "$", head))
+
+
+def find_names(text: str, anchors: Sequence[Anchor], lex: Lexicon,
+               organizations: Optional[FrozenSet[str]] = None) -> List[NameHit]:
     """在单行文字里识别姓名。同一区间取最高分；区间重叠时长的优先。结果按起点排序。"""
     found: Dict[Tuple[int, int], NameHit] = {}
     for a in anchors:
-        _SCANNERS[a.kind](text, a, lex, found)
+        if organizations is None:
+            _SCANNERS[a.kind](text, a, lex, found)
+            continue
+        hits: Dict[Tuple[int, int], NameHit] = {}
+        _SCANNERS[a.kind](text, a, lex, hits)
+        for hit in hits.values():
+            if _organization_candidate(text, hit, a):
+                if hit.name in organizations:
+                    continue
+                person_action = a.kind == "frame" and _PERSON_ACTION_RE.match(text, hit.end)
+                if hit.score >= SCORE_LOW and hit.name[-1] in lex.org_abbr_end and not person_action:
+                    hit.score = SCORE_LOW
+                    hit.maybe_org = True
+            _put(found, hit)
     ordered = sorted(found.values(), key=lambda h: (-(h.end - h.start), -h.score, h.start))
     kept: List[NameHit] = []
     for h in ordered:
@@ -920,6 +1004,82 @@ def find_names(text: str, anchors: Sequence[Anchor], lex: Lexicon) -> List[NameH
             kept.append(h)
     kept.sort(key=lambda h: h.start)
     return kept
+
+
+def _md_cells(line: str, strip_style: bool = True) -> List[Tuple[int, str]]:
+    """按未转义的竖线切列，保留值在原行里的偏移，用于遮蔽摘录。"""
+    pipes = [m.start() for m in _MD_PIPE_RE.finditer(line) if m["pipe"]]
+    if not pipes:
+        return []
+    bounds = [-1, *pipes, len(line)]
+    if not line[:pipes[0]].strip():
+        bounds.pop(0)
+    if not line[pipes[-1] + 1:].strip():
+        bounds.pop()
+    cells = []
+    for left, right in zip(bounds, bounds[1:]):
+        raw = line[left + 1:right]
+        value = raw.strip()
+        start = left + 1 + len(raw) - len(raw.lstrip())
+        styled = _MD_CELL_RE.fullmatch(value) if strip_style else None
+        if styled:
+            raw = styled["value"]
+            start += styled.start("value") + len(raw) - len(raw.lstrip())
+            value = raw.strip()
+        cells.append((start, value))
+    return cells
+
+
+def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[int, TableNameRow]:
+    """识别 Markdown 表格的姓名列。返回按零基行下标索引的命中，敏感列决定分级。"""
+    found: Dict[int, TableNameRow] = {}
+    sensitive = lex.table_sensitive[domain]
+    idx = 0
+    fence = ""
+    while idx < len(lines):
+        mark = _MD_FENCE_RE.match(lines[idx])
+        if mark:
+            delim, rest = mark.groups()
+            if not fence:
+                fence = delim
+            elif delim.startswith(fence) and not rest.strip():
+                fence = ""
+            idx += 1
+            continue
+        header = _md_cells(lines[idx]) if not fence else []
+        if not header or idx + 1 == len(lines):
+            idx += 1
+            continue
+        separator = _md_cells(lines[idx + 1], strip_style=False)
+        if len(header) != len(separator) or not all(_MD_SEPARATOR_RE.fullmatch(v) for _, v in separator):
+            idx += 1
+            continue
+        labels = tuple(re.sub(r"\s+", "", label) for _, label in header)
+        columns = [i for i, label in enumerate(labels) if label in lex.table_names and label not in lex.table_public]
+        score = SCORE_HIGH if any(w in label for label in labels for w in sensitive) else SCORE_LOW
+        idx += 2
+        while idx < len(lines) and not _MD_FENCE_RE.match(lines[idx]):
+            cells = _md_cells(lines[idx])
+            if not cells:
+                break
+            hits = []
+            for col in columns:
+                if col >= len(cells):
+                    continue
+                start, value = cells[col]
+                note = R3_RE.search(value)
+                word = value[:note.start()].rstrip() if note else value
+                if word in lex.table_nonnames or not _list_item_like_name(word, lex):
+                    continue
+                if len(word) >= 3 and word.endswith(("科", "中心", "学院", "部门")):
+                    continue
+                shape = _shape(word, lex, evidence=bool(note), tail_ok=True)
+                if shape and not shape.pseudo:
+                    hits.append(NameHit(start, start + len(word), word, score, False, labels[col]))
+            if hits:
+                found[idx] = TableNameRow(labels, hits)
+            idx += 1
+    return found
 
 
 # ---------------------------------------------------------------------------
@@ -945,9 +1105,10 @@ def _tail_regex(lex: Lexicon) -> "Pattern[str]":
 class NameTable:
     """全文姓名表：按首次出现编号，占位符〔姓名1〕〔姓名2〕。代称（张某）不进表。"""
 
-    def __init__(self) -> None:
+    def __init__(self, organizations: FrozenSet[str] = frozenset()) -> None:
         self._order: Dict[str, int] = {}
         self._pattern: Optional[Pattern[str]] = None
+        self._organizations = organizations
 
     def add(self, name: str) -> int:
         idx = self._order.get(name)
@@ -998,6 +1159,8 @@ class NameTable:
 
         def sub(m: "re.Match[str]") -> str:
             word = m.group("w")
+            if word in self._organizations:
+                return m.group(0)
             sh = _shape(word, lex, common_ambig=True, mask_only=True, chain=True)
             if sh is None or sh.pseudo:
                 return m.group(0)
