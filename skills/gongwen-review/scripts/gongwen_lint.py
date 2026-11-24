@@ -2219,7 +2219,9 @@ class Linter:
     def _evd_hit_ok(self, piece: str, m: "re.Match[str]", cfg: Dict[str, Any], allow: Set[str]) -> bool:
         """命中是否算一次“评价”：排除白名单短语、用户白名单、引号内、弱化限定、要求和目标语境。"""
         term = m.group(0)
-        if any(a and (a in term or term in a) for a in allow):
+        # 白名单词与命中词相等，或是命中词内至少两字的完整词（“显著”放行“成效显著”）才放行；
+        # 不再反向放行（命中词包含于白名单词），单字白名单（如“显”）也不放行整批词
+        if any(a and (a == term or (len(a) >= 2 and a in term)) for a in allow):
             return False
         for wl in cfg["whitelist"]:
             for w in wl.finditer(piece):
@@ -2524,7 +2526,7 @@ def _term_regex(term: str) -> Pattern[str]:
         if not token:
             continue
         if token in BANNED_WILDCARDS:
-            parts.append(r"[^。；！？\n]{0,20}?")
+            parts.append(r"[^。；！？，,、：:\n]{0,20}?")  # 通配不跨子句：逗号、顿号、冒号也截断
         elif token.isspace():
             parts.append(r"\s*")
         else:
@@ -2579,9 +2581,8 @@ def load_banned(path: Path) -> List[BannedTerm]:
         if heading:
             title = heading.group(1).strip()
             skip_section = bool(BANNED_SKIP_SECTION_RE.search(title))
-            level = _banned_level(title)
-            if level is not None:
-                section_level = level
+            # 遇到新标题即重置级别，再按该标题关键词判定，避免上一小节的级别泄漏
+            section_level = _banned_level(title)
             cols = None
             continue
         if skip_section or not s:
@@ -2626,7 +2627,14 @@ def load_banned(path: Path) -> List[BannedTerm]:
             reason = re.sub(r"[（(【]?(?:禁用|慎用)[）)】]?", "", tail).strip("）)】 　：:，,；;").strip()
             for term in _split_terms(head):
                 list_terms.append(BannedTerm(term, _term_regex(term), banned, reason, "", "", source))
-    return table_terms if table_terms else list_terms
+    # 表格与列表混写时两者合并，同一词条只保留先出现的一条
+    merged = list(table_terms)
+    seen = {t.term for t in table_terms}
+    for t in list_terms:
+        if t.term not in seen:
+            seen.add(t.term)
+            merged.append(t)
+    return merged
 
 
 def resolve_doc_type(doc: Document, given: Optional[str]) -> Tuple[str, str]:
@@ -2793,7 +2801,7 @@ def baseline_hints(doc: Document, doc_type: str, ref: BaselineRef) -> Tuple[List
             message=(f"{label} {fmt(val)}{units[rid]}，{side}同文种（{group_name}，{n} 篇）{edge} {fmt(bound)}{units[rid]}"
                      f"（中位数 {fmt(st.get('median', 0))}，P10～P90 为 {fmt(low if low is not None else 0)}～{fmt(high)}）"),
             suggestion="仅作参照：篇幅、层次以上级要求、既有模板和事项复杂程度为准，用户指定的篇幅以用户为准，有理由就不改",
-            basis="公开公文语料基线 references/_shared/style/baseline.md（真实公文的分布，不是规定）"
+            basis="公开公文语料基线 shared/style/baseline.md（仓库源文件；随 skill 分发时为 references/_shared/style/baseline.json，真实公文的分布，不是规定）"
                   + ("；该文种样本偏少，只作方向参考" if low_sample else ""),
         ))
     info = {"group": group_name, "n": n, "metrics": summary}
@@ -2929,7 +2937,7 @@ def fingerprint_hints(doc: Document, doc_type: str, linter: Linter,
                 excerpt=f"平均句长 {avg_sent} 字（短句占比 {short_ratio}%）",
                 message=f"平均句长 {avg_sent} 字，低于参考下限 {lo:g} 字（{band_note}），读感偏碎",
                 suggestion="可将同一意思的关联短句合并为带并列成分的公文长句（见 references/_shared/style/sentence-clinic.md）；如系有意保留口语或短句发力则无需修改",
-                basis="文风指纹，切句口径与公开公文语料基线 references/_shared/style/baseline.md 一致（参考，不是合格线）",
+                basis="文风指纹，切句口径与公开公文语料基线 shared/style/baseline.md（随 skill 分发时为 references/_shared/style/baseline.json）一致（参考，不是合格线）",
             ))
         elif avg_sent > hi:
             issues.append(Issue(
@@ -2937,7 +2945,7 @@ def fingerprint_hints(doc: Document, doc_type: str, linter: Linter,
                 excerpt=f"平均句长 {avg_sent} 字（长句占比 {long_ratio}%）",
                 message=f"平均句长 {avg_sent} 字，高于参考上限 {hi:g} 字（{band_note}），可能影响阅读与宣讲节奏",
                 suggestion="可在语义完整处适当断句，穿插短句收口；如系条款密集型文件可保留",
-                basis="文风指纹，切句口径与公开公文语料基线 references/_shared/style/baseline.md 一致（参考，不是合格线）",
+                basis="文风指纹，切句口径与公开公文语料基线 shared/style/baseline.md（随 skill 分发时为 references/_shared/style/baseline.json）一致（参考，不是合格线）",
             ))
 
     # FGP-002 强制词密度（与 DEF-028 同词表、同阈值；DEF-028 已报告时不重复，见 _lint_document）
@@ -2962,7 +2970,7 @@ def fingerprint_hints(doc: Document, doc_type: str, linter: Linter,
                 excerpt=f"最大段「{name}」占 {share}%",
                 message=f"“{doc_type}”通常各部分相对均衡，当前「{name}」占比 {share}% 明显偏重",
                 suggestion="核查是否把分析/总结类文稿写成了单段独大的部署方案；如有意突出重点板块可保留",
-                basis="文风指纹参照 references/_shared/style/baseline.md（结构重心对照）",
+                basis="文风指纹参照 shared/style/baseline.md（随 skill 分发时为 references/_shared/style/baseline.json，结构重心对照）",
                 para_index=para.index,
             ))
         elif doc_type in _FGP_SINGLE_HEAVY_TYPES and share < 28.0 and len(h1_secs) <= 4:
@@ -2971,7 +2979,7 @@ def fingerprint_hints(doc: Document, doc_type: str, linter: Linter,
                 excerpt=f"最大段「{name}」仅占 {share}%",
                 message=f"“{doc_type}”通常把重心压在任务/做法段，当前各段过于均分（最高仅 {share}%）",
                 suggestion="可压缩前置意义/背景段，把篇幅集中到重点任务或可复制做法上；如系平铺多任务结构可保留",
-                basis="文风指纹参照 references/_shared/style/baseline.md（结构重心对照）",
+                basis="文风指纹参照 shared/style/baseline.md（随 skill 分发时为 references/_shared/style/baseline.json，结构重心对照）",
                 para_index=para.index,
             ))
 
@@ -2993,7 +3001,7 @@ def fingerprint_hints(doc: Document, doc_type: str, linter: Linter,
             excerpt=f"{doc_type}含 {h3_cnt} 个三级标题（1.）",
             message=f"{doc_type}使用了 {h3_cnt} 个三级标题（1.），层级偏深，不利于口头宣讲",
             suggestion="讲话类文稿宜控制在两层（一、/（一））以内，段内分层改用“一是……二是……”或口语过渡；印发版需要细目的可保留",
-            basis="文体族结构规律 references/_shared/style/baseline.md、exemplars.md",
+            basis="文体族结构规律 shared/style/baseline.md、exemplars.md（随 skill 分发时为 references/_shared/style/ 下的同名文件，视各 skill 是否声明）",
             para_index=para.index,
         ))
 

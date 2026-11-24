@@ -76,6 +76,26 @@ class LoadBannedTest(TempDirMixin, unittest.TestCase):
         self.assertTrue(gl._term_regex("治愈率 100%").search("治愈率100%"))
         self.assertTrue(gl._term_regex("在……领导下").search("在县委的坚强领导下"))
 
+    def test_mixed_table_and_list_merged(self):
+        """表格与列表混写：两种来源的词条都保留，重复词条只留一条。"""
+        text = "# 禁用词\n\n| 词语 | 级别 |\n|---|---|\n| 赋能 | 慎用 |\n\n## 禁用\n- 拉满\n- 赋能\n"
+        terms = gl.load_banned(self.write("混写.md", text))
+        self.assertEqual(sorted(t.term for t in terms), ["拉满", "赋能"])
+
+    def test_section_level_resets_on_new_heading(self):
+        """“## 慎用”之后的无级别标题小节回到默认级别（禁用），不沿用慎用。"""
+        text = "# 禁用词\n\n## 慎用\n- 打造\n\n## 其他用词\n- 拉满\n"
+        terms = {t.term: t.banned for t in gl.load_banned(self.write("级别.md", text))}
+        self.assertEqual(terms, {"打造": False, "拉满": True})
+
+    def test_wildcard_does_not_cross_clause(self):
+        regex = gl._term_regex("落实……工作")
+        self.assertIsNone(regex.search("落实，搞定问题，安全工作"))
+        self.assertIsNone(regex.search("落实、搞定问题：安全工作"))
+        self.assertTrue(regex.search("落实安全生产工作"))
+        m = regex.search("落实，搞定问题，落实安全工作")
+        self.assertEqual(m.group(0), "落实安全工作")
+
 
 class BannedCheckTest(TempDirMixin, unittest.TestCase):
     def test_levels_and_scope(self):

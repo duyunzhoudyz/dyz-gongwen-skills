@@ -176,6 +176,75 @@ class TestBuildHtml(unittest.TestCase):
         self.assertIn('<span class="gw-wb">https://www.example.gov.cn/notice/2026/heating-plan.html</span>', html_doc)
         self.assertNotIn('<span class="gw-wb">010-12345678</span>', html_doc)
 
+    def test_markdown_residue_cleaned(self) -> None:
+        lines = ["# 关于做好防汛工作的通知", "", "各单位：", "",
+                 "**一、总体要求**", "要落实 __责任__，参照`实施方案`执行。", "---", "```", "代码围栏", "```",
+                 "| 单位 | 联系人 |", "|---|---|", "| 城管局 | 王某 |",
+                 "某局", "2026年11月22日"]
+        html_doc, _ = build_html.build_html(lines)
+        body = html_doc.split('<div id="gwDocBody">')[1].split("</article>")[0]
+        self.assertIn("关于做好防汛工作的通知", body)
+        for bad in ("# 关于", "**", "__", "`", "---"):
+            self.assertNotIn(bad, body)
+        self.assertIn("一、总体要求", body)
+        self.assertIn("要落实 责任，参照实施方案执行。", body)
+        # 表格仍是 1 个表头行 + 1 个数据行，分隔行不渲染
+        self.assertEqual(body.count("<th>"), 2)
+        self.assertEqual(body.count("<td>"), 2)
+
+    def test_double_underscore_inside_word_kept(self) -> None:
+        """词内的 __ 不是强调标记：a__b__c、snake__case__name 保留原样；独立的 __重点__ 仍被去标记。"""
+        cleaned = build_html.clean_markdown_lines(["a__b__c", "变量名 snake__case__name 不变", "__重点__", "要落实__责任__。", "**加粗**"])
+        self.assertEqual(cleaned[0], "a__b__c")
+        self.assertIn("snake__case__name", cleaned[1])
+        self.assertEqual(cleaned[2], "重点")
+        self.assertEqual(cleaned[3], "要落实责任。")
+        self.assertEqual(cleaned[4], "加粗")
+
+    def test_standalone_separator_dropped(self) -> None:
+        lines = ["关于测试的通知", "各单位：", "|---|---|", "正文一段。", "某局", "2026年11月22日"]
+        html_doc, _ = build_html.build_html(lines)
+        self.assertNotIn("<th>", html_doc)
+        self.assertNotIn("|---|", html_doc)
+
+    def test_official_text_untouched(self) -> None:
+        lines = ["关于做好工作的通知", "各单位：", "一、加强领导", "（一）落实《工作方案》。", "某局", "2026年11月22日"]
+        html_doc, _ = build_html.build_html(lines)
+        self.assertIn("一、加强领导", html_doc)
+        self.assertIn("落实《工作方案》。", html_doc)
+        self.assertIn("2026年11月22日", html_doc)
+
+    def test_control_chars_removed(self) -> None:
+        lines = ["关于测试\x01的通知", "各单位：", "正文\x0b内容\x00结束\x1f。", "某局", "2026年11月22日"]
+        html_doc, _ = build_html.build_html(lines)
+        for ch in ("\x00", "\x01", "\x0b", "\x1f"):
+            self.assertNotIn(ch, html_doc)
+        self.assertIn("关于测试的通知", html_doc)
+
+    def test_cli_gbk_input_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "gbk.txt"
+            src.write_bytes(SAMPLE_NOTICE.encode("gb18030"))
+            out = Path(td) / "gbk.html"
+            err = io.StringIO()
+            from contextlib import redirect_stderr
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                code = build_html.main([str(src), "-o", str(out)])
+            self.assertEqual(code, 0)
+            self.assertIn("GB18030", err.getvalue())
+            self.assertIn("关于召开全区冬季供暖协调会的通知", out.read_text(encoding="utf-8"))
+
+    def test_cli_undecodable_input_friendly_error(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            src = Path(td) / "bad.txt"
+            src.write_bytes(b"\x81\x30\xff\xfe\x80\x81 bad")
+            err = io.StringIO()
+            from contextlib import redirect_stderr
+            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+                code = build_html.main([str(src), "-o", str(Path(td) / "x.html")])
+            self.assertNotEqual(code, 0)
+            self.assertIn("编码", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

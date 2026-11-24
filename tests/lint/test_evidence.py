@@ -187,6 +187,12 @@ class AllowlistTest(unittest.TestCase):
         self.assertEqual(evd_ids(text, evidence_allow=["显著"]), [])
         self.assertEqual(evd_ids(text, evidence_allow="大幅，广受好评"), ["EVD-001"])
 
+    def test_evidence_allow_single_char_does_not_release_whole_word(self):
+        """白名单词必须与命中词相等：单字“显”不放行“显著”。"""
+        text = "全年工作成效显著。"
+        self.assertEqual(evd_ids(text, evidence_allow="显"), ["EVD-001"])
+        self.assertEqual(evd_ids(text, evidence_allow="成效显著的"), ["EVD-001"])
+
     def test_allow_does_not_leak_between_calls(self):
         text = "全年工作成效显著。"
         evd_ids(text, evidence_allow="显著")

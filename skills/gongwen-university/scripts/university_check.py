@@ -178,6 +178,15 @@ def _sentence_around(text: str, start: int, end: int) -> str:
     return text[left:right].strip()[:120]
 
 
+def _is_near(text: str, a: int, b: int) -> bool:
+    """两个位置是否在同一句或相邻句内（不跨段）。"""
+    lo, hi = (a, b) if a <= b else (b, a)
+    between = text[lo:hi]
+    if "\n" in between:
+        return False
+    return sum(1 for ch in between if ch in SENTENCE_END) <= 1
+
+
 def check_text(
     text: str,
     *,
@@ -219,8 +228,15 @@ def check_text(
     for rule in rs.procedural:
         if not rule.applies(doc_type) or rule.trigger is None or rule.contradict is None:
             continue
-        m_trig = rule.trigger.search(body)
-        m_cont = rule.contradict.search(body)
+        # 只在同一句或相邻句（同一段内）同时出现才算前后矛盾，避免全文远距离误报
+        m_trig = m_cont = None
+        for mt in rule.trigger.finditer(body):
+            for mc in rule.contradict.finditer(body):
+                if _is_near(body, mt.start(), mc.start()):
+                    m_trig, m_cont = mt, mc
+                    break
+            if m_trig:
+                break
         if m_trig and m_cont:
             line, col = _line_col(body, m_cont.start())
             issues.append(
@@ -300,7 +316,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             stream.reconfigure(encoding="utf-8")
         except Exception:
             pass
-    args = build_parser().parse_args(argv)
+    try:
+        args = build_parser().parse_args(argv)
+    except SystemExit as exc:
+        # 被工具箱以 mod.main(argv) 方式调用时，不得向调用方抛 SystemExit
+        return 0 if exc.code == 0 else 2
     try:
         rs = load_rules()
         if args.list_rules:

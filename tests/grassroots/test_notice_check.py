@@ -859,6 +859,23 @@ class SpecimenTest(NoticeCheckTestCase):
         self.assert_clean(pass_res)
         self.assertEqual(self.ids(pass_res), [])
 
+    def test_notice_title_with_internal_keyword_not_misjudged(self):
+        """标题以“通知”结尾时按通知判型，不被“迎检/汇报”等关键词抢成内部材料。"""
+        for title in ("关于做好上级督导迎检工作的通知", "关于召开年度工作汇报会的通知"):
+            with self.subTest(title=title):
+                body = (
+                    f"{title}\n\n各村（社区）：\n"
+                    "经研究，定于2026年12月10日（星期四）上午9时在镇政府会议室召开会议，"
+                    "请各村（社区）负责人准时参加。\n\n某镇人民政府\n2026年12月3日\n"
+                )
+                res = self.check(body)
+                self.assertEqual(res["kind"], "通知")
+                self.assertIn("NTC-003", self.ids(res, "P1"))
+
+    def test_internal_keyword_without_doc_type_still_internal(self):
+        res = self.check("某镇2026年迎检汇报\n\n一、基本情况\n本镇认真开展自查，情况良好。\n")
+        self.assertEqual(res["kind"], "内部材料")
+
 
 if __name__ == "__main__":
     unittest.main()

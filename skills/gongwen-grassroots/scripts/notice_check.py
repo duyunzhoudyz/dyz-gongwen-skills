@@ -264,6 +264,9 @@ def nonspace_len(text: str) -> int:
 # 判断类型与对象
 # ---------------------------------------------------------------------------
 
+EXPLICIT_DOC_TYPE_END_RE = re.compile(r"(?:通知|通告|公告|通报|函)[”」）)]?\s*$")
+
+
 def detect_kind(title: str, explicit: Optional[str], filename: str = "") -> Tuple[str, str]:
     if explicit:
         return explicit, "参数"
@@ -277,7 +280,11 @@ def detect_kind(title: str, explicit: Optional[str], filename: str = "") -> Tupl
         return "公示", "标题推断"
     if EMERGENCY_TITLE_RE.search(title):
         return "应急通知", "标题推断"
-    if re.search(r"迎检|自查报告|汇报|政务信息|一表通|准入清单", title):
+    # 标题以明确的对外文种结尾（通知、通告、公告、函等）时按文种判型，不被关键词抢走；
+    # 关键词只在标题没有明确文种时才判“内部材料”
+    if not EXPLICIT_DOC_TYPE_END_RE.search(title) and re.search(
+        r"迎检|自查报告|汇报|政务信息|一表通|准入清单", title
+    ):
         return "内部材料", "标题推断"
     return "通知", "默认"
 

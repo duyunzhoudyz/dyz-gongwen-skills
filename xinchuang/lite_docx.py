@@ -473,17 +473,28 @@ def _heading_p(
     return f"<w:p>{ppr}{runs}</w:p>"
 
 
-def _signature_indents(sig_text: str, date_text: str) -> Tuple[float, float]:
-    """按 GB/T 9704 7.3.5 计算署名和成文日期的右缩进字数：日期右空 4 字，署名居中对齐日期。"""
-    date_right = 4.0
-    if not sig_text:
-        return date_right, date_right
-    dw = gw_layout.text_width_chars(date_text) if date_text else 0.0
-    sw = gw_layout.text_width_chars(sig_text)
-    if dw <= 0:
-        return date_right, date_right
-    sig_right = max(0.0, date_right + (dw - sw) / 2.0)
-    return sig_right, date_right
+Place = Tuple[str, float, float]  # (对齐, 左缩进字数, 右缩进字数)
+
+
+def _signature_places(sig_texts: Sequence[str], date_text: str, width: float = 28.0) -> Tuple[Place, Place]:
+    """按 GB/T 9704-2012 7.3.5.2（不加盖印章）计算署名与成文日期的定位，与 gw_format.py 口径一致。
+
+    轻量版不处理印章，一律按不加盖印章排：署名右空二字；成文日期首字比署名首字右移二字（用左缩进定位）；
+    日期加二字后比署名更长时，日期右对齐、右空二字，署名相应左移。
+    只有署名或只有日期时，该行右对齐、右空二字。"""
+    r_sig, shift = 2.0, 2.0
+    right_only: Place = ("right", 0.0, r_sig)
+    if not sig_texts or not date_text:
+        return right_only, right_only
+    w_max = max(gw_layout.text_width_chars(t) for t in sig_texts)
+    dw = gw_layout.text_width_chars(date_text)
+    if w_max <= 0 or dw <= 0:
+        return right_only, right_only
+    if dw + shift > w_max:
+        start = max(0.0, width - r_sig - dw - shift)
+        return ("left", round(start, 2), 0.0), ("right", 0.0, r_sig)
+    start = max(0.0, width - r_sig - w_max)
+    return ("left", round(start, 2), 0.0), ("left", round(start + shift, 2), 0.0)
 
 
 def build_lite_docx(
@@ -514,12 +525,13 @@ def build_lite_docx(
     title_font = fonts["小标宋"]
     kai_font = fonts["楷体"]
 
-    # 预提取署名和成文日期文字，用于居中对齐（7.3.5）
+    # 预提取署名和成文日期文字，用于按 7.3.5.2（不加盖印章）定位
     sig_items = [it for it in parsed.items if it.role == "signature"]
     date_items = [it for it in parsed.items if it.role == "date"]
-    sig_right, date_right = _signature_indents(
-        sig_items[-1].text if sig_items else "",
+    sig_place, date_place = _signature_places(
+        [it.text for it in sig_items],
         date_items[-1].text if date_items else "",
+        float(_pv(params, "grid.chars_per_line")),
     )
 
     paras: List[str] = []
@@ -572,12 +584,12 @@ def build_lite_docx(
             paras.append(f"<w:p>{ppr}{_run_xml(text, body_font, 16.0)}</w:p>")
         elif role == "signature":
             paras.append(_blank_p(line_pt))
-            ppr = _ppr_xml(align="right", line_exact_pt=line_pt, right_chars=sig_right)
+            ppr = _ppr_xml(align=sig_place[0], line_exact_pt=line_pt, left_chars=sig_place[1], right_chars=sig_place[2])
             paras.append(f"<w:p>{ppr}{_run_xml(text, body_font, 16.0)}</w:p>")
         elif role == "date":
             if not sig_items:
                 paras.append(_blank_p(line_pt))
-            ppr = _ppr_xml(align="right", line_exact_pt=line_pt, right_chars=date_right)
+            ppr = _ppr_xml(align=date_place[0], line_exact_pt=line_pt, left_chars=date_place[1], right_chars=date_place[2])
             paras.append(f"<w:p>{ppr}{_run_xml(text, body_font, 16.0)}</w:p>")
         elif role == "note":
             ppr = _ppr_xml(align="both", line_exact_pt=line_pt, first_line_chars=2.0)

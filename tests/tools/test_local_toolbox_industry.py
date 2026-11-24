@@ -83,6 +83,63 @@ class LocalToolboxIndustryCheckTests(unittest.TestCase):
         self.assertIn('id="indPack"', tb.PAGE)
         self.assertIn('data-op="industry_check"', tb.PAGE)
 
+    def test_leading_dash_doc_type_rejected_not_exit(self):
+        """doc_type 以 - 开头不能被当成选项，更不能让进程退出。"""
+        for key in ("university", "hospital", "soe"):
+            res = tb.op_industry_check({"b": "关于测试的通知\n各单位：\n请知悉。", "industry": key, "doc_type": "-x"})
+            self.assertFalse(res["ok"])
+            self.assertIn("不能以", res["text"])
+
+    def test_systemexit_from_script_becomes_error_result(self):
+        """行业脚本内部 argparse 抛 SystemExit 时，转成普通错误结果。"""
+        import types
+        fake = types.SimpleNamespace(main=lambda argv: (_ for _ in ()).throw(SystemExit(2)))
+        orig = tb._load_industry_module
+        tb._load_industry_module = lambda key, script: fake
+        try:
+            res = tb.op_industry_check({"b": "正文", "industry": "university"})
+        finally:
+            tb._load_industry_module = orig
+        self.assertFalse(res["ok"])
+        self.assertTrue(res["text"])
+
+    def test_lint_uses_readable_name(self):
+        res = tb.op_lint({"b": "关于测试的通知\n各单位：\n请知悉。"})
+        self.assertIn("粘贴文本", res["text"])
+        self.assertNotIn("<text>", res["text"])
+
+    def test_page_wording_not_overclaim(self):
+        self.assertNotIn("不落盘", tb.PAGE)
+        self.assertIn("临时目录", tb.PAGE)
+
+    def test_http_server_survives_bad_request(self):
+        """真实 HTTP 请求：构造 -x 的请求后服务仍可继续响应。"""
+        import http.client
+        import json
+        import threading
+        server = tb.HTTPServer((tb.HOST, 0), tb.Handler)
+        port = server.server_address[1]
+        th = threading.Thread(target=server.serve_forever, daemon=True)
+        th.start()
+        try:
+            def post(path, body):
+                conn = http.client.HTTPConnection(tb.HOST, port, timeout=20)
+                conn.request("POST", path, json.dumps(body), {"Content-Type": "application/json"})
+                resp = conn.getresponse()
+                data = json.loads(resp.read().decode("utf-8"))
+                conn.close()
+                return resp.status, data
+            st, data = post("/api/industry_check", {"b": "关于测试的通知\n各单位：\n请知悉。", "industry": "university", "doc_type": "-x"})
+            self.assertEqual(st, 200)
+            self.assertFalse(data["ok"])
+            self.assertTrue(th.is_alive())
+            st, data = post("/api/lint", {"b": "关于测试的通知\n各单位：\n请知悉。"})
+            self.assertEqual(st, 200)
+            self.assertIn("机检结果", data["text"])
+        finally:
+            server.shutdown()
+            server.server_close()
+
 
 if __name__ == "__main__":
     unittest.main()

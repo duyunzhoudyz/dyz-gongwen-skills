@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """本机零联网工具箱：浏览器打开 http://127.0.0.1:8765 即用（只依赖标准库）。
 
-只绑定回环地址 127.0.0.1，局域网和公网访问不到；不调用模型、不联网、不落盘，脱敏映射表按页面会话
-保存在本进程内存里，关闭即销毁。涉密检测、脱敏还原、八关机检、事实数字核对、字体自检、国标排版
+只绑定回环地址 127.0.0.1，局域网和公网访问不到；不调用模型、不联网、不保存正文（个别功能仅在本机临时目录瞬时处理、用后即删），
+脱敏映射表按页面会话保存在本进程内存里，关闭即销毁。涉密检测、脱敏还原、八关机检、事实数字核对、字体自检、国标排版
 （无 python-docx 时自动切换纯标准库轻量排版）、OFD 体检和内网提示词复制都由人逐步点击，
 没有后台自动执行。
 
@@ -77,7 +77,7 @@ input,select{padding:.3em .45em;border:1px solid #ccc;border-radius:3px;font-siz
 .filebtn input{display:none}
 </style></head><body>
 <h2>公文写作本机工具箱 <span class="muted">（仅监听 127.0.0.1 · 零联网 · 非自主智能体）</span></h2>
-<div class="warn"><strong>保密红线：</strong>本工具箱不联网、不调用大模型、不落盘保存正文，脱敏映射表只留在本页内存，关闭窗口即销毁。<strong>涉密材料严禁进入任何非涉密系统</strong>，脱敏不能使涉密材料合规外发。</div>
+<div class="warn"><strong>保密红线：</strong>本工具箱不联网、不调用大模型、不保存正文（事实核对、OFD 体检、行业专检仅在本机临时目录瞬时处理，用后即删），脱敏映射表只留在本页内存，关闭窗口即销毁。涉密检测只识别密级标识和内部标注字样，不能判定材料是否涉密。<strong>涉密材料严禁进入任何非涉密系统</strong>，脱敏不能使涉密材料合规外发。</div>
 
 <div class="card">
   <h3>第一步：选用内网大模型提示词（一键复制，粘贴到单位内网模型系统提示词框）</h3>
@@ -389,7 +389,7 @@ def op_clear_map(d: dict) -> dict:
 
 
 def op_lint(d: dict) -> dict:
-    result = gongwen_lint.lint_text(d.get("b", ""), doc_type=d.get("doc_type") or None, fingerprint=True)
+    result = gongwen_lint.lint_text(d.get("b", ""), doc_type=d.get("doc_type") or None, file_name="粘贴文本", fingerprint=True)
     return {"ok": True, "text": gongwen_lint.render_text(result)}
 
 
@@ -586,6 +586,8 @@ def op_industry_check(d: dict) -> dict:
         return {"ok": False, "text": f"未找到 {label} 脚本（{script.name}），请确认已安装对应行业包。"}
 
     doc_type = str(d.get("doc_type") or "").strip()
+    if doc_type.startswith("-"):
+        return {"ok": False, "text": "文书类型不能以“-”开头，请改填“通知”“报告”等文书名称，或留空。", "note": f"{label}参数有误"}
     external = bool(d.get("ind_external"))
     terms = str(d.get("terms") or "").strip()
 
@@ -602,7 +604,7 @@ def op_industry_check(d: dict) -> dict:
             if terms:
                 norm_terms = ",".join(t.strip() for t in terms.replace("、", ",").replace("，", ",").split(",") if t.strip())
                 if norm_terms:
-                    argv += ["--names", norm_terms]
+                    argv += ["--names=" + norm_terms]
         elif key == "grassroots":
             argv = [str(target), "--strict"]
             if doc_type in ("通知", "告知书", "倡议书", "应急通知", "公示", "群消息", "内部材料"):
@@ -610,14 +612,21 @@ def op_industry_check(d: dict) -> dict:
         else:
             argv = [str(target), "--strict"]
             if doc_type:
-                argv += ["--type", doc_type]
+                argv += ["--type=" + doc_type]
             if external:
                 argv += ["--external"]
 
         mod = _load_industry_module(key, script)
         out_buf, err_buf = io.StringIO(), io.StringIO()
-        with redirect_stdout(out_buf), redirect_stderr(err_buf):
-            code = int(mod.main(argv))  # type: ignore[attr-defined]
+        try:
+            with redirect_stdout(out_buf), redirect_stderr(err_buf):
+                code = int(mod.main(argv))  # type: ignore[attr-defined]
+        except SystemExit as exc:  # argparse 参数错误会抛 SystemExit，不能让它终止服务进程
+            code = exc.code if isinstance(exc.code, int) else 2
+            if code == 0:
+                code = 2
+            if not (out_buf.getvalue().strip() or err_buf.getvalue().strip()):
+                err_buf.write("参数有误，行业专检未能执行，请检查文书类型等选项。")
 
     out = out_buf.getvalue().strip()
     err = err_buf.getvalue().strip()
@@ -736,7 +745,7 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(payload, dict):
                 payload = {}
             out = op(payload)
-        except Exception as exc:  # 边界：任何一步出错都回给页面显示，不让进程崩
+        except (Exception, SystemExit) as exc:  # 边界：任何一步出错（含 SystemExit）都回给页面显示，不让进程退出
             out = {"ok": False, "text": "处理失败：%s" % exc}
         self._send(200, json.dumps(out, ensure_ascii=False), "application/json; charset=utf-8")
 

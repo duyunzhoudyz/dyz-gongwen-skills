@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""规范用词检查（TRM-001～012）、行业规范词白名单（WL-020～022）、结语隔离与本单位规范词表测试。"""
+"""规范用词检查（TRM-001～013）、行业规范词白名单（WL-020～022）、结语隔离与本单位规范词表测试。"""
 from __future__ import annotations
 
 import unittest
@@ -23,7 +23,7 @@ class NormativeTermRulesTest(unittest.TestCase):
         found = set(ids(run(text, "通知", "term")))
         for rid in (
             "TRM-001", "TRM-002", "TRM-003", "TRM-004", "TRM-005", "TRM-006",
-            "TRM-007", "TRM-008", "TRM-009", "TRM-010", "TRM-011", "TRM-012",
+            "TRM-007", "TRM-008", "TRM-009", "TRM-010", "TRM-011", "TRM-012", "TRM-013",
         ):
             self.assertIn(rid, found, f"未检出 {rid}")
 
@@ -141,3 +141,46 @@ class NormativeFalsePositiveTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TrmRefinementTest(unittest.TestCase):
+    """规范用词规则的误报与漏报修正（TRM-001/003/005/007/011/012/013）。"""
+
+    @staticmethod
+    def trm(text, rid):
+        return [i for i in run(text, "通知", "term")["issues"] if i["id"] == rid]
+
+    def test_trm005_time_span_not_flagged(self):
+        self.assertEqual(self.trm("企业度过了艰难时期，逐步恢复生产。", "TRM-005"), [])
+        self.assertEqual(self.trm("群众度过困难时期。", "TRM-005"), [])
+        self.assertTrue(self.trm("全市上下度过了险境。", "TRM-005"))
+        self.assertTrue(self.trm("帮助企业度过难关。", "TRM-005"))
+
+    def test_trm007_reaction_misuse(self):
+        self.assertTrue(self.trm("近期群众反应强烈，要求尽快整改。", "TRM-007"))
+        self.assertTrue(self.trm("居民反应较大。", "TRM-007"))
+        self.assertEqual(self.trm("实验中化学反应迅速完成。", "TRM-007"), [])
+        self.assertEqual(self.trm("各部门应急反应迅速。", "TRM-007"), [])
+
+    def test_trm003_tolerates_de(self):
+        self.assertTrue(self.trm("他为全市发展做出了重要的贡献。", "TRM-003"))
+        self.assertTrue(self.trm("为全市发展做出积极贡献。", "TRM-003"))
+        self.assertEqual(self.trm("他为全市发展作出了重要的贡献。", "TRM-003"), [])
+
+    def test_trm001_fullwidth_digits(self):
+        self.assertTrue(self.trm("截止２０２６年１０月底，已完成排查。", "TRM-001"))
+        self.assertTrue(self.trm("截止2026年10月底，已完成排查。", "TRM-001"))
+        self.assertEqual(self.trm("截至２０２６年１０月底，已完成排查。", "TRM-001"), [])
+
+    def test_trm011_is_p2(self):
+        hits = self.trm("加大对老少边穷地区的帮扶力度。", "TRM-011")
+        self.assertEqual([i["level"] for i in hits], ["P2"])
+
+    def test_trm012_trm013_split_by_level(self):
+        full = self.trm("严格落实银保监会有关要求。", "TRM-012")
+        self.assertEqual([i["level"] for i in full], ["P1"])
+        self.assertEqual(self.trm("报市环保局备案。", "TRM-012"), [])
+        short = self.trm("报市环保局备案。", "TRM-013")
+        self.assertEqual([i["level"] for i in short], ["P2"])
+        self.assertIn("本地三定方案", short[0]["message"])
+        self.assertEqual(self.trm("原环保局印发的规定继续有效。", "TRM-013"), [])

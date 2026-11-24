@@ -11,7 +11,7 @@
   - `dist/prompts-bundles/`：4 套高频一站式单对话合集（法定公文、综合材料、核稿润色、落实整改），无需反复切换对话。
   - `dist/rag-kb/`：16 个切片文件共 461 片标准知识片（含新增规范用词分块），附 Dify 应用模板（`dify-app-template.yml`，已关闭 Agent 模式）、FastGPT / MaxKB QA 导入 CSV（`qa-import.csv`）及扣子开源版导入指引。
 - **本机零联网工具箱（`xinchuang/local_toolbox.py`）与可逆脱敏**：
-  - 附双击启动器（`xinchuang/启动工具箱.sh`、`.desktop`、`.bat`），仅监听 `127.0.0.1:8765`，不联网、不调模型、不落盘；在一个本地页面内提供一键复制内网提示词、直接导入 `.docx`/`.txt`、涉密强拦截、多标签页隔离的双向脱敏还原、八关机检与文风指纹体检、事实数字核对、7 档行业专检、字体自检、HTML 轻排版、国标 Word 排版与 OFD 结构体检。
+  - 附双击启动器（`xinchuang/启动工具箱.sh`、`.desktop`、`.bat`），仅监听 `127.0.0.1:8765`，不联网、不调模型，不保存正文（个别功能仅在本机临时目录瞬时处理、用后即删）；在一个本地页面内提供一键复制内网提示词、直接导入 `.docx`/`.txt`、涉密强拦截、多标签页隔离的双向脱敏还原、八关机检与文风指纹体检、事实数字核对、7 档行业专检、字体自检、HTML 轻排版、国标 Word 排版与 OFD 结构体检。
   - 新增本地涉密拦截与可逆双向脱敏还原脚本 `shared/scripts/desensitize.py`，同步至 `gongwen-review`。
 - **零依赖轻量排版、免宏模板、信创字体与 OFD 支持**：
   - 新增纯 Python 标准库 GB/T 9704 轻量排版 `xinchuang/lite_docx.py`（未装 `python-docx`/`lxml` 时自动降级，含龙芯等架构）；新增 `xinchuang/templates/` 5 套免 Python、免宏空白 `.docx` 模板（白头、红头、会议纪要、内部签报、综合材料）。
@@ -31,27 +31,37 @@
 ### 三、老笔杆子笔力引擎、规范用词库与文风指纹体检
 - **共享笔力资产与标题技法**：新增 `shared/style/cognitive-stance.md`（开篇站位、归因分寸、敏感问题六种降压写法、案例具名四级梯度、党建与业务七种挂接逻辑）、`shared/style/sentence-clinic.md`（分析/叙事类防句长塌陷 vs 规范类防并列过密、强制词配额替代表、标点去修辞铁律）、`shared/style/exemplars.md`（6 篇多形态虚构节奏范文，只借骨架与句式、严禁借内容），同步接入核心起草/改稿 skill 与全部五个行业包；升级 `gongwen-title` 标题技法矩阵与 `docs/评测/人工盲评说明.md`。
 - **规范用词规则库与机检（13 类检查、41 种文书）**：
-  - 新增 `shared/rules/normative-terms.md` 与 `term` 检查类别（`TRM-001`～`TRM-012`：截止/截至、布署、做出/作出、启示/启事、度过/渡过、界线/界限、反应/反映、法制/法治、权力/权利、必须/必需、停用提法、机构改革旧称）；白名单 `WL-020`～`WL-022` 保护“闭环管理”“产教深度融合”“三管三必须”等行业规范词；公告、通告结语不再互认（`ELM-003`）。
+  - 新增 `shared/rules/normative-terms.md` 与 `term` 检查类别（`TRM-001`～`TRM-013`：截止/截至、布署、做出/作出、启示/启事、度过/渡过、界线/界限、反应/反映、法制/法治、权力/权利、必须/必需、停用提法、机构改革旧称）；白名单 `WL-020`～`WL-022` 保护“闭环管理”“产教深度融合”“三管三必须”等行业规范词；公告、通告结语不再互认（`ELM-003`）。
   - `--banned` 支持 `## 本单位规范词` 表（不规范写法→规范写法，命中报 P1，`--checks term` 同步比对，`shared/profiles/profile-template.md` 同步补充模板），表头识别改为按列名开头匹配避免误认说明列。
   - 行业规范词规则扩展：医院 `HOS-021`～`HOS-029`（排除“日间手术率”）、国企 `SOE-017`～`SOE-020`（不写死年份）、基层 `NTC-020`；同步修正 `TRM-005`/`TRM-009`/`TRM-012` 与 `WL-020` 误报。
 - **强制词口径统一与文风指纹体检（`--fingerprint`）**：
   - `DEF-028` 与 `FGP-002` 共用词表（“必须、务必、严禁、不得”，移出“一律”，不计入“应当”）、排除项（引号内、“不得不”“舍不得”等）与按文种阈值 `density_by_doc_type`（默认每千字 3 处，函/批复 6，讲话类 4.5，信息/简报/总结类 2；300 篇真实公文超阈值占比 1.0%）；全量检查由 `DEF-028` 报告不重复，三份 `style` 文档口径统一。
-  - `gongwen_lint.py --fingerprint` 提供 `FGP-001`～`FGP-004`（均为 P2，原 `FGP-005` 因与 `PUN-021` 重复已停用）：`FGP-001` 与语料基线共用 `sentence_lengths()` 并按同文种 P10～P90 放宽；输出仅限 `--checks` 包含类别并带行号；力度词计数排除“重要、主要、需要”等形近词；`docs/开发规范.md` 补登相关参数与字段。
+  - `gongwen_lint.py --fingerprint` 提供 `FGP-001`～`FGP-004`（均为 P2；`FGP-004` 由 P1 调整为 P2；原 `FGP-005` 半角直引号检查迁移到 `PUN-021`，因重复已停用）：`FGP-001` 与语料基线共用 `sentence_lengths()` 并按同文种 P10～P90 放宽；输出仅限 `--checks` 包含类别并带行号；力度词计数排除“重要、主要、需要”等形近词；`docs/开发规范.md` 补登相关参数与字段。
   - 按 `baseline.json` 登记 URL 重新抓取 300 篇公开语料（1 篇取自互联网档案馆快照，文本哈希一致），重算受规则与白名单变动影响的 `AI-026`、`AI-027`、`DEF-028` 统计并更新 `shared/style/baseline.md`。
 
 ### 四、五个行业包深度升级、专用机检扩覆与端到端示范样本
 - **高危红线加固与能力同步**：
-  - `gongwen-university` 在 `references/quick-cards.md` 补全高校十二条行业红线速查，`SKILL.md` 补入签报程序与会签状态一致性核查；`gongwen-k12` 锁死审稿四栏齐全且严禁照抄学生姓名；`gongwen-hospital` 强化患者信息、不良事件、医疗纠纷、医保基金与招标采购材料的保密与密级核查提醒。
-  - 五个行业包全部同步接入 `cognitive-stance.md`、`sentence-clinic.md`、`exemplars.md` 及 `--fingerprint`；为 `gongwen-k12` 补齐 `data-expression.md`、`overlap_check.py`、`md2xlsx.py`，为 `gongwen-grassroots` 补齐 `overlap_check.py`；基层/中小学/高校补入 1000 字内轻快件直出与 HTML 轻排版指引；五包提示词版精简至 28,380～28,846 字。
+  - `gongwen-university` 在 `references/quick-cards.md` 新增第六部分高校行业红线速查（6 条要点，网页版读不到 `redlines.md` 时使用），`SKILL.md` 补入签报程序与会签状态一致性核查；`gongwen-k12` 锁死审稿四栏齐全且严禁照抄学生姓名；`gongwen-hospital` 强化患者信息、不良事件、医疗纠纷、医保基金与招标采购材料的保密与密级核查提醒。
+  - 五个行业包全部同步接入 `cognitive-stance.md`、`sentence-clinic.md`、`exemplars.md` 及 `--fingerprint`；为 `gongwen-k12` 同步共享副本 `data-expression.md`（来自 `shared/rules/`）并补齐 `overlap_check.py`、`md2xlsx.py`，为 `gongwen-grassroots` 补齐 `overlap_check.py`；基层/中小学/高校补入 1000 字内轻快件直出与 HTML 轻排版指引；五包提示词版精简至 28,380～28,846 字。
 - **专用机检全覆盖与本机工具箱集成**：
-  - 新增高校专用文书机检 `skills/gongwen-university/scripts/university_rules.json` 与 `university_check.py`（11 条规则覆盖申报书外 6 类高校文书）；补齐医院 6 类共 12 份标本实现 8 类全覆盖；扩展基层 `notice_check.py`（`内部材料` 类型与 `NTC-021`/`NTC-022`）与中小学 `k12_check.py`（`general` 子命令）。
+  - 新增高校专用文书机检 `skills/gongwen-university/scripts/university_rules.json` 与 `university_check.py`（11 条规则覆盖申报书外 6 类高校文书）；补齐医院 6 类共 12 份标本实现 8 类全覆盖；医院、国企两包的规则条数升级前后未变，各仅修订 1 条既有正则（医院“手术率”排除“日间”，国企“深化提升行动”不再写死 2026 年）并新增示范样本；扩展基层 `notice_check.py`（`内部材料` 类型与 `NTC-021`/`NTC-022`）与中小学 `k12_check.py`（`general` 子命令）。
   - `xinchuang/local_toolbox.py` 新增「⑨ 行业专检（右框）」与 `/api/industry_check`，以进程内模块加载支持 7 档行业专检（零外联过审）。
 - **新增三套行业端到端示范样本**：`examples/D-中小学评语本地脱敏与还原/`、`examples/E-高校活页匿名形式审查/`、`examples/F-国企三重一大议题与专检/`（所有机检报告均由现行脚本实跑生成，总览更新至 `examples/README.md`）。
 
 ### 五、文档与口径修正
 - 对齐 `README.md`、`README_EN.md`、`llms.txt` 及 `skills/gongwen-humanize/README.md` 的宣传口径与评测数据，去掉绝对化表述；涉密拦截数据注明 `compete-v7` 口径，补充披露 `compete-v9` 页眉密级漏检、各项目得分与两轮材料差异。
 - 发布与评测文档中的仓库地址统一为 `dyz-gongwen-skills`；清理废弃的语料校准方案文档；重构中英双语 README 首屏、国内/信创一键复制安装指引与 `v1.2.0` 升级亮点。
-- 全仓库新增并完善规范用词、文风指纹、HTML 轻排版、信创工具箱与行业专检测试，共 2115 项单元测试全部通过。
+- 全仓库新增并完善规范用词、文风指纹、HTML 轻排版、信创工具箱与行业专检测试，共 2162 项单元测试全部通过。
+
+### 六、发布前修正
+- 禁用词表解析修正；`TRM` 规范用词规则误报修正，并将 `TRM-012` 拆出地方机构短名旧称 `TRM-013`（P2）。
+- 涉密机检识别不带星号的密级表述。
+- 本机工具箱健壮性加固。
+- `lite_docx` 落款对齐 GB/T 9704 7.3.5.2。
+- HTML 轻排版清洗 Markdown 残留，并支持 GBK 降级。
+- 基层通知判型回归修正。
+- 高校、中小学专检误报修正。
+- 极简快路径不再豁免涉密扫描：有 Python 仍先跑 `secret_check.py`，命中即停。
 
 > 升级提示：`dist/rag-kb/chunks` 在 v1.2.0 中新增规范用词分块并整体重新编号（如 `09-ai-tone.md` 改为 `10-ai-tone.md`）。已向 FastGPT、MaxKB 导入过旧分块的，请先删除旧知识库条目再导入，避免重复。
 

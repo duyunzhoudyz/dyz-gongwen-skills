@@ -6,7 +6,7 @@
 
 # dyz-gongwen-skills · Official Document Writing Skills
 
-**A Chinese official-document workbench for government, public-institution, and SOE writers: one-step fast path and zero-dependency single-file HTML for routine notices, veteran-style drafting with normative-term and style-fingerprint checks for long documents, strict confidentiality and anti-fabrication guardrails, one-command GB/T 9704 Word formatting, and an air-gapped local toolbox for domestic OS/WPS intranets.**
+**A Chinese official-document workbench for government, public-institution, and SOE writers: one-step fast path and zero-dependency single-file HTML for routine notices, veteran-style drafting with normative-term and style-fingerprint checks for long documents, strict confidentiality and anti-fabrication guardrails, one-command GB/T 9704 Word formatting, and offline adaptation (air-gapped local toolbox) for domestic OS/WPS intranets.**
 
 Author: [duyunzhoudyz](https://github.com/duyunzhoudyz) · Free non-commercial distribution; commercial use requires authorization; keep attribution when redistributing.
 
@@ -50,11 +50,11 @@ If this project solves a real problem for you, consider leaving a [Star](https:/
 
 ## What's New in v1.2.0
 
-All four upgrades below ship together in `v1.2.0` (full notes in [CHANGELOG.md](CHANGELOG.md); verified by 2,115 unit tests and all CI gates):
+All four upgrades below ship together in `v1.2.0` (full notes in [CHANGELOG.md](CHANGELOG.md); verified by 2,162 unit tests and all CI gates):
 
 1. **Tiered fast path + single-file GB/T 9704 HTML**: Routine notices, approvals, reply letters, and sign-offs under 1,000 characters go straight through `gongwen-draft` in a single step; standard drafts only trigger polishing/review when lint thresholds fire. New zero-dependency [`build_html.py`](skills/gongwen-format/scripts/build_html.py) (tested via headless Chrome print) outputs a single HTML file with live plain/letterhead/memo switching, GB/T 9704 odd/even print page numbers (omitted for memos; Chrome/Edge 131+), signature/date alignment, keep-together page-break protection, three-column attachment alignment, print-hidden toolbar, and one-click PDF or plain/rich-text copy.
-2. **Prose craft engine + normative-term rules + 300-doc style fingerprint**: Added stance/register guides, sentence clinic, and 6 fictional rhythm exemplars ([`shared/style/`](shared/style/)) wired into core drafting/editing skills and all five sector packs. Added [`normative-terms.md`](shared/rules/normative-terms.md) and the `term` lint category (`TRM-001`–`TRM-012` for confused terms, deprecated phrasing, and outdated agency names, plus sector whitelists and `## 本单位规范词` support in `--banned`), expanding linting to **13 categories across 41 document types**. `gongwen_lint.py --fingerprint` shares sentence-length logic with the 300-document public government corpus ([`baseline.md`](shared/style/baseline.md)) and enforces per-doc-type directive-word thresholds (only 1.0% of real corpus docs exceed threshold).
-3. **Domestic OS (Xinchuang) & air-gapped intranet suite**: Built for Kylin/UOS + WPS intranets where autonomous coding agents are disallowed. Ships a double-click zero-network local toolbox (`xinchuang/local_toolbox.py`, bound strictly to `127.0.0.1:8765`, no outbound traffic or disk persistence) combining prompt copying, `.docx`/`.txt` import, classified-mark blocking, tab-isolated reversible redaction, eight-gate + fingerprint linting, fact cross-checking, **7 sector-specific checkers**, font checks, HTML quick formatting, pure-stdlib GB/T 9704 Word fallback (`lite_docx.py`, works on LoongArch without `python-docx`/`lxml`), and OFD structure checks. Also ships three agent-free formats — 22 hand-trimmed `<=4,000`-char prompts ([`dist/prompts-lite/`](dist/prompts-lite/)), 4 single-chat all-in-one bundles ([`dist/prompts-bundles/`](dist/prompts-bundles/)), and a 16-file / 461-chunk RAG package for Dify/FastGPT/MaxKB/Coze ([`dist/rag-kb/`](dist/rag-kb/)) — plus 5 macro-free/Python-free `.docx` templates ([`xinchuang/templates/`](xinchuang/templates/)). All offline scripts pass `tools/security_audit.py --strict` AST zero-egress checks in CI; the 8-defense smoke suite ([`evals/xinchuang/`](evals/xinchuang/)) passed **8/8** on `deepseek-chat` in both `system` and `first-message` modes on 2026-11-22 ([system report](evals/results/xinchuang-deepseek.md), [first-message report](evals/results/xinchuang-deepseek-firstmsg.md)).
+2. **Prose craft engine + normative-term rules + 300-doc style fingerprint**: Added stance/register guides, sentence clinic, and 6 fictional rhythm exemplars ([`shared/style/`](shared/style/)) wired into core drafting/editing skills and all five sector packs. Added [`normative-terms.md`](shared/rules/normative-terms.md) and the `term` lint category (`TRM-001`–`TRM-013` for confused terms, deprecated phrasing, and outdated agency names, plus sector whitelists and `## 本单位规范词` support in `--banned`), expanding linting to **13 categories across 41 document types**. `gongwen_lint.py --fingerprint` shares sentence-length logic with the 300-document public government corpus ([`baseline.md`](shared/style/baseline.md)) and enforces per-doc-type directive-word thresholds (only 1.0% of real corpus docs exceed threshold).
+3. **Domestic OS (Xinchuang) & air-gapped intranet suite**: Built for Kylin/UOS + WPS intranets where autonomous coding agents are disallowed. Ships a double-click zero-network local toolbox (`xinchuang/local_toolbox.py`, bound strictly to `127.0.0.1:8765`, no outbound traffic or disk persistence) combining prompt copying, `.docx`/`.txt` import, classified-mark blocking, tab-isolated reversible redaction, eight-gate + fingerprint linting, fact cross-checking, **7 sector-specific checkers**, font checks, HTML quick formatting, pure-stdlib GB/T 9704 Word fallback (`lite_docx.py`, works on LoongArch without `python-docx`/`lxml`), and OFD structure checks. Also ships three agent-free formats — 22 hand-trimmed `<=4,000`-char prompts ([`dist/prompts-lite/`](dist/prompts-lite/)), 4 single-chat all-in-one bundles ([`dist/prompts-bundles/`](dist/prompts-bundles/)), and a 16-file / 461-chunk RAG package for Dify/FastGPT/MaxKB/Coze ([`dist/rag-kb/`](dist/rag-kb/)) — plus 5 macro-free/Python-free `.docx` templates ([`xinchuang/templates/`](xinchuang/templates/)). All offline scripts pass `tools/security_audit.py --strict` AST zero-egress checks in CI; the 8-defense smoke suite ([`evals/xinchuang/`](evals/xinchuang/)) passed **8/8** on `deepseek-chat` in both `system` and `first-message` modes on 2026-11-22 ([system report](evals/results/xinchuang-deepseek.md), [first-message report](evals/results/xinchuang-deepseek-firstmsg.md)). Real-device acceptance on Kylin and UOS is not yet completed.
 4. **Five sector packs upgraded + full dedicated checkers + 6 end-to-end examples**: Hardened high-risk red lines across all five packs (12 university red lines & countersign checks, K-12 4-column review without copying student names, hospital sensitive-material confidentiality reminders) and wired in the prose engine and fingerprint checks. Added `university_check.py` (11 rules), full 8-doc specimen coverage for hospitals, grassroots inspection-material rules, and K-12 school-internal checks — all integrated into the local toolbox's 7 sector checkers. Added three end-to-end sector examples ([D: K-12 local redaction & restore](examples/D-中小学评语本地脱敏与还原/), [E: University blind-review audit](examples/E-高校活页匿名形式审查/), [F: SOE "three major decisions" check](examples/F-国企三重一大议题与专检/)).
 
 ---
@@ -105,7 +105,7 @@ cd dyz-gongwen-skills
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-**macOS / Linux / Kylin / UOS (paste in terminal):**
+**macOS / Linux (paste in terminal; Kylin, UOS and other domestic Linux distros use the same command - the installer has no dedicated Xinchuang target):**
 
 ```bash
 git clone https://github.com/duyunzhoudyz/dyz-gongwen-skills.git
@@ -187,11 +187,13 @@ The install script accepts several packs (`--pack hospital --pack soe`); install
 
 ### Domestic OS (Xinchuang) & Air-Gapped Intranets (Kylin, UOS, Windows, WPS — No Agent Tools)
 
+> **Status, stated honestly**: offline / zero-dependency adaptation and local self-testing are done; real-device acceptance on Kylin and UOS is not yet completed.
+
 For domestic Linux workstations, air-gapped intranets, or environments where autonomous coding agents are prohibited: every action is manually triggered, with no background daemon and no outbound network access. **Download `dyz-gongwen-skills-offline-1.2.0.zip` from [Releases](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) (or your IT share), unzip it, and copy the matching command below:**
 
 #### 1. Daily office use: launch the local zero-network toolbox
 
-> Binds strictly to `http://127.0.0.1:8765` with no internet calls, no model API calls, and no disk writes. One browser page covers prompt copying, `.docx`/`.txt` import, classified-mark blocking, tab-isolated reversible redaction, eight-gate + fingerprint linting, fact checks, **7 sector-specific checkers**, font checks, **single-file HTML formatting**, GB/T 9704 Word output (automatically falls back to pure-stdlib `lite_docx.py` on LoongArch or without `python-docx`/`lxml`), and OFD structure checks.
+> Binds strictly to `http://127.0.0.1:8765` with no internet calls, no model API calls, and does not retain document text (a few features, such as fact checks, OFD checks and sector checkers, only process files transiently in a local temp directory and delete them right after use). One browser page covers prompt copying, `.docx`/`.txt` import, classified-mark blocking, tab-isolated reversible redaction, eight-gate + fingerprint linting, fact checks, **7 sector-specific checkers**, font checks, **single-file HTML formatting**, GB/T 9704 Word output (automatically falls back to pure-stdlib `lite_docx.py` on LoongArch or without `python-docx`/`lxml`), and OFD structure checks.
 
 **Kylin / UOS / Linux (double-click `xinchuang/启动工具箱.sh` or `.desktop`, or paste in terminal):**
 
@@ -225,7 +227,7 @@ python3 skills/gongwen-format/scripts/ofd_check.py output.ofd
 python3 tools/build_prompts.py --xinchuang --offline
 ```
 
-**Bundle offline Python wheels for all 7 Word layouts** (pre-fetches `wheelhouse/` for x86_64, ARM64 Phytium/Kunpeng, and Windows; LoongArch can install distro packages `python3-docx python3-openpyxl python3-lxml` or use the built-in zero-dependency fallback):
+**Bundle offline wheels for the full GB/T 9704 Word layout** (python-docx, openpyxl, lxml; pre-fetches 3 platforms - x86_64, ARM64 Phytium/Kunpeng, Windows - x Python 3.9-3.12 = 12 `wheelhouse/<arch>/py<version>/` sets; LoongArch (loongarch64) is not downloaded because PyPI has no lxml wheel for it, only an `INSTALL.txt` with distro-package steps is generated: install `python3-docx python3-openpyxl python3-lxml` from the intranet system repo, or use the built-in zero-dependency fallback):
 
 ```bash
 python3 tools/build_wheelhouse.py --arch all
@@ -356,7 +358,7 @@ Other changes: "it is suggested that each school establish a task force" changed
 
 Five more end-to-end examples (all script reports generated by the current codebase; overview in [examples/README.md](examples/README.md)):
 - General documents: [hospital department year-end summary](examples/A-医院科室年终总结/) (~1,890 chars for a 2,000-char target with limited source data, only 2 `[TO FILL]` markers, zero invented facts) and [when to use an inter-agency letter vs. a formal request](examples/C-文种判断-函/)
-- Sector-pack checkers: [K-12 student comments local redaction & restore](examples/D-中小学评语本地脱敏与还原/) (real student names never enter the LLM chat), [university blind-review form audit](examples/E-高校活页匿名形式审查/) (leaked identity markers reduced to zero with redacted output), and [SOE "three major decisions" compliance check](examples/F-国企三重一大议题与专检/) (procedural-order and six-element violations reduced to zero)
+- Sector-pack checkers: [K-12 student comments local redaction & restore](examples/D-中小学评语本地脱敏与还原/) (real student names never enter the LLM chat), [university blind-review form audit](examples/E-高校活页匿名形式审查/) (leaked identity markers reduced to zero with redacted output), and [SOE "three major decisions" compliance check](examples/F-国企三重一大议题与专检/) (six-element issues reduced to zero, with the procedural-order inversion kept as a P0 for manual handling)
 
 ### Head-to-head test against 8 similar projects
 
@@ -425,6 +427,21 @@ All skills follow these rules ahead of any workflow logic (full text: [shared/gu
 6. **Assist, do not ghostwrite**: For self-examination and accountability materials requiring personal experience, provide an outline only when no source material is supplied.
 
 Regulatory basis: Party-Government Document Handling Regulations, GB/T 9704-2012, GB/T 15834-2011, GB/T 15835-2011, Regulations on Reducing Formalism for Grassroots, and the normative official-terms ruleset. Rules with clause numbers: [shared/rules/](shared/rules/). The check engine covers **13 rule categories** (including confused normative terms, legacy agency names, plus optional `--baseline` corpus comparison and `--fingerprint` style checks) across 41 document types.
+
+---
+
+## Who It's For
+
+You do not need great writing skills or programming knowledge, only that you use AI to write official documents:
+
+- **Staff writers in government agencies and public institutions**: notices, requests for instructions, reports, letters, and minutes in high volume under tight deadlines, where format and tone must be exact
+- **Mid-level cadres who write their own materials**: speeches, duty reports, work outlines; well written they build your image, badly written they cost you points
+- **Public hospital administrators and department staff**: accreditation self-assessment reports, performance analysis, RCA/PDCA, department-head duty reports; these involve DRG, CMI, and infection-control metrics that are easy to get wrong, and the hospital pack follows public-hospital document systems and indicator standards
+- **University colleges and administrative offices**: audit-evaluation self-assessments, discipline-evaluation materials, formal review of grant applications, internal sign-off memos, and deciding "issued by the university or the department"; universities have a two-level issuance and evaluation-specific document logic, and the pack decides issuance level and checks for omissions accordingly
+- **State-owned enterprise general-affairs and legal departments**: "three majors and one large" (major decisions, major appointments, major projects, large-sum spending) agenda materials, board proposals and resolutions, general-manager meeting minutes, ESG reports, compliance reports; the decision pre-research procedure and compliance boundaries are hard requirements, and the pack checks pre-review and distinguishes resolutions from minutes
+- **Primary and secondary school teachers and academic affairs staff**: semester plans and summaries, supervision self-assessments, parent-meeting speeches, student comments, letters to parents; the tone toward parents and the framing for inspections both need care
+- **Township, subdistrict, and community staff**: inspection briefings, resident notices, emergency notices, work ledgers; notices to residents must be plain and accurate, and inspection materials must match the checklist
+- **People who have been burned by AI-generated drafts**: fabrication, AI tone, formatting errors, vague stance; every one of them you end up fixing by hand
 
 ---
 

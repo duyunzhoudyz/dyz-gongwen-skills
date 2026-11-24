@@ -476,6 +476,54 @@ class GeneralCheckTest(K12TestCase):
         data = json.loads(out)
         self.assertEqual(data["issues"], [])
 
+    def _general_ids(self, text):
+        p = self.write("general_tmp.txt", text)
+        code, out, _err = self.run_main("general", str(p), "--json")
+        return {i["id"] for i in json.loads(out)["issues"]}
+
+    def test_g04_aggregate_count_not_reported(self):
+        ids = self._general_ids("本学期学校统计全校建档立卡学生共43人，已全部享受资助政策。\n")
+        self.assertNotIn("K12-G04", ids)
+
+    def test_g04_individual_still_reported(self):
+        for s in ("建档立卡学生王某家庭困难，已资助。", "对低保户张明同学给予了资助。", "单亲家庭的某同学需要关注。"):
+            with self.subTest(s=s):
+                self.assertIn("K12-G04", self._general_ids(s + "\n"))
+
+    def test_g04_list_and_identity_variants_reported(self):
+        for s in ("五年级二班低保户学生名单：郑磊、孙婷、何静。", "建档立卡学生名单：郑磊、孙婷、何静。",
+                  "低保学生赵强已纳入帮扶。", "特困学生名单:郑磊,孙婷,何静。", "低保家庭学生：郑磊、孙婷。"):
+            with self.subTest(s=s):
+                self.assertIn("K12-G04", self._general_ids(s + "\n"))
+
+    def test_g04_aggregate_variants_not_reported(self):
+        for s in ("全校建档立卡学生共43人，已全部享受资助。", "全校低保学生3名，均已落实资助。",
+                  "本学期特困学生名单已按规定渠道单独报送。", "困难家庭学生共12人，占比3%。"):
+            with self.subTest(s=s):
+                self.assertNotIn("K12-G04", self._general_ids(s + "\n"))
+
+    def test_g04_third_round_cases(self):
+        for s in ("五年级二班低保户学生3名：李华、王芳、赵强。", "建档立卡学生王某某。", "低保户张明同学。"):
+            with self.subTest(s=s):
+                self.assertIn("K12-G04", self._general_ids(s + "\n"))
+        for s in ("关注离异家庭子女心理健康：班主任、心理教师、家长三方联动。",
+                  "困难家庭学生资助项目包括：助学金、营养餐、校服减免。",
+                  "低保学生3名，均已落实资助。", "特困学生名单已按规定渠道报送。",
+                  "学校开展单亲家庭学生关爱活动，覆盖学生56人。",
+                  "针对抑郁症等心理问题，学校开设讲座：识别、求助、陪伴。",
+                  "对违纪处分情况进行统计：警告2人、记过1人。",
+                  "违纪处分政策学习王主任作专题辅导。", "低保政策由李老师负责解读。"):
+            with self.subTest(s=s):
+                self.assertNotIn("K12-G04", self._general_ids(s + "\n"))
+
+    def test_g03_basis_points_to_after_school_section(self):
+        for rule in k12_check.GENERAL_RULES:
+            if rule[0] == "K12-G03":
+                self.assertIn("第六条", rule[-1])
+                self.assertNotIn("第四条", rule[-1])
+        text = (SCRIPTS_DIR.parent / "references" / "redlines.md").read_text(encoding="utf-8")
+        self.assertIn("## 六、课后服务自愿参加", text)
+
 
 if __name__ == "__main__":
     unittest.main()

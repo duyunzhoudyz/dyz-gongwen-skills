@@ -74,6 +74,43 @@ def _render_attachment(text: str, first: bool) -> str:
             f'<span class="gw-att-no">{_escape(num)}</span><span class="gw-att-name">{_escape_body(name)}</span></p>')
 
 
+_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+_FENCE_RE = re.compile(r"^\s*(?:`{3,}|~{3,})")
+_HR_RE = re.compile(r"^\s*(?:[-*_]\s*){3,}$")
+_ATX_RE = re.compile(r"^\s{0,3}#{1,6}[ \t]+")
+# ** 强调直接去标记；__ 强调只在两侧不是 ASCII 字母数字下划线（即不在词内）时才去标记，避免 a__b__c、snake__case__name 被误清洗
+_BOLD_RE = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*|(?<![A-Za-z0-9_])__(?=\S)(.+?)(?<=\S)__(?![A-Za-z0-9_])")
+_CODE_RE = re.compile(r"`([^`\n]+)`")
+_BARE_SEP_RE = re.compile(r"^\s*:?-{3,}:?(?:\s*\|\s*:?-{3,}:?)*\s*$")
+
+
+def strip_control_chars(text: str) -> str:
+    """剔除控制字符（保留制表符与换行），避免写进 HTML 后出现不可见乱码或非法字符。"""
+    return _CTRL_RE.sub("", text)
+
+
+def clean_markdown_lines(lines: Sequence[str]) -> List[str]:
+    """轻量清洗 Markdown 残留：去行首 # 标题标记、** / __ / 行内反引号强调标记（保留文字），
+    丢弃围栏行与纯分隔线；管道表格的分隔行只在紧跟表格行时保留（渲染时被识别为表头分隔）。
+    “一、”“（一）”层级、书名号、落款日期等公文原文不受影响。"""
+    out: List[str] = []
+    for raw in lines:
+        line = raw
+        if _FENCE_RE.match(line):
+            continue
+        if _PIPE_SEP_RE.match(line):
+            if out and _PIPE_ROW_RE.match(out[-1]) and not _PIPE_SEP_RE.match(out[-1]):
+                out.append(line)
+            continue
+        if _HR_RE.match(line) or _BARE_SEP_RE.match(line):
+            continue
+        line = _ATX_RE.sub("", line)
+        line = _BOLD_RE.sub(lambda m: m.group(1) if m.group(1) is not None else m.group(2), line)
+        line = _CODE_RE.sub(lambda m: m.group(1), line)
+        out.append(line)
+    return out
+
+
 def read_body_lines(text: str) -> List[str]:
     """按行读取正文，遇到【起草说明】分界行停止，与 build_docx / gongwen_lint 口径一致。"""
     out: List[str] = []
@@ -593,7 +630,7 @@ def build_html(
     layout: Optional[str] = None,
 ) -> Tuple[str, Dict[str, object]]:
     """纯标准库把公文正文行渲染为单文件 HTML，返回 (html_str, report_dict)。"""
-    cleaned = read_body_lines("\n".join(lines))
+    cleaned = clean_markdown_lines(read_body_lines(strip_control_chars("\n".join(lines))))
     if not any(x.strip() for x in cleaned):
         raise ValueError("正文为空，无法生成 HTML")
     meta_dict: Dict[str, object] = dict(meta or {})
@@ -692,7 +729,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         except Exception as exc:
             print(f"版式信息 JSON 解析失败：{exc}", file=sys.stderr)
             return 2
-    text = args.input.read_text(encoding="utf-8-sig")
+    try:
+        raw = args.input.read_bytes()
+    except OSError as exc:
+        print(f"读取输入文件失败：{exc}", file=sys.stderr)
+        return 2
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = raw.decode("gb18030")
+            print("提示：输入文件不是 UTF-8 编码，已按 GB18030（GBK）读取；建议另存为 UTF-8。", file=sys.stderr)
+        except UnicodeDecodeError:
+            print("读取失败：输入文件既不是 UTF-8 也不是 GB18030（GBK）编码，请另存为 UTF-8 文本后重试。", file=sys.stderr)
+            return 2
     try:
         html_doc, report = build_html(text.splitlines(), meta=meta, layout=args.layout)
     except ValueError as exc:

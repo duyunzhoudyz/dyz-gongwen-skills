@@ -65,6 +65,29 @@ class LiteDocxBuildTest(unittest.TestCase):
             self.assertIn('楷体_GB2312', doc_xml)
             self.assertIn('<w:evenAndOddHeaders/>', settings_xml)
 
+    def test_signature_places_follow_7_3_5_2_no_seal(self):
+        """轻量版按 7.3.5.2 不加盖印章排落款：署名右空二字，日期首字比署名首字右移二字。"""
+        sig, date = lite_docx._signature_places(['某区政务服务中心办公室'], '2026年11月20日')
+        self.assertEqual(sig, ('left', 15.0, 0.0))   # 28 - 2 - 11
+        self.assertEqual(date, ('left', 17.0, 0.0))  # 首字比署名首字右移二字
+        # 日期加二字后比署名长：日期右对齐右空二字，署名左移
+        sig, date = lite_docx._signature_places(['某局'], '2026年11月20日')
+        self.assertEqual(date, ('right', 0.0, 2.0))
+        self.assertEqual(sig[0], 'left')
+        self.assertAlmostEqual(sig[1], 28 - 2 - 7 - 2)
+        # 只有署名或只有日期：右对齐右空二字
+        self.assertEqual(lite_docx._signature_places(['某局'], '')[0], ('right', 0.0, 2.0))
+        self.assertEqual(lite_docx._signature_places([], '2026年11月20日')[1], ('right', 0.0, 2.0))
+
+    def test_build_signature_xml_not_centered_four_chars(self):
+        raw, _ = lite_docx.build_lite_docx(SAMPLE_LINES, font_check=False)
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            xml = zf.read('word/document.xml').decode('utf-8')
+        # 样例署名 8 字、日期 7 字：日期加二字超过署名，日期右空二字，署名左缩进 28 - 2 - 7 - 2 = 17 字
+        self.assertIn('w:leftChars="1700"', xml)
+        self.assertIn('w:rightChars="200"', xml)
+        self.assertNotIn('w:rightChars="400"', xml)  # 不再是“日期右空四字”
+
     def test_unit_fonts_preset_applies_fangzheng_gbk(self):
         raw, rep = lite_docx.build_lite_docx(SAMPLE_LINES, unit_fonts='preset:fangzheng-gbk', font_check=False)
         self.assertEqual(rep['fonts']['仿宋'], '方正仿宋_GBK')
