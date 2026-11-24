@@ -95,7 +95,7 @@
 
 仓库里有三种“版本”，含义不同，不要混用：
 
-- **套件版本**：`.claude-plugin/marketplace.json`（当前 1.2.0），代表整个套件的发布版本，与 README、CHANGELOG、`site/index.html` 的版本口径保持一致；每次对外发版时递增。
+- **套件版本**：`.claude-plugin/marketplace.json`（当前 1.3.0），代表整个套件的发布版本，与 README、CHANGELOG、`site/index.html` 的版本口径保持一致；每次对外发版时递增。
 - **单个 skill / 行业包版本**：`skills/*/manifest.json` 的 `version`，只在该 skill 的内容、规则或脚本行为有实质变化时递增，不必跟套件同步。
 - **脚本内 `VERSION` 常量**：如 `gongwen_lint.py` 的 `VERSION`，是该脚本输出格式或规则集的自身版本，只在脚本接口或输出结构变化时递增，与前两者无关。
 

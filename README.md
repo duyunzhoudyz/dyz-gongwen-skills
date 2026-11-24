@@ -15,11 +15,11 @@
 [![GitHub stars](https://img.shields.io/github/stars/duyunzhoudyz/dyz-gongwen-skills?style=flat&logo=github&label=Stars)](https://github.com/duyunzhoudyz/dyz-gongwen-skills/stargazers)
 [![CI](https://github.com/duyunzhoudyz/dyz-gongwen-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/duyunzhoudyz/dyz-gongwen-skills/actions/workflows/ci.yml)
 [![License: PolyForm NC](https://img.shields.io/badge/License-PolyForm%20NC%201.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-orange)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.3.0-orange)](CHANGELOG.md)
 [![Skills](https://img.shields.io/badge/skills-22-brightgreen)](#技能地图)
 [![Platforms](https://img.shields.io/badge/platforms-7%20Agent%20tools%20%7C%20web%20LLM%20%7C%20intranet-lightgrey)](#快速开始)
 
-[v1.2.0 亮点](#v120-升级亮点) · [快速开始](#快速开始) · [信创内网一键指令](#信创环境与内网银河麒麟统信-uos内网-windowswps不用-agent-工具) · [技能地图](#技能地图) · [直接这样说](#直接这样说) · [效果](#效果) · [常见问题](#常见问题) · [关注与交流](#关注与交流)
+[v1.3.0 亮点](#v130-升级亮点) · [快速开始](#快速开始) · [信创内网一键指令](#信创环境与内网银河麒麟统信-uos内网-windowswps不用-agent-工具) · [技能地图](#技能地图) · [直接这样说](#直接这样说) · [效果](#效果) · [常见问题](#常见问题) · [关注与交流](#关注与交流)
 
 </div>
 
@@ -48,9 +48,17 @@
 
 ---
 
-## v1.2.0 升级亮点
+## v1.3.0 升级亮点
 
-以下四项升级已随 `v1.2.0` 一并发布（完整记录见 [CHANGELOG.md](CHANGELOG.md)，全部通过 2198 项单元测试及 CI 门禁）：
+`v1.3.0` 在 `v1.2.0` 之上做了涉密闸门与行业专检的集中加固（完整记录见 [CHANGELOG.md](CHANGELOG.md)，全部通过 2647 项单元测试及 CI 门禁）：
+
+- **涉密闸门加固**：极简快路径不再豁免涉密扫描；`secret_check.py` 识别独立成行与带期限的密级标注、页眉页脚密级、“此件机密”、“保密期限：10年”这类标注形态和商业秘密标注，并列枚举与制度性表述不误拦；闸门、通用机检 `PRI-005`/`PRI-006`、画像包三处口径由同一来源生成并有一致性测试（仍有引号内举例等 5 类例外，见 CHANGELOG）；表格或台账里单独成行的密级词会被拦，需人工处理。
+- **实名识别重做为三包共用模块**：医院、国企、中小学专检共用 `gw_names.py`（锚点 + 候选打分，高置信报 P0、低置信报 P1，右边界不再一票否决；并列链里只要有一项被识别，其余姓氏开头的项一律登记并遮蔽），摘录里的姓名遮蔽为〔姓名N〕；分句豁免与程序倒置判定在医院、国企两包统一，并采取保守口径：处置类豁免只看命中所在分句，出处类看命中分句与前一分句，所以否决、整改、出处写在后一分句的句子会被报出（有针对该做法的处置词时 P0 降为 P1 并提示），需人工判断；同分句里的处置词必须针对被命中的做法；“已执行 + 提请审议”的组合判定只给 P1 提示，P0 只来自“先行开工、补办手续”等显式写法；如实声明只认对本事项的直接断言（疑问、条件、转述、指他、否认、难以认定都不算），且只看同句与紧邻前后句。这些判断按词面进行，常见换说法会被识别，但不保证穷尽。
+- **医院 39 条、国企 40 项规则**，并入库 42 篇整篇文书回归语料（医院 20、国企 17、中小学 5）与姓名识别测试。姓名召回不报单一百分比，按语境分类给出（标点与括注约 95%～100%，词表外动词或名词后只有约 69%～73%（人工名约 43%），且多为 P1 提示，见 CHANGELOG“六、测试与语料”）；语料检出率按来源分开报告，其中取自评审原句的不能算独立检出率，先后三批独立复审的材料（含复审人自写的 3 篇整文）都已用于回归、不再是留出集，按语境的召回下限是实测回填的回归护栏，不是事先定下的目标。实名识别仍是启发式检查，有已知局限，机检结果须人工复核（见 CHANGELOG“已知局限”）。
+
+### v1.2.0 升级亮点（已发布）
+
+以下四项升级已随 `v1.2.0` 发布：
 
 1. **轻重分层快路径 + 单文件 HTML 轻排版**：1000 字内简单会议/事务/转发通知、批复、复函、签报由 `gongwen-draft` 一步直出；新增纯标准库零外联 [`build_html.py`](skills/gongwen-format/scripts/build_html.py)（经 Chrome 无头打印实测），输出单文件 HTML，支持白头/红头/便签三种版式实时切换、打印自动加 GB/T 9704 单双页页码（便签不加页码，Chrome/Edge 131+）、署名成文日期定位、落款与末段正文不跨页、附件说明三列对齐，顶部工具条打印自动隐藏，一键存 PDF 或复制纯文本/富文本。
 2. **老笔杆子笔力引擎 + 规范用词库 + 300 篇语料校准的文风指纹**：新增站位分寸、句子诊所与 6 篇多形态虚构节奏范文（[`shared/style/`](shared/style/)），同步接入核心起草/改稿 skill 与全部五个行业包；新增规范用词规则库 [`normative-terms.md`](shared/rules/normative-terms.md) 与 `term` 机检类（`TRM-001`～`TRM-013` 易混词、停用提法、机构改革旧称，白名单防误伤行业规范词，`--banned` 支持 `## 本单位规范词` 表），机检扩展至 **13 类、41 种文书**；`gongwen_lint.py --fingerprint` 与 300 篇公开政府公文语料（[`baseline.md`](shared/style/baseline.md)）同口径校验均句长、分文种强制词密度（300 篇真实公文超阈值仅 1.0%）与段落重心。
@@ -95,7 +103,7 @@ Trae、CodeBuddy 的 skills 目录路径尚未完全核实，一键脚本提供�
 
 ### 方式一：一键安装脚本（Windows、macOS、Linux）
 
-> **国内下载提示**：有 Git 的直接复制下方整段命令；如果电脑没装 Git 或克隆较慢，直接打开 [Releases 页面](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) 下载 `dyz-gongwen-skills-offline-1.2.0.zip`（或点本页上方绿色 **Code → Download ZIP**），解压后在文件夹里执行安装命令即可。
+> **国内下载提示**：有 Git 的直接复制下方整段命令；如果电脑没装 Git 或克隆较慢，直接打开 [Releases 页面](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) 下载 `dyz-gongwen-skills-offline-1.3.0.zip`（该离线包在 v1.3.0 发布后才可下载，发布前请点本页上方绿色 **Code → Download ZIP** 或克隆仓库），解压后在文件夹里执行安装命令即可。
 
 **Windows（在解压后的文件夹地址栏输入 `powershell` 回车，整段粘贴）：**
 
@@ -189,7 +197,7 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 --pack hospital
 
 > **适配状态如实说明**：已完成离线/零依赖适配与本机自测；银河麒麟、统信 UOS 真机验收尚未完成。
 
-面向国产系统、政务内网或禁用自主智能体的办公电脑：全部由使用者手动触发，无后台常驻、无外联调用。**先从 [Releases 页面](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) 下载 `dyz-gongwen-skills-offline-1.2.0.zip`（或由信息中心上传至内网共享盘），解压后按场景直接复制下方指令：**
+面向国产系统、政务内网或禁用自主智能体的办公电脑：全部由使用者手动触发，无后台常驻、无外联调用。**先从 [Releases 页面](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) 下载 `dyz-gongwen-skills-offline-1.3.0.zip`（v1.3.0 发布后可用，发布前请改用本页上方的 Code → Download ZIP 或克隆仓库；或由信息中心上传至内网共享盘），解压后按场景直接复制下方指令：**
 
 #### 1. 办公人员日常使用：一键启动本机零联网工具箱
 
@@ -468,7 +476,7 @@ python3 evals/xinchuang/smoke_eval.py --base-url http://127.0.0.1:8000/v1 --mode
 
 **1. 这个项目是什么，收费吗？**
 
-dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文写作 Skills 集合，v1.2.0 包含 22 个 skill 与信创零联网工具箱。按 PolyForm Noncommercial 1.0.0 许可证源码公开（source-available，不是 OSI 意义上的开源），个人及非商业用途免费；商业用途请联系作者。
+dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文写作 Skills 集合，v1.3.0 包含 22 个 skill 与信创零联网工具箱。按 PolyForm Noncommercial 1.0.0 许可证源码公开（source-available，不是 OSI 意义上的开源），个人及非商业用途免费；商业用途请联系作者。
 
 **2. 没有 Claude，能用吗？**
 
@@ -502,7 +510,8 @@ dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文�
 - [x] **v0.4「行业包」**：基层、医院、高校、中小学、国企
 - [x] **v1.0.0**：22 个 skill 一次发布；真实模型评测；一键安装脚本和行业包选装
 - [x] **v1.1.0**：五个行业包均升为 Stable；仓库与套件更名为 dyz-gongwen-skills
-- [x] **v1.2.0**（当前版本）：国产信创与政务内网全链路适配（本机零联网工具箱、三档去 Agent 化交付、零外联静态审计、DeepSeek 8/8 防线抽测）；轻重分层快路径与单文件 HTML 轻排版；老笔杆子笔力引擎、规范用词库与 300 篇语料校准的文风指纹；五个行业包深度升级、专用机检全覆盖与 6 套实跑示范样本
+- [x] **v1.2.0**：国产信创与政务内网全链路适配（本机零联网工具箱、三档去 Agent 化交付、零外联静态审计、DeepSeek 8/8 防线抽测）；轻重分层快路径与单文件 HTML 轻排版；老笔杆子笔力引擎、规范用词库与 300 篇语料校准的文风指纹；五个行业包深度升级、专用机检全覆盖与 6 套实跑示范样本
+- [ ] **v1.3.0**（开发中，未发布）：涉密闸门加固；通用机检禁用词表与规范用词修正；医院、国企专检补规则（39 条、40 项）；三包共用姓名识别模块与分句豁免、程序倒置口径统一；入库整篇文书回归语料
 
 **后续计划**
 
