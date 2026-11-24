@@ -474,7 +474,7 @@ class MarkdownNameTableTest(EngineCase):
                 "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
         report, screen = self.run_table("王秀英附表.md", body)
         rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
-                if i["id"] in ("K12-G04", "K12-G04")]
+                if i["id"] == "K12-G04"]
         self.assertEqual(rows, [("K12-G04", "P0", 3, "〔姓名1〕"),
                                 ("K12-G04", "P1", 7, "〔姓名1〕"),
                                 ("K12-G04", "P1", 8, "〔姓名2〕")])
@@ -498,7 +498,7 @@ class MarkdownNameTableTest(EngineCase):
             with self.subTest(name=name, body=body):
                 file_name = ("斜线" if name == "/" else name) + "附表.md"
                 report, screen = self.run_table(file_name, body)
-                rows = [i for i in report["issues"] if i["id"] in ("K12-G04", "K12-G04")]
+                rows = [i for i in report["issues"] if i["id"] == "K12-G04"]
                 misfires += len(rows)
                 self.assertEqual(rows, [])
                 self.assertEqual(report["file"], file_name)

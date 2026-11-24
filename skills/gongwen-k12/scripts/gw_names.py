@@ -82,14 +82,32 @@ _ETC_TAIL_RE = re.compile(r"等(?:\d+|[一二三四五六七八九十]+)?[人名
 _MD_PIPE_RE = re.compile(r"\\.|(?P<pipe>\|)")
 _MD_SEPARATOR_RE = re.compile(r":?-+:?")
 _MD_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
-_MD_CELL_RE = re.compile(r"(?P<mark>\*\*|__|\*|_|`)(?P<value>.+)(?P=mark)")
-_ORG_SUFFIX_RE = re.compile(r"(?=集团|公司|股份|有限责任公司|有限公司)")
-_ORG_ALIAS_RE = re.compile(r"以下简称[：:\s]*[“\"‘（(《]?([一-鿿]{2,3})(?![一-鿿])")
-_PERSON_TITLE = r"(?:董事长|副?总经理(?:助理)?|副?(?:部长|主任|经理|处长|科长)|书记|会计|出纳|工程师|职工|员工|干部)"
+_MD_CELL_RE = re.compile(r"(?P<mark>\*{1,3}|_{1,3}|`+)(?P<value>.+?)(?P=mark)")
+_MD_HEADER_MARKS_RE = re.compile(r"[\s*_`]")
+_TABLE_PUBLIC_RE = re.compile(r"获奖|奖项|表彰|值班|授课|主讲")
+_TABLE_DUTY_RE = re.compile(r"整改(?:任务|措施|时限|进展|情况|台账)|完成时限|责任部门")
+_TABLE_ID_NOTE_RE = re.compile(r"\d+\s*岁|[（(，,]\s*[男女]\s*[，,）)]")
+_ORG_SUFFIX = r"(?:有限责任公司|股份(?:有限)?公司|有限公司|集团(?:有限责任公司|有限公司|公司)?|公司|股份)"
+_ORG_BOUNDARY = r"(?:^|[\s，,。；;：:、！？!?（(【《“\x22|])"
+_ORG_PREPOSITIONS = frozenset("由向与在经对为同")
+_ORG_FULL_RE = re.compile(_ORG_BOUNDARY + r"([一-鿿]{2,4}?)" + _ORG_SUFFIX)
+_ORG_ALIAS_RE = re.compile(r"(?:公司|集团|本单位|本企业|银行|研究[所院]|合作社)"
+                           r"\s*[（(，,]?\s*以下简称[：:\s]*[“\"‘（(《]?([一-鿿]{2,3})(?![一-鿿])")
+# 与国企 SOE-022 的 left_ok 共用职务、身份口径，不含“原”等时间修饰词。
+_PERSON_TITLE = (r"(?:相关责任人|直接责任人|责任人|当事人|负责人|副?总经理(?:助理)?|副?董事长|(?:党委)?副?书记"
+                 r"|副?(?:主任|经理|部长|处长|科长)|总(?:监|工程师|会计师|经济师)|[局厂院所队站组班]长"
+                 r"|主管|专员|员工|职工|干部|会计|出纳|工程师|技术员|业务员|采购员)")
 _LIST_TITLE_RE = re.compile(_PERSON_TITLE + r"\s*")
+_PERSON_TITLE_END_RE = re.compile(_PERSON_TITLE + "$")
 _TITLE_NOTE_RE = re.compile(r"[（(][^）)]{0,12}" + _PERSON_TITLE + r"\s*[）)]")
-# 开除党籍、开除公职、诫勉谈话针对自然人，可作处分框架里的人名证据。
-_PERSON_ACTION_RE = re.compile(r"\s*(?:被给予|被处以|受到|被|给予|进行(?:了)?|予以|作出)?(?:开除党籍|开除公职|诫勉谈话)")
+_ORG_OFFICE = r"\s*(?:原|现任|时任|的)?(?:[一-鿿]{1,8}(?:部|室|中心|处|科))?" + _PERSON_TITLE
+_ORG_PERSON_TAIL_RE = re.compile(r"(?:" + _ORG_OFFICE + r"|\s*(?:内部|报销|职务))")
+_ORG_APPOINT_RE = re.compile(r"(?:免去|聘任|任命|撤销|任免|解聘)\s*([一-鿿]{2,4}?)" + _ORG_SUFFIX
+                             + _ORG_OFFICE)
+_PERSON_ACTION = (r"(?:党内(?:严重)?警告|严重警告|留党察看|撤销党内职务|政务(?:警告|记大?过|降级|撤职|开除)"
+                  r"|撤职|免职|开除|诫勉谈话)")
+_PERSON_ACTION_RE = re.compile(r"\s*(?:同志)?(?:\s*[（(][^）)]*[）)])?\s*(?:分别)?\s*"
+                               r"(?:被给予|被处以|受到|被|给予|进行(?:了)?|予以|作出)?\s*" + _PERSON_ACTION)
 ABBREVIATION_HINT = "可能是单位简称，请人工确认"
 _HANG_RE = re.compile(r"[、，,：:（(]([一-鿿]{1,2})$")   # 摘录末尾“分隔符 + 1～2 个汉字”：可能是被截断的姓名
 _PAREN_SKIP_MAX = 12   # 并列项之间可跳过的括注最大字数
@@ -162,6 +180,7 @@ class NameHit:
     anchor_start: int = -1  # 正文锚点起点；后锚点为姓名自身起点，表格命中为 -1
     table_only: bool = False  # 并列后项：形态合法但分数不足 SCORE_LOW，只登记进姓名表（用于遮蔽），引擎不要单独报问题
     maybe_org: bool = False
+    person_evidence: bool = False
 
 
 class TableNameRow(NamedTuple):
@@ -502,7 +521,7 @@ def left_score(text: str, start: int, lex: Lexicon) -> int:
 def _put(out: Dict[Tuple[int, int], NameHit], hit: NameHit) -> None:
     key = (hit.start, hit.end)
     old = out.get(key)
-    if old is None or hit.score > old.score:
+    if old is None or (hit.score, hit.person_evidence) > (old.score, old.person_evidence):
         out[key] = hit
 
 
@@ -825,6 +844,8 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
     for m in a.regex.finditer(text):
         gs, ge = m.span("n")
         group = m.group("n")
+        # 处分动作位于整组末尾，适用于此前并列的每一项。
+        person_action = bool(_PERSON_ACTION_RE.match(text, ge))
         if a.suffix:
             # 姓名组里可以有“、”并列（“给予刘凤英、陈素珍党内警告处分”）：逐项取后 4、3、2 字作候选
             pieces: List[Tuple[int, int]] = []
@@ -860,16 +881,16 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
                     got_one = True
                     break
                 if score >= SCORE_LOW:
-                    _put(out, NameHit(s, e, word, score, False, tag, m.start()))
+                    _put(out, NameHit(s, e, word, score, False, tag, m.start(), person_evidence=person_action))
                     got_one = True
                     break
             got_pieces.append(got_one)
         if a.suffix and len(pieces) > 1 and any(got_pieces):
-            _frame_backfill(text, a, lex, out, m, pieces, got_pieces)
+            _frame_backfill(text, a, lex, out, m, pieces, got_pieces, person_action)
 
 
 def _frame_backfill(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], NameHit], m: "re.Match[str]",
-                    pieces: List[Tuple[int, int]], got_pieces: List[bool]) -> None:
+                    pieces: List[Tuple[int, int]], got_pieces: List[bool], person_action: bool) -> None:
     """处分框架里的并列姓名：有一项识别出来，其余项（与常用词同形的“白云、夏天、黎明”、复姓表外等）一律登记进姓名表。
     第 2 项起，整段就是姓名；第 1 项前面可能带着“相关责任人”之类的字，从末尾取 4、3、2 字，左边界要成立。"""
     for k, ((ps, pe), got) in enumerate(zip(pieces, got_pieces)):
@@ -878,7 +899,8 @@ def _frame_backfill(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int
         if k > 0:
             word = text[ps:pe]
             if _list_item_like_name(word, lex):
-                _put(out, NameHit(ps, pe, word, SCORE_LOW - 1, False, text[m.start():ps], m.start(), True))
+                _put(out, NameHit(ps, pe, word, SCORE_LOW - 1, False, text[m.start():ps], m.start(), True,
+                                  person_evidence=person_action))
             continue
         for length in (4, 3, 2):
             st = pe - length
@@ -889,7 +911,8 @@ def _frame_backfill(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int
                 continue
             if any(ch in lex.nongiven for ch in (word[2:] if word[:2] in lex.compound else word[1:])):
                 continue
-            _put(out, NameHit(st, pe, word, SCORE_LOW - 1, False, text[m.start():st], m.start(), True))
+            _put(out, NameHit(st, pe, word, SCORE_LOW - 1, False, text[m.start():st], m.start(), True,
+                              person_evidence=person_action))
             break
 
 
@@ -939,7 +962,7 @@ def _scan_list(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], Na
             if sh.pseudo:
                 _put(out, NameHit(s, e, word, score, True, m.group(0), m.start()))
             elif score >= SCORE_LOW:
-                _put(out, NameHit(s, e, word, score, False, m.group(0), m.start()))
+                _put(out, NameHit(s, e, word, score, False, m.group(0), m.start(), person_evidence=titled))
                 recognized = True
         if recognized:       # 名单里有一项识别出来了：其余姓氏开头的 2～4 字项（与常用词同形、复姓表外等）一律登记进姓名表
             for s, e, word in items:
@@ -952,51 +975,55 @@ _SCANNERS = {"prefix": _scan_prefix, "postfix": _scan_postfix, "frame": _scan_fr
 
 
 def organization_names(lines: Iterable[str], lex: Lexicon) -> FrozenSet[str]:
-    """提取正文的单位简称声明与紧接单位名称后缀的姓氏形候选。"""
-    found = set()
+    """提取有单位先行词的简称与有左边界的短单位全称；任免写法不作为单位佐证。"""
+    found, appointees = set(), set()
     for line in lines:
         found.update(m[1] for m in _ORG_ALIAS_RE.finditer(line) if has_surname_prefix(m[1], lex))
-        for m in _ORG_SUFFIX_RE.finditer(line):
-            end = m.start()
-            for n in (2, 3):
-                word = line[max(0, end - n):end]
-                if len(word) == n and _CJK_RE.fullmatch(word) and has_surname_prefix(word, lex):
-                    found.add(word)
-    return frozenset(found)
+        appointees.update(m[1] for m in _ORG_APPOINT_RE.finditer(line))
+        for match in _ORG_FULL_RE.finditer(line):
+            word = match[1]
+            # 首字本身可能是姓（如“向”），此时不能把它当介词切掉。
+            if len(word) >= 3 and word[0] in _ORG_PREPOSITIONS and not has_surname_prefix(word, lex):
+                word = word[1:]
+            if len(word) in (2, 3) and has_surname_prefix(word, lex) and not _ORG_PERSON_TAIL_RE.match(line, match.end()):
+                found.add(word)
+    return frozenset(found - appointees)
 
 
-def _organization_candidate(text: str, hit: NameHit, anchor: Anchor) -> bool:
-    """只在缺少同志、身份括注或职务称谓等人名证据时判为可能的单位。"""
-    if hit.pseudo or len(hit.name) not in (2, 3):
-        return False
+def _has_person_evidence(text: str, hit: NameHit, anchor: Anchor) -> bool:
     tail = text[hit.end:].lstrip()
-    if R3_RE.match(tail) or _TITLE_NOTE_RE.match(tail):
-        return False
     head = text[:hit.start].rstrip()
     title = anchor.left_ok.search(head) if anchor.left_ok else None
-    return not ((title and title[0] not in ("原", "时任", "现任", "该")) or
-                re.search(_PERSON_TITLE + "$", head))
+    return bool(hit.person_evidence or R3_RE.match(tail) or _TITLE_NOTE_RE.match(tail)
+                or _PERSON_TITLE_END_RE.search(head) or (title and title[0] not in ("原", "时任", "现任", "该")))
+
+
+def keep_person_hit(hit: NameHit, lex: Lexicon, organizations: FrozenSet[str]) -> bool:
+    """按单位佐证过滤候选，并给缺少人名证据的正文同形候选标记待确认。"""
+    if hit.pseudo or hit.person_evidence or len(hit.name) not in (2, 3):
+        return True
+    if hit.name in organizations:
+        return False
+    if hit.anchor_start >= 0 and hit.score >= SCORE_LOW and hit.name[-1] in lex.org_abbr_end:
+        hit.score = SCORE_LOW
+        hit.maybe_org = True
+    return True
 
 
 def find_names(text: str, anchors: Sequence[Anchor], lex: Lexicon,
-               organizations: Optional[FrozenSet[str]] = None) -> List[NameHit]:
+               organizations: Optional[FrozenSet[str]] = None, *, collect_person_evidence: bool = False) -> List[NameHit]:
     """在单行文字里识别姓名。同一区间取最高分；区间重叠时长的优先。结果按起点排序。"""
     found: Dict[Tuple[int, int], NameHit] = {}
     for a in anchors:
-        if organizations is None:
+        if organizations is None and not collect_person_evidence:
             _SCANNERS[a.kind](text, a, lex, found)
             continue
         hits: Dict[Tuple[int, int], NameHit] = {}
         _SCANNERS[a.kind](text, a, lex, hits)
         for hit in hits.values():
-            if _organization_candidate(text, hit, a):
-                if hit.name in organizations:
-                    continue
-                person_action = a.kind == "frame" and _PERSON_ACTION_RE.match(text, hit.end)
-                if hit.score >= SCORE_LOW and hit.name[-1] in lex.org_abbr_end and not person_action:
-                    hit.score = SCORE_LOW
-                    hit.maybe_org = True
-            _put(found, hit)
+            hit.person_evidence = _has_person_evidence(text, hit, a)
+            if organizations is None or keep_person_hit(hit, lex, organizations):
+                _put(found, hit)
     ordered = sorted(found.values(), key=lambda h: (-(h.end - h.start), -h.score, h.start))
     kept: List[NameHit] = []
     for h in ordered:
@@ -1006,28 +1033,98 @@ def find_names(text: str, anchors: Sequence[Anchor], lex: Lexicon,
     return kept
 
 
-def _md_cells(line: str, strip_style: bool = True) -> List[Tuple[int, str]]:
+def _md_cells(line: str, width: int = 0, header_line: str = "") -> List[Tuple[int, str]]:
     """按未转义的竖线切列，保留值在原行里的偏移，用于遮蔽摘录。"""
     pipes = [m.start() for m in _MD_PIPE_RE.finditer(line) if m["pipe"]]
     if not pipes:
         return []
     bounds = [-1, *pipes, len(line)]
-    if not line[:pipes[0]].strip():
+    left_border = not line[:pipes[0]].strip()
+    right_border = not line[pipes[-1] + 1:].strip()
+    short = len(bounds) - 1 - left_border - right_border < width
+    # 列数不足时，以表头的边界样式区分外侧竖线与空首列、空末列。
+    if left_border and not (short and not header_line.lstrip().startswith("|")):
         bounds.pop(0)
-    if not line[pipes[-1] + 1:].strip():
+    if right_border and not (short and not header_line.rstrip().endswith("|")):
         bounds.pop()
     cells = []
     for left, right in zip(bounds, bounds[1:]):
         raw = line[left + 1:right]
         value = raw.strip()
         start = left + 1 + len(raw) - len(raw.lstrip())
-        styled = _MD_CELL_RE.fullmatch(value) if strip_style else None
-        if styled:
-            raw = styled["value"]
-            start += styled.start("value") + len(raw) - len(raw.lstrip())
-            value = raw.strip()
         cells.append((start, value))
     return cells
+
+
+def _md_header_label(label: str) -> str:
+    label = _MD_HEADER_MARKS_RE.sub("", label).strip("：:")
+    label = label.strip("【】[]（）()《》").rstrip("：:")
+    # 剥掉外括号时，保留内部括注的开括号，便于裁掉“姓名（实名）”中的备注。
+    return re.split(r"[（(【\[《]", label, maxsplit=1)[0].rstrip("：:")
+
+
+def _md_table_start(lines: Sequence[str], idx: int) -> List[Tuple[int, str]]:
+    if idx + 1 >= len(lines):
+        return []
+    separator = _md_cells(lines[idx + 1])
+    if not separator or not all(_MD_SEPARATOR_RE.fullmatch(value) for _, value in separator):
+        return []
+    header = _md_cells(lines[idx])
+    return header if len(header) == len(separator) else []
+
+
+def _table_item_spans(value: str, lex: Lexicon) -> Iterable[Tuple[int, int]]:
+    # 括注内的逗号和连词都不是姓名分隔符。文字连词还须满足两边的姓名边界。
+    masked = _PAREN_RE.sub(lambda m: " " * len(m[0]), value)
+    for piece in re.finditer(r"[^、，,]+", masked):
+        start = piece.start()
+        for match in re.finditer(r"[和与及]", piece[0]):
+            pos = piece.start() + match.start()
+            left = re.sub(r"[*_`\s]", "", masked[start:pos])
+            right = pos + 1
+            while right < piece.end() and masked[right] in " *_`\t　":
+                right += 1
+            if len(left) >= 2 and _starts_name(masked, right, lex):
+                yield start, pos
+                start = pos + 1
+        yield start, piece.end()
+
+
+def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexicon,
+                      person_action: bool) -> Iterable[NameHit]:
+    for a, b in _table_item_spans(value, lex):
+        raw = value[a:b]
+        offset = start + a + len(raw) - len(raw.lstrip())
+        word = raw.strip()
+        # “**姓名**（括注）”与“**姓名（括注）**”两种形式都保留原姓名偏移。
+        styled = _MD_CELL_RE.fullmatch(word)
+        if styled:
+            inner = styled["value"]
+            offset += styled.start("value") + len(inner) - len(inner.lstrip())
+            word = inner.strip()
+        note = _PAREN_RE.search(word)
+        evidence = bool(person_action or R3_RE.search(word) or _TITLE_NOTE_RE.search(word)
+                        or _TABLE_ID_NOTE_RE.search(word))
+        if note and not _PAREN_RE.sub("", word[note.start():]).strip():
+            word = word[:note.start()].rstrip()
+        word = _ITEM_TAIL_RE.sub("", word).rstrip()
+        styled = _MD_CELL_RE.fullmatch(word)
+        if styled:
+            inner = styled["value"]
+            offset += styled.start("value") + len(inner) - len(inner.lstrip())
+            word = inner.strip()
+        title = _LIST_TITLE_RE.match(word)
+        if title and _list_item_like_name(word[title.end():], lex):
+            evidence = True
+            offset += title.end()
+            word = word[title.end():]
+        if word in lex.table_nonnames or not _list_item_like_name(word, lex):
+            continue
+        if len(word) >= 3 and word.endswith(("科", "中心", "学院", "部门")):
+            continue
+        shape = _shape(word, lex, evidence=evidence, tail_ok=True)
+        if shape and not shape.pseudo and (evidence or not (shape.ambiguous and len(word) == 2)):
+            yield NameHit(offset, offset + len(word), word, score, False, label, person_evidence=evidence)
 
 
 def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[int, TableNameRow]:
@@ -1046,36 +1143,30 @@ def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[in
                 fence = ""
             idx += 1
             continue
-        header = _md_cells(lines[idx]) if not fence else []
-        if not header or idx + 1 == len(lines):
+        header = _md_table_start(lines, idx) if not fence else []
+        if not header:
             idx += 1
             continue
-        separator = _md_cells(lines[idx + 1], strip_style=False)
-        if len(header) != len(separator) or not all(_MD_SEPARATOR_RE.fullmatch(v) for _, v in separator):
-            idx += 1
-            continue
-        labels = tuple(re.sub(r"\s+", "", label) for _, label in header)
-        columns = [i for i, label in enumerate(labels) if label in lex.table_names and label not in lex.table_public]
+        header_line = lines[idx]
+        labels = tuple(_md_header_label(label) for _, label in header)
         score = SCORE_HIGH if any(w in label for label in labels for w in sensitive) else SCORE_LOW
+        public = score == SCORE_LOW and any(label in lex.table_public or _TABLE_PUBLIC_RE.search(label) for label in labels)
+        duty = any(_TABLE_DUTY_RE.search(label) for label in labels)
+        excluded = ({"姓名"} if public else set()) | ({"责任人", "责任人姓名"} if duty else set())
+        columns = [i for i, label in enumerate(labels) if label in lex.table_names and label not in excluded]
+        discipline_cols = [i for i, label in enumerate(labels) if domain == "soe" and "处分" in label]
         idx += 2
-        while idx < len(lines) and not _MD_FENCE_RE.match(lines[idx]):
-            cells = _md_cells(lines[idx])
+        while idx < len(lines) and not _MD_FENCE_RE.match(lines[idx]) and not _md_table_start(lines, idx):
+            cells = _md_cells(lines[idx], len(header), header_line)
             if not cells:
                 break
             hits = []
+            person_action = any(i < len(cells) and _PERSON_ACTION_RE.match(cells[i][1]) for i in discipline_cols)
             for col in columns:
                 if col >= len(cells):
                     continue
                 start, value = cells[col]
-                note = R3_RE.search(value)
-                word = value[:note.start()].rstrip() if note else value
-                if word in lex.table_nonnames or not _list_item_like_name(word, lex):
-                    continue
-                if len(word) >= 3 and word.endswith(("科", "中心", "学院", "部门")):
-                    continue
-                shape = _shape(word, lex, evidence=bool(note), tail_ok=True)
-                if shape and not shape.pseudo:
-                    hits.append(NameHit(start, start + len(word), word, score, False, labels[col]))
+                hits.extend(_table_cell_names(value, start, labels[col], score, lex, person_action))
             if hits:
                 found[idx] = TableNameRow(labels, hits)
             idx += 1

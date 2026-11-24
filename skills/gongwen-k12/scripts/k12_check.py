@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -1173,7 +1173,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         label = re.sub(r"\s", "", e.label)
         if 2 <= len(label) <= 4 and not CODE_LIKE_RE.fullmatch(label) and looks_like_name(label):
             table.add(label)
-        for name in _g04_analyze(e.body)[1]:
+        for _, name in _g04_analyze(e.body)[1]:
             table.add(name)
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
@@ -1365,9 +1365,9 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
         names = _g04_analyze(line)[1]
         row = table_rows.get(index - 1)
         if row:
-            issues.append(_table_name_issue(row, table, index, line, names, gw.SCORE_HIGH))
+            issues.append(_table_name_issue(row, table, index, names, gw.SCORE_HIGH))
         else:
-            for name in names:
+            for _, name in names:
                 table.add(name)
         for rule in PARENT_RULES:
             level = rule.level if compulsory else rule.level_other
@@ -1508,7 +1508,7 @@ def _clause_bounds(line: str, pos: int) -> Tuple[int, int]:
     return left, (m.start() if m else len(line))
 
 
-def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
+def _g04_analyze(line: str) -> Tuple[List[dict], List[Tuple[int, str]]]:
     """K12-G04 单行识别。返回 (候选问题, 要登记进全文姓名表的姓名)。
 
     候选问题字段：start、end（摘录起止，含锚点）、score（代称记 9）、pseudo。
@@ -1516,7 +1516,7 @@ def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
     gw, lex = shared_names()
     front, post = _k12_anchors(gw)
     cands: List[dict] = []
-    names: List[str] = []
+    names: List[Tuple[int, str]] = []
 
     front_hits = gw.find_names(line, front, lex)
     spans: Dict[int, int] = {}
@@ -1527,7 +1527,7 @@ def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
         if h.pseudo:
             cands.append({"start": h.anchor_start, "end": h.end, "score": 9, "pseudo": True})
             continue
-        names.append(h.name)
+        names.append((h.start, h.name))
         if h.table_only:    # 并列后项：只进姓名表（遮蔽用），摘录由首个姓名的 spans 一并延伸到它
             continue
         cands.append({"start": h.anchor_start, "end": spans[h.anchor_start], "score": h.score, "pseudo": False})
@@ -1541,7 +1541,7 @@ def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
         if h.pseudo:
             cands.append({"start": min(sens.start(), h.start), "end": max(sens.end(), end), "score": 9, "pseudo": True})
             continue
-        names.append(h.name)
+        names.append((h.start, h.name))
         cands.append({"start": min(sens.start(), h.start), "end": max(sens.end(), end), "score": h.score,
                       "pseudo": False})
 
@@ -1573,14 +1573,12 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
     return best[2], mask_digits((line[c["start"]:c["end"]] + tail).strip())
 
 
-def _table_name_issue(row: Any, table: Any, line: int, text: str, prose_names: Sequence[str], high_score: int) -> Issue:
+def _table_name_issue(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], high_score: int) -> Issue:
     rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
-    positions = [(text.find(name), name) for name in prose_names]
-    positions.extend((hit.start, hit.name) for hit in row.hits)
-    for _start, name in sorted(positions):
-        table.add(name)
+    positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits]
+    names = dict.fromkeys(name for _, name in sorted(positions))
     level = "P0" if row.hits[0].score >= high_score else "P1"
-    excerpt = "、".join(table.placeholder(hit.name) for hit in row.hits)
+    excerpt = "、".join(table.placeholder(name) for name in names)
     return Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
                  suggestion=suggest, basis=basis, line=line, excerpt=excerpt)
 
@@ -1608,12 +1606,15 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
             if pat is None:  # K12-G04：锚点 + 候选姓名 + 打分
                 cands, names = _g04_analyze(line)
                 row = table_rows.get(index - 1)
-                if row:
-                    issues.append(_table_name_issue(row, table, index, line, names, gw.SCORE_HIGH))
-                else:
-                    for name in names:
-                        table.add(name)
                 picked = _g04_pick(line, cands, level)
+                if row:
+                    issue = _table_name_issue(row, table, index, names, gw.SCORE_HIGH)
+                    if picked is not None and LEVELS.index(picked[0]) < LEVELS.index(issue.level):
+                        issue.level = picked[0]
+                    issues.append(issue)
+                    continue
+                for _, name in names:
+                    table.add(name)
                 if picked is not None and (rid, index) not in seen:
                     seen.add((rid, index))
                     issues.append(Issue(id=rid, level=picked[0], category=cat, message=msg,

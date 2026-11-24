@@ -53,7 +53,7 @@ P1 的说明文案按 find_inversions 给出的 reason_code 选用，不会出�
   2. 名字里用了黑名单字、或尾字是地名机构字的姓名会漏报（如“李山”“孙湖”“王会”）。
   3. 少见姓、歧义姓只给 P1，弱语境下漏报；与整词排除词同形的姓名（刘海、林海）没有强证据时漏报；处分对象与处分隔着分句
      （“李建华……已被开除党籍”）识别不了。
-  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。正文用“以下简称”或单位全称明确了简称时跳过；没有线索的简称仍需人工判断。
+  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。文内有明确单位佐证时跳过，任免、称谓、身份括注和个人专属处分等人名证据优先。
   5. 名单类锚点按顿号、逗号读到句末，用分号或换行分开的后续名单项读不到；带“·”的姓名、外文名、昵称识别不了。
   6. 全文遮蔽是整串替换，会过度遮蔽（姓名“高明”会把“高明的做法”也遮成占位）。
   7. 文件名：报告头和 JSON 的 file 字段按全文姓名表遮蔽；文件名里写着、正文没有被锚点识别到的姓名遮不住。
@@ -85,7 +85,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -583,30 +583,40 @@ def scan_names(lines: Lines, ruleset: RuleSet):
     """
     gn, _gc, lex = _shared()
     texts = [text for _number, text in lines]
-    organizations = gn.organization_names(texts, lex)
-    table = gn.NameTable(organizations)
     table_rows = gn.find_table_names(texts, lex, "soe")
     per_line: Dict[int, List[Tuple[Rule, Any]]] = {}
     rules = _name_rules(ruleset)
     by_id = {rule.id: rule for rule in rules}
     for idx, (_number, text) in enumerate(lines):
-        entries = [(rule, hit) for rule in rules for hit in gn.find_names(text, rule.anchors, lex, organizations)]
+        entries = [(rule, hit) for rule in rules
+                   for hit in gn.find_names(text, rule.anchors, lex, collect_person_evidence=True)]
         row = table_rows.get(idx)
         if row:
             discipline = any(re.search(r"处分|违纪|诫勉|问责", label) for label in row.headers)
             rule = by_id.get("SOE-022" if discipline else "SOE-023")
             if rule is not None:
                 entries.extend((rule, hit) for hit in row.hits)
-        if not entries:
-            continue
-        entries.sort(key=lambda e: (e[1].start, e[1].end))
-        table.add_hits(hit for _rule, hit in entries)
-        per_line[idx] = entries
+        if entries:
+            per_line[idx] = entries
+    # 同一写法既有单位证据也有明确的人名证据时，优先保护实名，包括它在别处的弱锚点。
+    people = {hit.name for entries in per_line.values() for _, hit in entries
+              if hit.person_evidence and not hit.pseudo}
+    organizations = gn.organization_names(texts, lex) - people
+    table = gn.NameTable(organizations)
+    for idx, entries in per_line.items():
+        kept = []
+        for rule, hit in entries:
+            hit.person_evidence = hit.name in people
+            if gn.keep_person_hit(hit, lex, organizations):
+                kept.append((rule, hit))
+        kept.sort(key=lambda e: (e[1].start, e[1].end))
+        per_line[idx] = kept
+        table.add_hits(hit for _, hit in kept)
     return table, per_line
 
 
 def check_names(lines: Lines, doc_type: Optional[str], external: bool,
-                per_line: Dict[int, List[Tuple[Rule, Any]]]) -> List[Dict[str, Any]]:
+                per_line: Dict[int, List[Tuple[Rule, Any]]], table: Any) -> List[Dict[str, Any]]:
     """姓名规则的报出：高置信（总分 >= 6）用规则级别，低置信（= 5）用 low_level；代称不报。"""
     gn, _gc, _lex = _shared()
     issues: List[Dict[str, Any]] = []
@@ -615,25 +625,34 @@ def check_names(lines: Lines, doc_type: Optional[str], external: bool,
         # 同一规则、同一锚点下的并列姓名（“名单：张三、李四”）共用一条摘录：从锚点读到最后一个姓名再加右侧上下文，
         # 这样各姓名的摘录完全相同，由 merge_issues 合并成一条并带 count
         group_end: Dict[Tuple[str, int], int] = {}
+        group_flags: Dict[Tuple[str, int], set] = {}
+        reportable = []
         for rule, hit in entries:
+            key = (rule.id, hit.anchor_start)
             if hit.anchor_start >= 0:
-                key = (rule.id, hit.anchor_start)
                 group_end[key] = max(group_end.get(key, 0), hit.end)
-        for rule, hit in entries:
+            if hit.pseudo or hit.table_only or not _applicable(rule, doc_type, external):
+                continue
+            if hit.anchor_start >= 0 and _is_exempt(rule, text, hit.start, hit.end):
+                continue
+            reportable.append((rule, hit))
+            if hit.anchor_start >= 0:
+                group_flags.setdefault(key, set()).add(hit.maybe_org)
+        for rule, hit in reportable:
             if hit.anchor_start < 0:
                 level = "P0" if hit.score >= gn.SCORE_HIGH else "P1"
-                issues.append(_issue(rule, level, number, hit.name, message="表格姓名列出现真实姓名"))
-                continue
-            if hit.pseudo or hit.table_only or not _applicable(rule, doc_type, external):
-                continue    # 代称不报；并列后项（table_only）只进姓名表用于遮蔽，不单独报
-            if _is_exempt(rule, text, hit.start, hit.end):
+                issues.append(_issue(rule, level, number, table.placeholder(hit.name), message="表格姓名列出现真实姓名"))
                 continue
             high = _rule_level(rule, external)
             level = high if hit.score >= gn.SCORE_HIGH else (rule.low_level or high)
             a0 = hit.anchor_start if 0 <= hit.anchor_start <= hit.start else hit.start
-            end = group_end.get((rule.id, hit.anchor_start), hit.end) if a0 == hit.anchor_start else hit.end
-            message = gn.ABBREVIATION_HINT if hit.maybe_org else None
-            suggestion = "核对处分对象或名单项是否为个人，确为实名时按规定遮蔽" if hit.maybe_org else None
+            key = (rule.id, hit.anchor_start)
+            end = group_end[key]
+            flags = group_flags[key]
+            message, suggestion = None, None
+            if True in flags:
+                message = gn.ABBREVIATION_HINT if flags == {True} else f"{rule.message}；部分对象{gn.ABBREVIATION_HINT}"
+                suggestion = "核对处分对象或名单项是否为个人，确为实名时按规定遮蔽"
             issues.append(_issue(rule, level, number, text[a0:max(end, hit.end) + NAME_TAIL].strip(),
                                  message=message, suggestion=suggestion))
     return issues
@@ -1214,7 +1233,7 @@ def _check_lines_table(lines: Lines, doc_type: Optional[str], external: bool, ru
     gn, _gc, _lex = _shared()
     issues = check_regex(lines, doc_type, external, ruleset)
     table, per_line = scan_names(lines, ruleset)
-    issues += check_names(lines, doc_type, external, per_line)
+    issues += check_names(lines, doc_type, external, per_line, table)
     check_inversions(lines, doc_type, external, ruleset, issues)
     issues += check_procedural(lines, doc_type, ruleset, as_of)
     mask_issues(issues, lines, table)

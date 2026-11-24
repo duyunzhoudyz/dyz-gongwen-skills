@@ -408,10 +408,10 @@ class FileNameMaskTest(unittest.TestCase):
         path.write_text(body, encoding="utf-8")
         out, rendered, err = io.StringIO(), io.StringIO(), io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):
-            code = sc.main([str(path), "--json"])
+            code = sc.main([str(path), "--type", "纪要", "--json"])
         text_err = io.StringIO()
         with redirect_stdout(rendered), redirect_stderr(text_err):
-            text_code = sc.main([str(path)])
+            text_code = sc.main([str(path), "--type", "纪要"])
         out, rendered, err, text_err = out.getvalue(), rendered.getvalue(), err.getvalue(), text_err.getvalue()
         self.assertEqual(code, text_code)
         self.assertIn(code, (0, 1), err + text_err)
@@ -476,7 +476,7 @@ class FileNameMaskTest(unittest.TestCase):
                 self.assertIn(level, [i["level"] for i in issues])
                 if level == "P1":
                     self.assertFalse(any(i["level"] == "P0" for i in issues))
-                    self.assertIn("可能是单位简称，请人工确认", [i["message"] for i in issues])
+                    self.assertTrue(any("可能是单位简称，请人工确认" in i["message"] for i in issues))
                 self.assertNotIn(name, json.dumps(report, ensure_ascii=False))
                 detected += 1
         controls = [

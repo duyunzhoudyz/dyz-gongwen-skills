@@ -351,6 +351,7 @@
   },
   {
    "file": "V_s14_职工安置明细.txt",
+   "type": "纪要",
    "kind": "violation",
    "names": ["沈文悦"],
    "expect": [

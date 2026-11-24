@@ -1462,7 +1462,7 @@ class MarkdownNameTableTest(HospitalCheckBase):
                 "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
         report, screen = self.run_table("王秀英附表.md", body)
         rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
-                if i["id"] in ("HOS-031", "HOS-031")]
+                if i["id"] == "HOS-031"]
         self.assertEqual(rows, [("HOS-031", "P0", 3, "〔姓名1〕"),
                                 ("HOS-031", "P1", 7, "〔姓名1〕"),
                                 ("HOS-031", "P1", 8, "〔姓名2〕")])
@@ -1486,7 +1486,7 @@ class MarkdownNameTableTest(HospitalCheckBase):
             with self.subTest(name=name, body=body):
                 file_name = ("斜线" if name == "/" else name) + "附表.md"
                 report, screen = self.run_table(file_name, body)
-                rows = [i for i in report["issues"] if i["id"] in ("HOS-031", "HOS-031")]
+                rows = [i for i in report["issues"] if i["id"] == "HOS-031"]
                 misfires += len(rows)
                 self.assertEqual(rows, [])
                 self.assertEqual(report["file"], file_name)

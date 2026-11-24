@@ -88,8 +88,10 @@ K12_POST = r"(?=同学(?!们))"
 # 第 2 步中小学线将采用的新锚点：身份词加角色名词 4 分；只有身份词（去掉逗号分隔）3 分
 K12_ROLE = K12_SENS + r"(?:的)?(?:学生|同学|子女|儿童|家庭学生)[：:，,\s]{0,2}"
 K12_BARE = K12_SENS + r"(?:的)?[：:\s]{0,2}"
-# 第 2 步国企线将采用的新处分框架：suffix 型，组长度上限 16 字，左边界用职务称谓表
-SOE_FRAME_1_NEW = (r"(?:给予|对)(?P<n>[一-鿿]{2,16}?)(?:同志)?(?:给予|进行(?:了)?|予以|作出)?(?:党内|政务)?" + PUN)
+# 与 SOE-022 的 suffix 型处分框架一致，允许组内顿号、身份括注和“分别”。
+SOE_FRAME_1_NEW = (r"(?:给予|对)(?P<n>[\u4e00-\u9fff、]{2,20}?)\s*(?:同志)?(?:[（(][^）)]{1,16}[）)])?"
+                   r"(?:分别)?(?:给予|进行(?:了)?|予以|作出)?(?:党内|政务)?"
+                   r"(?:严重警告|警告|记过|记大过|降级|撤职|撤销党内职务|留党察看|开除党籍|开除公职|开除|诫勉|免职)")
 SOE_TITLES = (r"(?:总经理助理|副总经理|总经理|董事长|副董事长|党委书记|党委副书记|副书记|书记|副主任|主任|副经理|经理|副部长|部长|副处长"
               r"|处长|副科长|科长|局长|总监|总工程师|总会计师|总经济师|厂长|院长|所长|队长|站长|组长|班长|主管|专员|员工|职工|干部"
               r"|会计|出纳|工程师|技术员|业务员|采购员|原|时任|现任|该)$")
@@ -217,7 +219,7 @@ class LexiconStructureTest(unittest.TestCase):
 
     # ---- 1.1.0 新增字段 ----
     def test_version_and_new_fields(self) -> None:
-        self.assertEqual(LEX.version, "1.2.0")
+        self.assertEqual(LEX.version, "1.2.1")
         self.assertGreaterEqual(len(LEX.given), 400)
         self.assertGreaterEqual(len(LEX.word_bigrams), 2000)
         self.assertTrue(LEX.soft_given and LEX.stopwords_exact)
