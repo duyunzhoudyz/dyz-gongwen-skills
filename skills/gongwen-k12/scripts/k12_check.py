@@ -987,7 +987,7 @@ def _window(text: str, start: int, end: int, before: int, after: int) -> str:
 def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "义务教育",
                    min_chars: int = 50, max_chars: int = 300, similarity: float = 0.6,
                    person: str = "second", shared_threshold: int = 3) -> dict:
-    """学生评语批量检查。label 是教师在本机定位用的标识（编号或姓名），原样保留；
+    """学生评语批量检查。Markdown 姓名列登记的实名在整个报告中遮蔽。其余评语保留教师本机定位标识；
     只遮蔽 excerpt：label 里的姓名和评语正文里由敏感身份锚点识别出的姓名，在 excerpt 中换成〔姓名N〕。"""
     gw, _lex = shared_names()
     doc = load_document(path)
@@ -1169,6 +1169,9 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                         "核对作品、奖项、活动名称，事实表中没有的删去", B_GUARDRAIL_2, q)
 
     table = gw.NameTable()
+    table_rows = gw.find_table_names(cut_at_boundary(doc.lines)[0], _lex, "k12") if doc.kind == "text" else {}
+    for row in table_rows.values():
+        table.add_hits(row.hits)
     for e in entries:
         label = re.sub(r"\s", "", e.label)
         if 2 <= len(label) <= 4 and not CODE_LIKE_RE.fullmatch(label) and looks_like_name(label):
@@ -1179,7 +1182,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         it.excerpt = mask_names(table, it.excerpt)
     marker_text = "\n".join(e.body for e in entries)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
-    return {
+    result = {
         "mode": "comments",
         "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
@@ -1189,6 +1192,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         "similar_pairs": pairs,
         "issues": [i.to_dict() for i in issues],
     }
+    return table.mask_output(result) if any(row.hits for row in table_rows.values()) else result
 
 
 # ---------------------------------------------------------------------------

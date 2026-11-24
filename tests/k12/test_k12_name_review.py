@@ -453,6 +453,16 @@ class ExampleDRegressionTest(EngineCase):
 
 
 class MarkdownNameTableTest(EngineCase):
+    def test_comment_table_masks_registered_names_in_labels_and_all_outputs(self):
+        path = self.write("王秀英及李明评语.md", "| 学生姓名 | 评语 |\n| --- | --- |\n| 王秀英＋李明 | 需要继续加油。 |\n")
+        def run():
+            report = k12_check.check_comments(path)
+            return report, k12_check.render_check_text(report)
+        report, _ = check_masked_outputs(k12_check.shared_names()[0], run)
+        self.assertEqual(report["file"], "〔姓名1〕及〔姓名2〕评语.md")
+        self.assertEqual(report["entries"][0]["label"], "〔姓名1〕＋〔姓名2〕")
+        self.assertFalse(any(i["id"] == "K12-G04" for i in report["issues"]))
+
     def test_parent_document_reports_table_privacy(self) -> None:
         path = self.write("王秀英回访单.md", "| 学生姓名 | 病史 |\n| --- | --- |\n| 王秀英 | 哮喘 |\n")
         def run():
