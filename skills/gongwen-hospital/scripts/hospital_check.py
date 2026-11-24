@@ -8,7 +8,16 @@
   - 指数写法：CMI 等指数和天数用“百分点”（HOS-006），CMI 带百分号（HOS-007）；
   - 指标名称不规范（HOS-008～015）；
   - 引用已废止的依据（HOS-016、017）；
-  - 根因分析把原因落在个人品质、把直接原因当根本原因、写入处理处罚（HOS-018～020）。
+  - 根因分析把原因落在个人品质、把直接原因当根本原因、写入处理处罚（HOS-018～020）；
+  - 患者隐私、当事人信息、编码与医保、程序倒置与追认、廉洁表述、评审结论、对外敏感事项（HOS-030～039，共 39 条规则）。
+    隐私类规则（mask_excerpt）命中时 excerpt 改为“〔已遮蔽，共N字〕”且不输出上下文，机检报告不重复打印姓名。
+    同一行中被隐私类规则命中的片段，在其他规则的 excerpt、context 里一律替换为“〔已遮蔽〕”，避免经其他规则泄露姓名。
+    已知局限：实名识别依赖姓氏表与“姓氏字+后续字构成普通词”的排除表，罕见姓氏或与排除词同形的姓名可能漏报；
+    机检未识别出的姓名无法遮蔽，定稿前仍须人工通读。
+    豁免分三种：exempt_context 整句生效；exempt_clause 只在命中所在分句（按逗号、顿号、分号、冒号及句末标点切分）生效；
+    exempt_prev_clause 在命中所在分句或紧邻的前一分句生效（用于“经某某鉴定，……国内领先”这类出处）。
+    exempt_lead 只在命中所在分句紧接冒号时，看冒号前的引导分句（“严禁下列行为：……”“目标：……”）。
+    prefix_negation 看命中前 8 字内、同一分句里是否有否定词（如“全年未发生医疗纠纷”）。
 
 用法：
     python scripts/hospital_check.py <文件> [--type 文书] [--external] [--json] [--strict]
@@ -28,7 +37,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
 VERSION = "1.0.0"
 RULES_PATH = Path(__file__).resolve().parent / "hospital_rules.json"
@@ -40,6 +49,10 @@ DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?【起草说�
 SENTENCE_END = "。！？；!?;\n"
 # 程序性规则的否定判断：只看 satisfied 命中处之前同一分句内的若干字
 CLAUSE_END = SENTENCE_END + "，,"
+# 分句切分：句末标点之外再加逗号、顿号、冒号；exempt_clause 等只在命中所在分句内找豁免词
+CLAUSE_STOPS = SENTENCE_END + "，,、：:"
+# 前一分句只在逗号类分隔符之后才算“紧邻”，不跨过句号和换行
+SOFT_STOPS = "，,、；;：:"
 NEGATION_WINDOW = 8
 # summary.markers 计数，与 gongwen_lint.py 的 TODO_MARK_RE、VERIFY_MARK_RE 写法一致（全角冒号）
 TODO_MARK_RE = re.compile(r"【待补：[^】\n]*】")
@@ -63,9 +76,16 @@ class Rule:
     regex: Optional[Pattern[str]] = None
     external_level: Optional[str] = None
     exempt: Optional[Pattern[str]] = None
+    exempt_clause: Optional[Pattern[str]] = None
+    exempt_prev_clause: Optional[Pattern[str]] = None
+    exempt_lead: Optional[Pattern[str]] = None
+    prefix_negation: Optional[Pattern[str]] = None
     trigger: Optional[Pattern[str]] = None
     satisfied: Optional[Pattern[str]] = None
     negation: Optional[Pattern[str]] = None
+    satisfied_scope: str = "document"  # document：全文任一处；adjacent：触发句同一句或相邻句
+    mask_excerpt: bool = False
+    name_regex: Optional[Pattern[str]] = None  # 在 mask_excerpt 命中片段上取出姓名本身
     hit_examples: List[str] = field(default_factory=list)
     miss_examples: List[str] = field(default_factory=list)
 
@@ -120,6 +140,12 @@ def _build_rule(item: Dict[str, Any], procedural: bool) -> Rule:
         types=tuple(item.get("types") or ()),
         external_level=_level(item["external_level"], rid) if item.get("external_level") else None,
         exempt=_compile(item.get("exempt_context"), rid, "exempt_context"),
+        exempt_clause=_compile(item.get("exempt_clause"), rid, "exempt_clause"),
+        exempt_prev_clause=_compile(item.get("exempt_prev_clause"), rid, "exempt_prev_clause"),
+        exempt_lead=_compile(item.get("exempt_lead"), rid, "exempt_lead"),
+        prefix_negation=_compile(item.get("prefix_negation"), rid, "prefix_negation"),
+        mask_excerpt=bool(item.get("mask_excerpt")),
+        name_regex=_compile(item.get("name_pattern"), rid, "name_pattern"),
         hit_examples=list(item.get("hit_examples") or []),
         miss_examples=list(item.get("miss_examples") or []),
     )
@@ -127,6 +153,9 @@ def _build_rule(item: Dict[str, Any], procedural: bool) -> Rule:
         rule.trigger = _compile(item.get("trigger"), rid, "trigger")
         rule.satisfied = _compile(item.get("satisfied"), rid, "satisfied")
         rule.negation = _compile(item.get("satisfied_negation"), rid, "satisfied_negation")
+        rule.satisfied_scope = str(item.get("satisfied_scope") or "document")
+        if rule.satisfied_scope not in ("document", "adjacent"):
+            raise InputError(f"程序性规则 {rid} 的 satisfied_scope 只能是 document 或 adjacent")
         if rule.trigger is None or rule.satisfied is None:
             raise InputError(f"程序性规则 {rid} 须同时有 trigger 和 satisfied")
     else:
@@ -225,12 +254,46 @@ def cut_at_note(lines: Sequence[Tuple[int, str]]) -> List[Tuple[int, str]]:
 # 检查
 # ---------------------------------------------------------------------------
 
-def _sentence(text: str, start: int, end: int) -> str:
-    """命中位置所在的句子，用于豁免判断。"""
-    left = max((text.rfind(ch, 0, start) for ch in SENTENCE_END), default=-1)
-    rights = [pos for pos in (text.find(ch, end) for ch in SENTENCE_END) if pos != -1]
+def _span(text: str, start: int, end: int, stops: str = SENTENCE_END) -> Tuple[int, int]:
+    """命中位置所在句子（stops 含逗号等时为分句）的 [左, 右) 位置。"""
+    left = max((text.rfind(ch, 0, start) for ch in stops), default=-1)
+    rights = [pos for pos in (text.find(ch, end) for ch in stops) if pos != -1]
     right = min(rights) if rights else len(text)
-    return text[left + 1:right]
+    return left + 1, right
+
+
+def _sentence(text: str, start: int, end: int, stops: str = SENTENCE_END) -> str:
+    """命中位置所在的句子（stops 含逗号时为分句），用于豁免判断。"""
+    left, right = _span(text, start, end, stops)
+    return text[left:right]
+
+
+def _is_exempt(rule: Rule, text: str, start: int, end: int) -> bool:
+    """规则的各类豁免：整句、分句、分句加紧邻前一分句、命中前的否定词。"""
+    if rule.exempt and rule.exempt.search(_sentence(text, start, end)):
+        return True
+    if rule.exempt_clause or rule.exempt_prev_clause or rule.exempt_lead or rule.prefix_negation:
+        left, right = _span(text, start, end, CLAUSE_STOPS)
+        clause = text[left:right]
+        if rule.exempt_clause and rule.exempt_clause.search(clause):
+            return True
+        if rule.exempt_prev_clause:
+            if rule.exempt_prev_clause.search(clause):
+                return True
+            if left >= 2 and text[left - 1] in SOFT_STOPS:
+                prev_left, _ = _span(text, left - 2, left - 1, CLAUSE_STOPS)
+                if rule.exempt_prev_clause.search(text[prev_left:left - 1]):
+                    return True
+        if rule.exempt_lead and left >= 2 and text[left - 1] in "：:":
+            # “严禁下列行为：……”“目标：……”这类冒号引出的条目，豁免词在冒号前的引导分句里
+            lead_left, _ = _span(text, left - 2, left - 1, CLAUSE_STOPS)
+            if rule.exempt_lead.search(text[lead_left:left - 1]):
+                return True
+        if rule.prefix_negation:
+            before = text[max(left, start - NEGATION_WINDOW):start]
+            if rule.prefix_negation.search(before):
+                return True
+    return False
 
 
 def _clip(text: str, limit: int = 40) -> str:
@@ -240,6 +303,89 @@ def _clip(text: str, limit: int = 40) -> str:
 
 def _context(text: str, start: int, end: int, width: int = 12) -> str:
     return text[max(0, start - width):min(len(text), end + width)].strip()
+
+
+MASK_TEXT = "〔已遮蔽〕"
+
+
+def _merge_spans(spans: Sequence[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    merged: List[Tuple[int, int]] = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def _masked_slice(text: str, start: int, end: int, spans: Sequence[Tuple[int, int]]) -> str:
+    """截取 text[start:end]，其中与隐私命中片段重叠的部分整段换成“〔已遮蔽〕”。"""
+    if not spans:
+        return text[start:end]
+    out: List[str] = []
+    pos = start
+    for s, e in spans:
+        if e <= pos or s >= end:
+            continue
+        if s > pos:
+            out.append(text[pos:s])
+        out.append(MASK_TEXT)
+        pos = max(pos, e)
+    if pos < end:
+        out.append(text[pos:end])
+    return "".join(out)
+
+
+def _masked_context(text: str, start: int, end: int, spans: Sequence[Tuple[int, int]], width: int = 12) -> str:
+    return _masked_slice(text, max(0, start - width), min(len(text), end + width), spans).strip()
+
+
+def extract_names(rule: Rule, text: str, match: "re.Match[str]") -> List[str]:
+    """从隐私规则的命中片段里取出姓名本身（用 name_pattern 的第一个非空捕获组；取不到则用整个片段）。
+
+    “张某”“李某某”这类代称、长度小于 2 的不收。姓名只有 2 字、紧随其后是 1 个汉字再接标点或行尾时，
+    补上这个字（如“患者姓名：李建国”被截成“李建”）。
+    """
+    frag = match.group(0)
+    found = ""
+    matched = False
+    if rule.name_regex is not None:
+        m = rule.name_regex.search(frag)
+        if m:
+            found = next((g for g in m.groups() if g), "")
+            matched = bool(found)
+    names: List[str] = []
+    for part in re.split(r"[、，,]", found or frag):
+        part = re.sub(r"同志$", "", part.strip())
+        if len(part) < 2 or "某" in part:
+            continue
+        if matched and len(part) == 2 and frag.endswith(part):
+            tail = text[match.end():match.end() + 2]
+            if len(tail) >= 1 and "一" <= tail[0] <= "龥" and (len(tail) == 1 or tail[1] in "，,。；;、（()）：: 	"):
+                part += tail[0]
+        names.append(part)
+    return names
+
+
+def _name_spans(text: str, names: Sequence[str]) -> List[Tuple[int, int]]:
+    spans: List[Tuple[int, int]] = []
+    for name in names:
+        pos = text.find(name)
+        while pos >= 0:
+            spans.append((pos, pos + len(name)))
+            pos = text.find(name, pos + len(name))
+    return spans
+
+
+def _scrub_names(issues: List[Dict[str, Any]], names: Sequence[str]) -> None:
+    """兜底：excerpt、context 里若仍有已识别姓名，直接替换。"""
+    for issue in issues:
+        for key in ("excerpt", "context"):
+            value = issue.get(key)
+            if value:
+                for name in names:
+                    value = value.replace(name, MASK_TEXT)
+                issue[key] = value
 
 
 def _issue(rule: Rule, level: str, line: int, excerpt: str, context: str = "") -> Dict[str, Any]:
@@ -260,15 +406,43 @@ def _issue(rule: Rule, level: str, line: int, excerpt: str, context: str = "") -
     return data
 
 
-def _is_satisfied(rule: Rule, text: str) -> bool:
-    """程序性规则：全文有一处未被否定的 satisfied 命中即算满足。
+def _adjacent_window(text: str, start: int, end: int) -> Tuple[int, int]:
+    """触发句及其前后各一个非空句子合起来的范围（以句末标点和换行断句）。"""
+    left, right = _span(text, start, end)
+    lo, hi = left, right
+    pos = left - 1
+    while pos >= 0:  # 向前找上一个非空句子
+        prev_left, prev_right = _span(text, pos, pos)
+        if text[prev_left:prev_right].strip():
+            lo = prev_left
+            break
+        if prev_left == 0:
+            break
+        pos = prev_left - 1
+    pos = right + 1
+    while pos < len(text):  # 向后找下一个非空句子
+        next_left, next_right = _span(text, pos, pos)
+        if text[next_left:next_right].strip():
+            hi = next_right
+            break
+        pos = next_right + 1
+    return lo, hi
+
+
+def _is_satisfied(rule: Rule, text: str, start: int = 0, end: Optional[int] = None) -> bool:
+    """程序性规则：触发句同一句或相邻句里有一处未被否定的 satisfied 命中即算满足。
 
     satisfied_negation 只看命中处之前、同一分句内的 NEGATION_WINDOW 个字，
-    如“尚未提交党委会议”“未经党委会议”不算已有党委会议程序。
+    如“尚未提交党委会议”“未经党委会议”“须经院领导确认”“待确认”不算已满足。
     """
     if rule.satisfied is None:
         return False
-    for match in rule.satisfied.finditer(text):
+    end = len(text) if end is None else end
+    if rule.satisfied_scope == "adjacent":
+        lo, hi = _adjacent_window(text, start, end)
+    else:
+        lo, hi = 0, len(text)
+    for match in rule.satisfied.finditer(text, lo, hi):
         if rule.negation is None:
             return True
         before = text[max(0, match.start() - NEGATION_WINDOW):match.start()]
@@ -284,30 +458,60 @@ def check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = None
     ruleset = ruleset or load_rules()
     external = external or doc_type == EXTERNAL_TYPE
     issues: List[Dict[str, Any]] = []
-    for rule in ruleset.rules:
-        if not rule.applies(doc_type) or rule.regex is None:
-            continue
+    applicable = [r for r in ruleset.rules if r.applies(doc_type) and r.regex is not None]
+    # 先处理隐私类规则，记录每行被命中的片段，供其他规则生成 excerpt、context 时遮蔽
+    mask_spans: Dict[int, List[Tuple[int, int]]] = {}
+    known_names: Set[str] = set()  # 本文已识别姓名表：全文任何行再出现都要遮蔽
+    for rule in (r for r in applicable if r.mask_excerpt):
         level = rule.external_level if (external and rule.external_level) else rule.level
         for number, text in lines:
             for match in rule.regex.finditer(text):
                 if match.end() == match.start():
                     continue
-                if rule.exempt and rule.exempt.search(_sentence(text, match.start(), match.end())):
+                # 姓名一经识别就记入遮蔽范围；即使因豁免不报，也不让它经其他规则的 excerpt 漏出
+                mask_spans.setdefault(number, []).append((match.start(), match.end()))
+                known_names.update(extract_names(rule, text, match))
+                if _is_exempt(rule, text, match.start(), match.end()):
                     continue
-                issues.append(_issue(rule, level, number, _clip(match.group(0)),
-                                     _context(text, match.start(), match.end())))
+                # 隐私类规则：机检报告自身不原样打印姓名、床号，只给长度，不给上下文
+                issues.append(_issue(rule, level, number, f"〔已遮蔽，共{len(match.group(0))}字〕"))
+    names = sorted(known_names, key=lambda n: (-len(n), n))
+    if names:
+        for number, text in lines:
+            found = _name_spans(text, names)
+            if found:
+                mask_spans.setdefault(number, []).extend(found)
+    mask_spans = {n: _merge_spans(v) for n, v in mask_spans.items()}
+    for rule in (r for r in applicable if not r.mask_excerpt):
+        level = rule.external_level if (external and rule.external_level) else rule.level
+        for number, text in lines:
+            spans = mask_spans.get(number, ())
+            for match in rule.regex.finditer(text):
+                if match.end() == match.start():
+                    continue
+                if _is_exempt(rule, text, match.start(), match.end()):
+                    continue
+                issues.append(_issue(rule, level, number,
+                                     _clip(_masked_slice(text, match.start(), match.end(), spans)),
+                                     _masked_context(text, match.start(), match.end(), spans)))
     full_text = "\n".join(text for _number, text in lines)
+    offsets: List[int] = []
+    pos = 0
+    for _number, text in lines:
+        offsets.append(pos)
+        pos += len(text) + 1
     for rule in ruleset.procedural:
         if not rule.applies(doc_type) or rule.trigger is None or rule.satisfied is None:
             continue
-        if _is_satisfied(rule, full_text):
-            continue
-        for number, text in lines:
+        for (number, text), offset in zip(lines, offsets):
             match = rule.trigger.search(text)
-            if match:
-                issues.append(_issue(rule, rule.level, number, match.group(0),
-                                     _context(text, match.start(), match.end())))
+            if match and not _is_satisfied(rule, full_text, offset + match.start(), offset + match.end()):
+                spans = mask_spans.get(number, ())
+                issues.append(_issue(rule, rule.level, number,
+                                     _masked_slice(text, match.start(), match.end(), spans),
+                                     _masked_context(text, match.start(), match.end(), spans)))
                 break
+    _scrub_names(issues, names)
     issues.sort(key=lambda item: (item["line"], LEVELS.index(item["level"]), item["id"]))
     return issues
 
@@ -401,7 +605,7 @@ class _ChineseHelpFormatter(argparse.HelpFormatter):
 def build_parser(types: Sequence[str]) -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="hospital_check.py",
-        description="医院专用文书的行业机检：疗效表述、决策程序、指数写法、指标名称、过时依据、根因分析写法。",
+        description="医院专用文书的行业机检：疗效表述、决策程序、指数写法、指标名称、过时依据、根因分析写法、患者隐私、当事人信息、编码与医保、程序倒置、廉洁表述、评审结论、敏感事项。",
         epilog="退出码：0 正常；--strict 且存在 P0 时为 1；输入错误为 2。docx 输入时“行号”为段落序号。",
         add_help=False,
         formatter_class=_ChineseHelpFormatter,

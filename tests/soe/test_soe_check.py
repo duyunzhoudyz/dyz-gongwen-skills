@@ -73,7 +73,7 @@ class RuleFileTest(SoeCheckBase):
     """规则文件本身的完整性，以及每条正则规则的命中、不命中例句。"""
 
     def test_rules_load(self) -> None:
-        self.assertEqual(len(self.ruleset.rules), 20)
+        self.assertEqual(len(self.ruleset.rules), 28)
         self.assertEqual(set(self.ruleset.procedural), set(sc.PROCEDURAL_IDS))
         self.assertIn("改革台账", self.ruleset.types)
         self.assertIn("ESG报告", self.ruleset.external_types)
@@ -118,15 +118,16 @@ class SpecimenTest(SoeCheckBase):
     """必错标本必须报出预期问题；必过标本不得有 P0、P1。"""
 
     CASES = (
-        ("议题材料", "议题材料", False, {"SOE-001", "SOE-003", "SOE-004", "SOE-008", "SOE-101", "SOE-102", "SOE-107"}),
+        ("议题材料", "议题材料", False, {"SOE-001", "SOE-003", "SOE-004", "SOE-008", "SOE-024", "SOE-101", "SOE-102", "SOE-107"}),
+        ("议题材料-职工权益", "议题材料", False, {"SOE-111"}),
         ("董事会决议", "决议", False, {"SOE-104"}),
         ("董事会决议-票数写法", "决议", False, {"SOE-104"}),
-        ("总经理办公会纪要", "纪要", False, {"SOE-007", "SOE-108", "SOE-109"}),
+        ("总经理办公会纪要", "纪要", False, {"SOE-007", "SOE-023", "SOE-108", "SOE-109"}),
         ("ESG报告", "ESG报告", True, {"SOE-008", "SOE-009", "SOE-010", "SOE-011", "SOE-012", "SOE-013",
-                                     "SOE-106", "SOE-107"}),
+                                     "SOE-027", "SOE-106", "SOE-107"}),
         ("融合材料", "融合材料", False, {"SOE-016"}),
-        ("经营分析", "经营分析", False, {"SOE-014", "SOE-015", "SOE-107"}),
-        ("合规报告", "合规报告", False, {"SOE-005", "SOE-010"}),
+        ("经营分析", "经营分析", False, {"SOE-014", "SOE-015", "SOE-021", "SOE-107"}),
+        ("合规报告", "合规报告", False, {"SOE-005", "SOE-010", "SOE-022", "SOE-026"}),
         ("改革台账", "改革台账", False, {"SOE-105"}),
     )
 
@@ -379,11 +380,53 @@ class OtherProceduralTest(SoeCheckBase):
         self.assertEqual([i["level"] for i in result["issues"] if i["id"] == "SOE-014"], ["P1"])
 
     def test_external_only_rules_need_external(self) -> None:
-        text = "公司全年实现营业收入128.6亿元，投标报价为每吨386元，上述数据未公开。"
-        self.assertFalse({"SOE-011", "SOE-012", "SOE-013"} & set(ids_of(self.check(text, "经营分析"))))
+        text = "公司全年实现营业收入128.6亿元，投标报价为每吨386元，毛利率为21.3%，上述数据未公开。"
+        self.assertFalse({"SOE-011", "SOE-012", "SOE-013", "SOE-027"} & set(ids_of(self.check(text, "经营分析"))))
         result = self.check(text, "对外材料")
-        self.assertTrue({"SOE-011", "SOE-012", "SOE-013"} <= set(ids_of(result)))
+        self.assertTrue({"SOE-011", "SOE-012", "SOE-013", "SOE-027"} <= set(ids_of(result)))
         self.assertTrue(result["external"])
+
+    def test_external_level_p0_for_esg(self) -> None:
+        esg = self.check("公司已实现碳中和，全年零事故。投标报价为每吨386元，毛利率为21.3%。", "ESG报告")
+        levels = {i["id"]: i["level"] for i in esg["issues"]}
+        self.assertEqual(levels["SOE-009"], "P0")
+        self.assertEqual(levels["SOE-010"], "P0")
+        self.assertEqual(levels["SOE-012"], "P0")
+        self.assertEqual(levels["SOE-027"], "P1")
+
+    def test_soe011_no_longer_matches_trade_secret(self) -> None:
+        self.assertNotIn("SOE-011", ids_of(self.check("本材料涉及公司商业秘密。", "对外材料")))
+        self.assertIn("SOE-021", ids_of(self.check("本材料涉及公司商业秘密。", "对外材料")))
+
+    def test_staff_interest_satisfied_by_not_yet(self) -> None:
+        base = "关于调整薪酬分配方案的议题。"
+        self.assertIn("SOE-111", ids_of(self.check(base, "议题材料")))
+        self.assertNotIn("SOE-111", ids_of(self.check(base + "尚未征求工会意见，拟于10月征求。", "议题材料")))
+        self.assertNotIn("SOE-111", ids_of(self.check("按现行工资水平测算，投资回收期6年。", "议题材料")))
+
+    def test_staff_interest_specimens(self) -> None:
+        passed = self.check_specimen("必过-议题材料-职工权益", "议题材料")
+        self.assertNotIn("SOE-111", ids_of(passed))
+        self.assertEqual(serious(passed), [], json.dumps(passed["issues"], ensure_ascii=False))
+        for name in ("必错-议题材料", "必过-议题材料", "必过-议题材料-制度标准金额"):
+            self.assertNotIn("SOE-111", ids_of(self.check_specimen(name, "议题材料")), name)
+
+    def test_soe025_only_for_yian(self) -> None:
+        text = "表决结果：同意9票，反对0票，弃权0票。"
+        self.assertIn("SOE-025", ids_of(self.check(text, "议案")))
+        self.assertNotIn("SOE-025", ids_of(self.check(text, "决议")))
+
+    def test_privacy_rules_mask_excerpt(self) -> None:
+        text = "对李明给予记过处分。\n分流人员名单：赵敏、钱进。"
+        result = self.check(text, "纪要")
+        self.assertTrue({"SOE-022", "SOE-023"} <= set(ids_of(result)))
+        for issue in result["issues"]:
+            if issue["id"] in ("SOE-022", "SOE-023"):
+                self.assertTrue(issue["excerpt"].startswith("〔已遮蔽，共"))
+                self.assertNotIn("context", issue)
+        rendered = sc.render_text(result) + json.dumps(result, ensure_ascii=False)
+        for name in ("李明", "赵敏", "钱进"):
+            self.assertNotIn(name, rendered)
 
     def test_external_level_upgrade(self) -> None:
         text = "该技术填补了国内空白。"
@@ -397,6 +440,179 @@ class OtherProceduralTest(SoeCheckBase):
         self.assertIn("SOE-001", ids_of(result))
         self.assertNotIn("SOE-007", ids_of(result))
         self.assertTrue(any("未指定 --type" in n for n in result["notes"]))
+
+
+class ClauseExemptionTest(SoeCheckBase):
+    """豁免按分句生效：前半句有豁免词、后半句是真违规时不得整句放掉；语境词所在分句内的命中仍不报。"""
+
+    # (句子, 规则, 是否应命中, 文书类型)
+    CASES = (
+        ("本次投标报价为1.2亿元，不得外传。", "SOE-012", True, "对外材料"),
+        ("公司制定了投标管理制度，本次投标报价为1.2亿元。", "SOE-012", True, "对外材料"),
+        ("本次未公开投标报价，以竞争性谈判方式选定供应商。", "SOE-012", False, "对外材料"),
+        ("本次未公开投标报价，以竞争性谈判方式选定供应商。", "SOE-011", False, "对外材料"),
+        ("本报告不包含任何未公开信息。", "SOE-011", False, "对外材料"),
+        ("公司没有未披露的重大事项。", "SOE-011", False, "对外材料"),
+        ("上述内容尚未公开，不得转载。", "SOE-011", True, "对外材料"),
+        ("运营数据显示，公司产品市场占有率行业第一。", "SOE-008", True, "对外材料"),
+        ("公司已成为行业第一的综合能源服务商。", "SOE-008", True, "对外材料"),
+        ("该产品技术达国内领先水平，与国际一流相比仍有差距。", "SOE-008", True, "对外材料"),
+        ("经努力，产品已达国内领先水平。", "SOE-008", True, "对外材料"),
+        ("在全国范围内保持领先。", "SOE-008", True, "对外材料"),
+        ("据中国某协会统计，公司产品市场占有率行业第一。", "SOE-008", False, "对外材料"),
+        ("全省第一季度经营情况稳中有升。", "SOE-008", False, "对外材料"),
+        ("全国第一届职工运动会在本公司举办。", "SOE-008", False, "对外材料"),
+        ("我公司是行业内第一批开展该项目的企业。", "SOE-008", False, "对外材料"),
+        ("推动产业规模最大化。", "SOE-008", False, "对外材料"),
+        ("公司力求在国内领先。", "SOE-008", False, "对外材料"),
+        ("公司谋求成为国内领先的综合能源服务商。", "SOE-008", False, "对外材料"),
+        ("公司已实现碳中和，2030年目标为进一步降碳。", "SOE-009", True, "ESG报告"),
+        ("我公司已实现碳中和。", "SOE-009", True, "ESG报告"),
+        ("2025年实现零排放。", "SOE-009", True, "ESG报告"),
+        ("园区已实现净零排放。", "SOE-009", True, "ESG报告"),
+        ("公司碳中和路线图已经董事会审议通过。", "SOE-009", False, "ESG报告"),
+        ("组织开展碳中和知识培训3场。", "SOE-009", False, "ESG报告"),
+        ("力争2030年前实现碳达峰、2060年前实现碳中和。", "SOE-009", False, "ESG报告"),
+        ("为实现碳中和，公司开展能耗对标。", "SOE-009", False, "ESG报告"),
+        ("行业正加快推进碳中和进程。", "SOE-009", False, "ESG报告"),
+        ("依据年度考核，公司全年零违规、零风险。", "SOE-010", True, "合规报告"),
+        ("全年合规率达100%。", "SOE-010", True, "合规报告"),
+        ("开展零风险意识教育专题培训。", "SOE-010", False, "合规报告"),
+        ("创建零事故示范班组活动稳步推进。", "SOE-010", False, "合规报告"),
+        ("2025年度未发生任何违规事项，见年报。", "SOE-010", False, "合规报告"),
+        ("注：本报告含商业秘密，请注意保护。", "SOE-021", True, None),
+        ("该报价数据属于商业秘密，不得泄露。", "SOE-021", True, None),
+        ("本材料涉及公司商业秘密，请勿外传。", "SOE-021", True, None),
+        ("密级：商业秘密", "SOE-021", True, None),
+        ("密级：核心商密★5年", "SOE-021", True, None),
+        ("文件保密等级：机密（商业秘密）", "SOE-021", True, None),
+        ("以下内容为商密信息，请谨慎传阅。", "SOE-021", True, None),
+        ("上述客户清单系本公司商业秘密范畴。", "SOE-021", True, None),
+        ("【商密】本材料仅限内部阅览。", "SOE-021", True, None),
+        ("公司加强商业秘密保护。", "SOE-021", False, None),
+        ("签订商业秘密保护协议。", "SOE-021", False, None),
+        ("依法保护商业秘密。", "SOE-021", False, None),
+        ("本材料不涉及商业秘密。", "SOE-021", False, None),
+        ("本制度涉及商业秘密范围界定。", "SOE-021", False, None),
+        ("建议董事会注意，本议案已获全票通过。", "SOE-025", True, "议案"),
+        ("本议案已获董事会一致同意。", "SOE-025", True, "议案"),
+        ("若本议案未获通过，经理层不得实施该方案。", "SOE-025", False, "议案"),
+        ("一致同意提交董事会审议。", "SOE-025", False, "议案"),
+        ("本报告已经党委会前置研究，并经董事会审议通过。", "SOE-026", True, "合规报告"),
+        ("本报告已经董事会审议通过，将报送国资委。", "SOE-026", True, "合规报告"),
+        ("本报告经审计委员会审议后，提请董事会审议通过。", "SOE-026", False, "合规报告"),
+        ("中标价格已于2025年披露。", "SOE-027", False, "对外材料"),
+        ("成本价格管理办法已修订。", "SOE-027", False, "对外材料"),
+        ("公司结算价为每吨420元，该数据请内部掌握。", "SOE-027", True, "对外材料"),
+    )
+
+    def test_clause_cases(self) -> None:
+        for text, rid, expected, doc_type in self.CASES:
+            with self.subTest(text=text, rule=rid):
+                self.assertEqual(rid in ids_of(self.check(text, doc_type, external=True)), expected)
+
+    def test_exempt_before_and_clause_fields_loaded(self) -> None:
+        rules = {r.id: r for r in self.ruleset.rules}
+        self.assertIsNotNone(rules["SOE-011"].exempt_before)
+        for rid in ("SOE-008", "SOE-009", "SOE-010", "SOE-011", "SOE-012", "SOE-021", "SOE-025", "SOE-026", "SOE-027"):
+            with self.subTest(rule=rid):
+                self.assertIsNotNone(rules[rid].exempt_clause)
+        # 这几条没有“出处在相邻分句”的需要，不留任何整句豁免
+        for rid in ("SOE-011", "SOE-012", "SOE-021", "SOE-025", "SOE-026"):
+            with self.subTest(rule=rid):
+                self.assertIsNone(rules[rid].exempt, "语境类豁免应写在 exempt_clause，不应整句生效")
+
+
+class PersonNameMisfireTest(SoeCheckBase):
+    """SOE-022：姓氏开头的地名、单位名、普通词不当作处分对象的姓名。"""
+
+    PLACES = (
+        "林业局", "李渡镇", "贺州分公司", "钱塘项目部", "秦皇岛港务公司", "邓小平理论", "毛利率", "石油公司", "金融事业部",
+        "江苏公司", "高新区管委会", "方正集团", "程序", "周边", "马鞍山基地", "何种情形", "黄山分公司", "孙公司", "张家港项目部",
+        "王府井百货", "杨浦区", "田园综合体", "范围", "苏州工业园区", "吴江区", "郑州基地", "朱家角", "林芝市", "沈阳分公司",
+        "唐山港", "韩城电厂", "梁山县", "宋庄镇", "胡同改造项目", "赵县水厂", "袁州区", "彭州市", "蔡甸区", "潘集矿", "杜集区",
+        "戴河站", "钟祥市", "汪清县", "姜堰区", "熊猫基金", "孔雀城", "崔家营", "毛坯房项目", "邱县", "秦淮区", "顾问公司",
+        "侯马市", "邵武市", "孟津县", "钱江新城", "贺兰山", "乔木园", "曹妃甸港", "吕梁市", "卢沟桥", "叶县电厂", "阎良区",
+        "魏县", "薛城区", "傅家庄", "蒋家村", "郭家店", "董事会办公室", "萧山区", "罗湖区", "林场", "汤阴县", "黎川县", "张掖市",
+        "徐庄", "李庄", "贺家湾", "蔡家坡", "吴淞口",
+    )
+    TEMPLATES = ("对{}给予警告处分。", "给予{}记过处分。", "{}受到警告处分。")
+
+    def test_places_and_units_not_names(self) -> None:
+        self.assertGreaterEqual(len(self.PLACES), 60)
+        wrong = []
+        for place in self.PLACES:
+            for template in self.TEMPLATES:
+                text = template.format(place)
+                if "SOE-022" in ids_of(self.check(text)):
+                    wrong.append(text)
+        self.assertEqual(wrong, [])
+
+    def test_real_names_still_hit(self) -> None:
+        for text in ("给予王建国同志党内警告处分", "对李明给予记过处分", "张伟受到警告处分", "对刘洋给予警告处分",
+                     "对陈晨给予记过处分", "给予吴刚撤职处分", "对郑浩给予降级处分", "对朱红给予开除处分"):
+            with self.subTest(text=text):
+                self.assertIn("SOE-022", ids_of(self.check(text)))
+
+
+class MaskPropagationTest(SoeCheckBase):
+    """姓名不得经其他规则的 excerpt、context 或函数检查的首行摘录泄露。"""
+
+    def _assert_no_name(self, result, name: str) -> None:
+        self.assertNotIn(name, json.dumps(result, ensure_ascii=False))
+        self.assertNotIn(name, sc.render_text(result))
+
+    def test_regex_rule_context_masked(self) -> None:
+        text = "会议对王建国同志给予党内警告处分，本议案全票通过。"
+        result = self.check(text, "议案")
+        self.assertIn("SOE-025", ids_of(result))
+        issue = next(i for i in result["issues"] if i["id"] == "SOE-025")
+        self.assertIn("〔已遮蔽〕", issue.get("context", ""))
+        self._assert_no_name(result, "王建国")
+
+    def test_procedural_first_line_masked(self) -> None:
+        for doc_type, text in (("议案", "对李明给予记过处分的议案\n各位董事：\n公司拟办理有关事项。"),
+                               ("议题材料", "关于对赵强同志给予记大过处分的议题\n背景和依据：略。")):
+            with self.subTest(doc_type=doc_type):
+                result = self.check(text, doc_type)
+                self.assertTrue(any(i["id"] in ("SOE-101", "SOE-103") for i in result["issues"]))
+                self._assert_no_name(result, text[text.index("对") + 1:text.index("对") + 3] if doc_type == "议案" else "赵强")
+
+    def test_masked_in_json_cli(self) -> None:
+        path = self.tmp / "议案.txt"
+        path.write_text("对李明给予记过处分的议案，本议案全票通过。\n", encoding="utf-8")
+        code, out, _err = self.run_main(str(path), "--type", "议案", "--json")
+        self.assertEqual(code, 0)
+        self.assertNotIn("李明", out)
+        code, out, _err = self.run_main(str(path), "--type", "议案")
+        self.assertNotIn("李明", out)
+
+    def test_name_masked_fulltext_across_lines(self) -> None:
+        """姓名在第 2 行被隐私规则识别，在后面几行被非隐私规则带出，全文输出都不得含该姓名。"""
+        text = ("关于有关事项的议案\n会议对王建国同志给予党内警告处分。\n\n表决情况\n"
+                "王建国同志对此意见一致，本议案全票通过。\n分流人员名单：赵敏、钱进\n钱进同志本议案全票通过。")
+        result = self.check(text, "议案")
+        self.assertIn("SOE-025", ids_of(result))
+        for name in ("王建国", "赵敏", "钱进"):
+            self._assert_no_name(result, name)
+        path = self.tmp / "议案.txt"
+        path.write_text(text, encoding="utf-8")
+        for extra in ((), ("--json",)):
+            code, out, _err = self.run_main(str(path), "--type", "议案", *extra)
+            self.assertEqual(code, 0)
+            for name in ("王建国", "赵敏", "钱进"):
+                self.assertNotIn(name, out)
+
+    def test_pseudonym_not_in_name_table(self) -> None:
+        result = self.check("对王某给予警告处分。\n王某对此意见一致，本议案全票通过。", "议案")
+        issue = next(i for i in result["issues"] if i["id"] == "SOE-025")
+        self.assertIn("王某", issue.get("context", ""))
+
+    def test_no_mask_without_names(self) -> None:
+        result = self.check("本议案全票通过。", "议案")
+        issue = next(i for i in result["issues"] if i["id"] == "SOE-025")
+        self.assertEqual(issue["excerpt"], "全票通过")
+        self.assertNotIn("〔已遮蔽〕", json.dumps(result, ensure_ascii=False))
 
 
 class CliTest(SoeCheckBase):

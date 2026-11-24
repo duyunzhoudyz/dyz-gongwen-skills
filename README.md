@@ -50,12 +50,12 @@
 
 ## v1.2.0 升级亮点
 
-以下四项升级已随 `v1.2.0` 一并发布（完整记录见 [CHANGELOG.md](CHANGELOG.md)，全部通过 2162 项单元测试及 CI 门禁）：
+以下四项升级已随 `v1.2.0` 一并发布（完整记录见 [CHANGELOG.md](CHANGELOG.md)，全部通过 2198 项单元测试及 CI 门禁）：
 
 1. **轻重分层快路径 + 单文件 HTML 轻排版**：1000 字内简单会议/事务/转发通知、批复、复函、签报由 `gongwen-draft` 一步直出；新增纯标准库零外联 [`build_html.py`](skills/gongwen-format/scripts/build_html.py)（经 Chrome 无头打印实测），输出单文件 HTML，支持白头/红头/便签三种版式实时切换、打印自动加 GB/T 9704 单双页页码（便签不加页码，Chrome/Edge 131+）、署名成文日期定位、落款与末段正文不跨页、附件说明三列对齐，顶部工具条打印自动隐藏，一键存 PDF 或复制纯文本/富文本。
 2. **老笔杆子笔力引擎 + 规范用词库 + 300 篇语料校准的文风指纹**：新增站位分寸、句子诊所与 6 篇多形态虚构节奏范文（[`shared/style/`](shared/style/)），同步接入核心起草/改稿 skill 与全部五个行业包；新增规范用词规则库 [`normative-terms.md`](shared/rules/normative-terms.md) 与 `term` 机检类（`TRM-001`～`TRM-013` 易混词、停用提法、机构改革旧称，白名单防误伤行业规范词，`--banned` 支持 `## 本单位规范词` 表），机检扩展至 **13 类、41 种文书**；`gongwen_lint.py --fingerprint` 与 300 篇公开政府公文语料（[`baseline.md`](shared/style/baseline.md)）同口径校验均句长、分文种强制词密度（300 篇真实公文超阈值仅 1.0%）与段落重心。
 3. **国产信创与政务内网全链路适配**：面向银河麒麟/统信 UOS + WPS 及禁用自主智能体的内网环境，提供双击即用的本机零联网工具箱（`xinchuang/local_toolbox.py`，仅监听 `127.0.0.1:8765`，不联网，不保存正文（个别功能仅在本机临时目录瞬时处理、用后即删），一页集成提示词复制、导入 `.docx`、涉密强拦截、多标签页隔离双向脱敏还原、八关机检与指纹体检、事实核对、7 档行业专检、字体自检、HTML 轻排版、无 `python-docx`/`lxml` 时自动降级的纯标准库国标排版及 OFD 结构体检）、三档去 Agent 化交付（22 份 ≤4000 字精简版 [`dist/prompts-lite/`](dist/prompts-lite/)、4 套单对话合集 [`dist/prompts-bundles/`](dist/prompts-bundles/)、16 文件 461 片 RAG 知识库与 Dify/FastGPT/MaxKB/扣子导入包 [`dist/rag-kb/`](dist/rag-kb/)）以及 5 套免 Python/免宏空白模板（[`xinchuang/templates/`](xinchuang/templates/)）。全部离线脚本经 `tools/security_audit.py --strict` 零外联 AST 静态审计纳入 CI；8 条防线抽测（[`evals/xinchuang/`](evals/xinchuang/)）在 `deepseek-chat` 上 `system` 与 `first-message` 双模式均 **8/8 通过**（2026-11-22，见 [system 报告](evals/results/xinchuang-deepseek.md)、[first-message 报告](evals/results/xinchuang-deepseek-firstmsg.md)）。已完成离线/零依赖适配与本机自测，银河麒麟、统信 UOS 真机验收尚未完成。
-4. **五个行业包深度升级 + 专用机检全覆盖 + 6 套实跑示例**：基层、医院、高校、中小学、国企五包补全高危红线（高校十二条红线与会签核查、中小学四栏审稿与禁抄学生姓名、医院敏感材料保密提醒）并全量接入笔力引擎与文风指纹；新增高校专用机检 `university_check.py`（11 条规则）、医院 8 类文书标本全覆盖、基层迎检内部材料与中小学校内文书专检，全部接入工具箱 7 档行业专检；新增三套行业端到端示例（[D-中小学评语本地脱敏与还原](examples/D-中小学评语本地脱敏与还原/)、[E-高校活页匿名形式审查](examples/E-高校活页匿名形式审查/)、[F-国企三重一大议题与专检](examples/F-国企三重一大议题与专检/)）。
+4. **五个行业包深度升级 + 专用机检全覆盖 + 6 套实跑示例**：基层、医院、高校、中小学、国企五包补全高危红线（高校十二条红线与会签核查、中小学四栏审稿与禁抄学生姓名、医院敏感材料保密提醒）并全量接入笔力引擎与文风指纹；新增高校专用机检 `university_check.py`（11 条规则）、医院 8 类文书标本全覆盖、医院与国企专检补齐患者隐私、编码红线、程序倒置、职工权益等规则、基层迎检内部材料与中小学校内文书专检，全部接入工具箱 7 档行业专检；新增三套行业端到端示例（[D-中小学评语本地脱敏与还原](examples/D-中小学评语本地脱敏与还原/)、[E-高校活页匿名形式审查](examples/E-高校活页匿名形式审查/)、[F-国企三重一大议题与专检](examples/F-国企三重一大议题与专检/)）。
 
 ---
 

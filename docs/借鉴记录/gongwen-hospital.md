@@ -41,7 +41,7 @@
 
 1. 指标台账的七列格式，尤其是“统计周期”“口径与来源系统”两列，以及卫生健康部门绩效评价口径与医保结算口径分开登记、分开写的规则（`references/data-rules.md`）。
 2. 8 类专用文书模板的结构、写法要点、正误对照和“只出框架的情形”（`references/templates/`）。
-3. 行业机检 `scripts/hospital_check.py` 与 `scripts/hospital_rules.json`：疗效与绝对化表述（对外材料升级）、党政联席会议决策、议题“三重一大”程序（“尚未提交党委会议”一类否定说法不算已履行）、指数误用百分点（含“CMI为0.94，较上年提高0.05个百分点”这类跨逗号写法）、CMI 带百分号、不规范指标名称、已废止依据、RCA 归咎个人和写入处分（含扣绩效、通报批评），共 20 条规则；单元测试采用必错标本和必过标本（`tests/hospital/`）。这一测试方法沿用本仓库 gongwen-review 的做法。
+3. 行业机检 `scripts/hospital_check.py` 与 `scripts/hospital_rules.json`：疗效与绝对化表述（对外材料升级）、党政联席会议决策、议题“三重一大”程序（“尚未提交党委会议”一类否定说法不算已履行）、指数误用百分点（含“CMI为0.94，较上年提高0.05个百分点”这类跨逗号写法）、CMI 带百分号、不规范指标名称、已废止依据、RCA 归咎个人和写入处分（含扣绩效、通报批评），共 39 条规则；单元测试采用必错标本和必过标本（`tests/hospital/`）。这一测试方法沿用本仓库 gongwen-review 的做法。
 4. 行业核稿附加清单和没有 Python 时的人工搜索词（`references/review-addon.md`）。
 5. 医院类型差异表（三级、二级、中医、专科、高校附属、国企举办、基层医疗卫生机构、卫生健康行政部门）（`references/profile-detail.md` 第四部分）。
 6. 整改状态口径不另立一套，沿用本仓库 gongwen-rectify 的 `references/status.md`（含临时状态“未启动”、立行立改的时间界限、没有佐证不算完成），在 `references/templates/zhenggai.md` 第三部分和 `references/quick-cards.md` 第九部分摘要转写。医院检查中常见的“已当场整改、佐证尚未附上”，同样记持续推进，提示佐证补齐后改记立行立改（2026-10-16 按评审意见删去原先“按动作认定为立行立改”的例外，与 rectify_check 一致）。

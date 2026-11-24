@@ -38,6 +38,16 @@ class LocalToolboxIndustryCheckTests(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertIn("HOS-001", res["text"])
 
+    def test_hospital_patient_privacy_masked(self):
+        res = tb.op_industry_check({
+            "b": "患者张某（床号12）夜间跌倒。当班护士李娜未执行双人核对。",
+            "industry": "hospital",
+            "doc_type": "RCA",
+        })
+        self.assertFalse(res["ok"])
+        self.assertIn("HOS-030", res["text"])
+        self.assertNotIn("李娜", res["text"])
+
     def test_soe_procedure_check(self):
         res = tb.op_industry_check({
             "b": "本项目先行开工，后续再补办党委会前置研究和董事会审议程序。",

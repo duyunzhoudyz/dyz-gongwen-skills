@@ -6,11 +6,15 @@
   - 决策程序：先执行后补程序、追认、职代会后置、直接提交决策机构、党委会“决定”经营事项、
     拆分规避集体决策、经理层超授权（SOE-001～007）；
   - 对外表述：无出处的“第一”“领先”、绝对化环境声明和合规结论（SOE-008～010）；
-  - 对外材料中的未公开信息、商业秘密、经营数据（SOE-011～013，只在对外材料中检查）；
+  - 对外材料中的未公开信息、商业秘密、经营数据（SOE-011～013、027，只在对外材料中检查）；
+  - 材料自带商业秘密标注、处分对象和敏感人员名单的姓名（个人信息，报告中遮蔽摘录；同一行里被识别为姓名的片段，
+    在其他规则和函数检查的摘录、上下文中也一律换成“〔已遮蔽〕”）、职工安置方案只听取意见、
+    议案预写表决结果、合规报告自称已经董事会审议（SOE-021～028）；
   - 数据表述：比率变化用百分数、同比环比用混（SOE-014、015）；党建成效归因（SOE-016）；
   - 函数检查：议题要件和方案比选（SOE-101、102）、议案要件（SOE-103）、决议出席人数和票数（SOE-104）、
     改革台账状态（SOE-105）、ESG 披露口径（SOE-106）、金额单位（SOE-107，制度标准金额不计）、
-    纪要议定事项和前置程序（SOE-108、109）、融合材料“两张皮”（SOE-110）。
+    纪要议定事项和前置程序（SOE-108、109）、融合材料“两张皮”（SOE-110）、
+    职工切身利益议题缺职代会或工会意见（SOE-111）。
 
 用法：
     python scripts/soe_check.py <文件> [--type 文书] [--external] [--as-of YYYY-MM-DD] [--json] [--strict]
@@ -31,7 +35,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
 VERSION = "1.0.0"
 RULES_PATH = Path(__file__).resolve().parent / "soe_rules.json"
@@ -40,6 +44,7 @@ LEVELS = ("P0", "P1", "P2")
 # 【起草说明】分界行，与 gongwen_lint.py、fact_diff.py 的写法一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?【起草说明】")
 SENTENCE_END = "。！？；!?;\n"
+CLAUSE_END = SENTENCE_END + "，,、"
 
 Lines = Sequence[Tuple[int, str]]
 
@@ -63,6 +68,10 @@ class Rule:
     external_only: bool = False
     exempt: Optional[Pattern[str]] = None
     exempt_match: Optional[Pattern[str]] = None
+    exempt_clause: Optional[Pattern[str]] = None
+    exempt_before: Optional[Pattern[str]] = None
+    mask_excerpt: bool = False
+    name_regex: Optional[Pattern[str]] = None  # 在 mask_excerpt 命中片段上取出姓名本身
     hit_examples: List[str] = field(default_factory=list)
     miss_examples: List[str] = field(default_factory=list)
 
@@ -120,6 +129,10 @@ def _build_rule(item: Dict[str, Any], procedural: bool) -> Rule:
         external_only=bool(item.get("external_only")),
         exempt=_compile(item.get("exempt_context"), rid, "exempt_context"),
         exempt_match=_compile(item.get("exempt_match"), rid, "exempt_match"),
+        exempt_clause=_compile(item.get("exempt_clause"), rid, "exempt_clause"),
+        exempt_before=_compile(item.get("exempt_before"), rid, "exempt_before"),
+        mask_excerpt=bool(item.get("mask_excerpt")),
+        name_regex=_compile(item.get("name_pattern"), rid, "name_pattern"),
         hit_examples=list(item.get("hit_examples") or []),
         miss_examples=list(item.get("miss_examples") or []),
     )
@@ -247,10 +260,10 @@ def cut_at_note(lines: Lines) -> List[Tuple[int, str]]:
 # 公共小工具
 # ---------------------------------------------------------------------------
 
-def _sentence(text: str, start: int, end: int) -> str:
-    """命中位置所在的句子，用于豁免判断。"""
-    left = max((text.rfind(ch, 0, start) for ch in SENTENCE_END), default=-1)
-    rights = [pos for pos in (text.find(ch, end) for ch in SENTENCE_END) if pos != -1]
+def _sentence(text: str, start: int, end: int, stops: str = SENTENCE_END) -> str:
+    """命中位置所在的句子（stops 含逗号时为分句），用于豁免判断。"""
+    left = max((text.rfind(ch, 0, start) for ch in stops), default=-1)
+    rights = [pos for pos in (text.find(ch, end) for ch in stops) if pos != -1]
     right = min(rights) if rights else len(text)
     return text[left + 1:right]
 
@@ -320,25 +333,197 @@ NUM = r"([0-9]+|[零〇一二两三四五六七八九十]+)"
 # 正则规则
 # ---------------------------------------------------------------------------
 
+def _rule_matches(rule: Rule, text: str):
+    """逐个产出通过全部豁免检查的命中。
+
+    豁免分三层：exempt_context 整句生效，只留给“出处、证据在相邻分句”的少数规则；
+    exempt_clause 只看命中所在分句（含命中跨越的各分句）；
+    exempt_before 只看命中之前同一分句内最近 16 个字（用于“不包含任何未公开信息”这类前置否定）。
+    """
+    assert rule.regex is not None
+    for match in rule.regex.finditer(text):
+        if match.end() == match.start():
+            continue
+        if rule.exempt_match and rule.exempt_match.search(match.group(0)):
+            continue
+        if rule.exempt and rule.exempt.search(_sentence(text, match.start(), match.end())):
+            continue
+        if rule.exempt_clause and rule.exempt_clause.search(
+                _sentence(text, match.start(), match.end(), CLAUSE_END)):
+            continue
+        if rule.exempt_before:
+            left = max((text.rfind(ch, 0, match.start()) for ch in CLAUSE_END), default=-1)
+            if rule.exempt_before.search(text[left + 1:match.start()][-16:]):
+                continue
+        yield match
+
+
+def _rule_level(rule: Rule, external: bool) -> str:
+    return rule.external_level if (external and rule.external_level) else rule.level
+
+
+def _active_rules(ruleset: RuleSet, doc_type: Optional[str], external: bool) -> List[Rule]:
+    return [r for r in ruleset.rules
+            if r.regex is not None and r.applies(doc_type) and not (r.external_only and not external)]
+
+
 def check_regex(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet) -> List[Dict[str, Any]]:
     issues: List[Dict[str, Any]] = []
-    for rule in ruleset.rules:
-        if rule.regex is None or not rule.applies(doc_type):
-            continue
-        if rule.external_only and not external:
-            continue
-        level = rule.external_level if (external and rule.external_level) else rule.level
+    for rule in _active_rules(ruleset, doc_type, external):
+        level = _rule_level(rule, external)
         for number, text in lines:
+            for match in _rule_matches(rule, text):
+                if rule.mask_excerpt:
+                    # 个人信息类规则：不在报告里原样打印姓名
+                    issues.append(_issue(rule, level, number, f"〔已遮蔽，共{len(match.group(0))}字〕"))
+                    continue
+                issues.append(_issue(rule, level, number, _clip(match.group(0)),
+                                     _context(text, match.start(), match.end())))
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# 隐私遮蔽：任何规则（含函数检查）输出 excerpt、context 前，把同一行里被 mask_excerpt 规则
+# 识别到的片段换成“〔已遮蔽〕”，避免姓名经其他规则的摘录泄露
+# ---------------------------------------------------------------------------
+
+MASK_TEXT = "〔已遮蔽〕"
+
+
+def _merge_spans(spans: Sequence[Tuple[int, int]]) -> List[Tuple[int, int]]:
+    merged: List[Tuple[int, int]] = []
+    for start, end in sorted(spans):
+        if merged and start <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+        else:
+            merged.append((start, end))
+    return merged
+
+
+def _masked_slice(text: str, start: int, end: int, spans: Sequence[Tuple[int, int]]) -> str:
+    """截取 text[start:end]，与隐私命中片段重叠的部分整段换成“〔已遮蔽〕”。"""
+    out: List[str] = []
+    pos = start
+    for s, e in spans:
+        if e <= pos or s >= end:
+            continue
+        if s > pos:
+            out.append(text[pos:s])
+        out.append(MASK_TEXT)
+        pos = max(pos, e)
+    if pos < end:
+        out.append(text[pos:end])
+    return "".join(out)
+
+
+MaskInfo = Dict[int, List[Tuple[str, List[Tuple[int, int]]]]]
+
+
+def extract_names(rule: Rule, text: str, match: "re.Match[str]") -> List[str]:
+    """从隐私规则的命中片段里取出姓名本身（用 name_pattern 的第一个非空捕获组；取不到则用整个片段）。
+
+    “张某”“李某某”这类代称、长度小于 2 的不收；名单类命中按顿号、逗号拆成多个姓名。
+    """
+    frag = match.group(0)
+    found = ""
+    if rule.name_regex is not None:
+        m = rule.name_regex.search(frag)
+        if m:
+            found = next((g for g in m.groups() if g), "")
+    names: List[str] = []
+    for part in re.split(r"[、，,]", found or frag):
+        part = re.sub(r"同志$", "", part.strip())
+        if len(part) >= 2 and "某" not in part:
+            names.append(part)
+    return names
+
+
+def collect_known_names(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet) -> List[str]:
+    """本文已识别姓名表：隐私规则命中的姓名（含因豁免未报出的），长的在前。
+
+    只跳过 exempt_match 命中的片段（那是“黄山分公司”这类根本不是人名的误命中）。
+    """
+    known: Set[str] = set()
+    for rule in _active_rules(ruleset, doc_type, external):
+        if not rule.mask_excerpt:
+            continue
+        for _number, text in lines:
             for match in rule.regex.finditer(text):
                 if match.end() == match.start():
                     continue
                 if rule.exempt_match and rule.exempt_match.search(match.group(0)):
                     continue
-                if rule.exempt and rule.exempt.search(_sentence(text, match.start(), match.end())):
-                    continue
-                issues.append(_issue(rule, level, number, _clip(match.group(0)),
-                                     _context(text, match.start(), match.end())))
-    return issues
+                known.update(extract_names(rule, text, match))
+    return sorted(known, key=lambda n: (-len(n), n))
+
+
+def collect_mask_spans(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet,
+                       names: Sequence[str] = ()) -> MaskInfo:
+    """每行（行号）被遮蔽的片段：{行号: [(该行文本, [(起, 止)])]}。
+
+    含两部分：本行被隐私类规则命中的片段；全文任何一行里出现的“已识别姓名”。
+    """
+    info: MaskInfo = {}
+    for rule in _active_rules(ruleset, doc_type, external):
+        if not rule.mask_excerpt:
+            continue
+        for number, text in lines:
+            spans = [(m.start(), m.end()) for m in _rule_matches(rule, text)]
+            if spans:
+                info.setdefault(number, []).append((text, spans))
+    for number, text in lines:
+        spans = []
+        for name in names:
+            pos = text.find(name)
+            while pos >= 0:
+                spans.append((pos, pos + len(name)))
+                pos = text.find(name, pos + len(name))
+        if spans:
+            info.setdefault(number, []).append((text, spans))
+    merged: MaskInfo = {}
+    for number, entries in info.items():
+        by_text: Dict[str, List[Tuple[int, int]]] = {}
+        for text, spans in entries:
+            by_text.setdefault(text, []).extend(spans)
+        merged[number] = [(text, _merge_spans(spans)) for text, spans in by_text.items()]
+    return merged
+
+
+def _mask_field(value: str, entries: List[Tuple[str, List[Tuple[int, int]]]]) -> str:
+    """遮蔽 excerpt 或 context。先在该行原文中定位这段文字，按位置遮蔽；定位不到时按片段原文替换。"""
+    clipped = value.endswith("……")
+    core = value[:-2] if clipped else value
+    if not core:
+        return value
+    for text, spans in entries:
+        pos = text.find(core)
+        if pos >= 0:
+            return _masked_slice(text, pos, pos + len(core), spans) + ("……" if clipped else "")
+    result = value
+    for text, spans in entries:
+        for s, e in spans:
+            result = result.replace(text[s:e], MASK_TEXT)
+    return result
+
+
+def apply_masks(issues: List[Dict[str, Any]], mask_info: MaskInfo, mask_ids: Sequence[str],
+                names: Sequence[str] = ()) -> None:
+    for issue in issues:
+        if issue["id"] in mask_ids:
+            continue
+        entries = mask_info.get(issue["line"])
+        for key in ("excerpt", "context"):
+            value = issue.get(key)
+            if not value:
+                continue
+            if entries:
+                value = _mask_field(value, entries)
+            # 兜底：摘录跨行、定位不到原文时，已识别姓名仍直接替换
+            for name in names:
+                value = value.replace(name, MASK_TEXT)
+            issue[key] = value
+        if issue.get("context") == issue.get("excerpt"):
+            issue.pop("context", None)
 
 
 # ---------------------------------------------------------------------------
@@ -778,8 +963,35 @@ def check_fusion(lines: Lines, ruleset: RuleSet) -> List[Dict[str, Any]]:
     return [_issue(rule, rule.level, line, title, message=message)]
 
 
+STAFF_TRIGGER_RE = re.compile(
+    r"(?:职工|员工)?薪酬(?:分配|制度|方案|调整|改革|体系)|工资总额|工资(?:分配|调整|制度)"
+    r"|(?:职工|员工|人员)(?:安置|分流|裁减)|安置方案|裁员|内部退养|劳动用工制度"
+    r"|(?:职工|员工)福利|福利(?:制度|方案)|休息休假(?:制度|办法|规定|方案)|劳动保护(?!用品|物资|费)"
+    r"|涉及职工切身利益|工资标准|薪酬标准"
+    r"|(?:职工|员工|全员)绩效(?:考核|分配)(?:办法|制度|方案)"
+    r"|(?:制定|修订|修改|审议|出台|废止)[^。；，,\n]{0,6}重要规章制度")
+# 表示已履行（或写明未履行）民主程序的搭配；单有“工会”二字（参会人员、活动经费等）不算
+STAFF_SATISFIED_RE = re.compile(
+    r"职代会|职工代表大会|职工大会"
+    r"|(?:征求|听取)[^。；，,\n]{0,8}(?:工会|职工)[^。；，,\n]{0,4}意见"
+    r"|工会(?:意见|审议|讨论|同意|通过)|职工意见"
+    r"|(?:尚未|未)[^。；，,\n]{0,6}(?:征求|听取)[^。；，,\n]{0,8}(?:工会|职工)")
+
+
+def check_staff_interest(lines: Lines, ruleset: RuleSet) -> List[Dict[str, Any]]:
+    """涉及职工切身利益的议题，全文须写明职代会或工会意见的完成情况（写“尚未”也算写明）。"""
+    rule = ruleset.procedural["SOE-111"]
+    if any(STAFF_SATISFIED_RE.search(t) for _n, t in lines):
+        return []
+    for number, text in lines:
+        m = STAFF_TRIGGER_RE.search(text)
+        if m:
+            return [_issue(rule, rule.level, number, _clip(m.group(0)), _context(text, m.start(), m.end()))]
+    return []
+
+
 PROCEDURAL_IDS = ("SOE-101", "SOE-102", "SOE-103", "SOE-104", "SOE-105", "SOE-106",
-                  "SOE-107", "SOE-108", "SOE-109", "SOE-110")
+                  "SOE-107", "SOE-108", "SOE-109", "SOE-110", "SOE-111")
 
 
 def check_procedural(lines: Lines, doc_type: Optional[str], ruleset: RuleSet,
@@ -787,6 +999,7 @@ def check_procedural(lines: Lines, doc_type: Optional[str], ruleset: RuleSet,
     issues: List[Dict[str, Any]] = []
     if doc_type == "议题材料":
         issues += check_yiti(lines, ruleset)
+        issues += check_staff_interest(lines, ruleset)
     if doc_type == "议案":
         issues += check_yian(lines, ruleset)
     if doc_type == "决议":
@@ -816,6 +1029,9 @@ def check_lines(lines: Lines, doc_type: Optional[str] = None, external: bool = F
     external = external or doc_type in ruleset.external_types
     issues = check_regex(lines, doc_type, external, ruleset)
     issues += check_procedural(lines, doc_type, ruleset, as_of)
+    mask_ids = [r.id for r in ruleset.rules if r.mask_excerpt]
+    names = collect_known_names(lines, doc_type, external, ruleset)
+    apply_masks(issues, collect_mask_spans(lines, doc_type, external, ruleset, names), mask_ids, names)
     issues.sort(key=lambda item: (item["line"], LEVELS.index(item["level"]), item["id"]))
     return issues
 
