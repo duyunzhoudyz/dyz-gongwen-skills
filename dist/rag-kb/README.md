@@ -1,6 +1,6 @@
 # 政务内网 RAG 知识库切片包（Dify / FastGPT / MaxKB / 扣子私有版）
 
-本目录由 `tools/build_prompts.py --xinchuang` 自动生成，共 16 个切片文件、461 个标准知识片。
+本目录由 `tools/build_prompts.py --xinchuang` 自动生成，共 16 个切片文件、462 个标准知识片。
 每个切片均以 `---` 分隔，顶部带 `[知识来源 | 分类 | 小节]` 语义锚点，无需二次清洗即可直接入库。
 
 ## 一、平台对照
@@ -43,4 +43,4 @@
 | `chunks/13-roles.md` | 角色模式 | 11 |
 | `chunks/14-calendar.md` | 写作日历 | 11 |
 | `chunks/15-unit-profiles.md` | 7类单位画像 | 83 |
-| `chunks/16-skills-workflows.md` | 各公文技能工作流 | 206 |
+| `chunks/16-skills-workflows.md` | 各公文技能工作流 | 207 |
