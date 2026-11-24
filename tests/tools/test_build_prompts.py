@@ -99,6 +99,38 @@ class BuildPromptsTest(TempRepoTestCase):
                     self.assertEqual(code, 1, out)
                     self.assertRegex(out, rf"{rel}：第 \d+ 行：prompt:omit {error}")
 
+    def test_prompt_omissions_reject_malformed_marker_lines(self):
+        for invalid in (
+            "<!-- prompt:omit: 见附录 --> 应省略 <!-- /prompt:omit -->\n标记外正文\n<!-- /prompt:omit -->",
+            "<!-- prompt:omit: 见附录 --> 标记外正文 <!-- 普通注释 -->\n省略\n<!-- /prompt:omit -->",
+            "<!-- prompt:omit: A --> B -->\n省略\n<!-- /prompt:omit -->",
+            "<!-- prompt:omit: A <!-- B -->\n省略\n<!-- /prompt:omit -->",
+            "<!-- prompt:omit:    -->\n省略\n<!-- /prompt:omit -->",
+            "前文\n<!-- prompt:omit --> 应省略 <!-- /prompt:omit -->\n后文",
+            "<!-- prompt:omit -->\n省略\n前缀 <!-- /prompt:omit -->\n标记外正文\n<!-- /prompt:omit -->",
+            "前缀 <!-- prompt:omit -->\n省略\n<!-- /prompt:omit -->",
+            "```text <!-- prompt:omit -->",
+        ):
+            with self.subTest(invalid=invalid):
+                with self.assertRaisesRegex(ValueError, r"第 \d+ 行：prompt:omit "):
+                    build_prompts.strip_prompt_omissions(invalid)
+
+    def test_prompt_omissions_keep_fence_examples_and_backslashes(self):
+        fenced = "```markdown\n```text\n<!-- prompt:omit -->\n代码内示例\n<!-- /prompt:omit -->\n```\n```"
+        self.assertEqual(build_prompts.strip_prompt_omissions(fenced), fenced)
+        replacement = r"见 C:\文档\附录.md"
+        block = f"<!-- prompt:omit: {replacement} -->\n省略\n<!-- /prompt:omit -->"
+        self.assertEqual(build_prompts.strip_prompt_omissions(block), replacement)
+
+    def test_invalid_rag_markers_fail_build_and_check(self):
+        self.repo.add_skill()
+        shared_source = self.root / "shared/style/output-format.md"
+        write_text(shared_source, "<!-- prompt:omit -->\n未闭合\n")
+        for args in (("--xinchuang",), ("--check", "--xinchuang")):
+            code, out = self.build(*args)
+            self.assertEqual(code, 1, out)
+            self.assertIn("shared/style/output-format.md：第 1 行：prompt:omit 标记未闭合", out)
+
     def test_index_readme(self):
         self.repo.add_skill("gongwen-a")
         self.repo.add_skill("gongwen")
