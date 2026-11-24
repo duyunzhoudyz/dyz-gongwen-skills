@@ -656,7 +656,7 @@ class K12PolicyRulesTest(K12TestCase):
 
     def test_score_and_general_rank_use_scoped_negation(self):
         cases = (
-            ("parents", "JZ-014", "学校不在家长群公布平均分95分。", []),
+            ("parents", "JZ-014", "学校不在家长群公布平均分95分。", ["P0"]),
             ("parents", "JZ-014", "学校不得不公布平均分95分。", ["P0"]),
             ("parents", "JZ-014", "学校不仅公布平均分95分，还张贴个人成绩。", ["P0"]),
             ("general", "K12-G01", "学校不在家长群张贴考试成绩。", []),
@@ -700,7 +700,8 @@ class K12PolicyRulesTest(K12TestCase):
             ("quoted", "严禁统一订购教辅。", skip, ""),
             ("quoted", "学校不统一订购教辅资料。", skip, ""),
             ("quoted", "家委会不得以班费名义向家长收取材料费。", skip, ""),
-            ("periodical", "全体学生必须统一征订报刊。", skip, ""),
+            ("periodical", "全体学生必须统一征订报刊。", ("P1",) * 3, ""),
+            ("broad", "保险登记名单全体复核。", ("P1",) * 3, ""),
         )
         self.assertEqual({key for key, *_ in cases}, set(k12_check.FEE_MATRIX))
         for key, sentence, expected, basis in cases:
@@ -711,8 +712,9 @@ class K12PolicyRulesTest(K12TestCase):
                     for command, rid in (("general", "K12-G05"), ("parents", "JZ-006")):
                         report = self.run_json(command, str(path), "--stage", stage)
                         items = [i for i in report["issues"] if i["id"] == rid]
+                        expected_level = p0[k12_check.STAGES.index(stage)] if key == "periodical" and command == "parents" else level
                         self.assertEqual([(i["line"], i["level"]) for i in items],
-                                         [] if level == "skip" else [(1, level)], command)
+                                         [] if level == "skip" else [(1, expected_level)], command)
                         if items:
                             self.assertIn(basis, items[0]["basis"])
                             if key == "ambiguous":
@@ -737,7 +739,6 @@ class K12PolicyRulesTest(K12TestCase):
             ("我校安排学生在校外补课，报名者可获100元补贴。", False),
             ("学生家长向学校推荐学生参加校外有偿补课。", False),
             ("学校组织学生参加校外有偿补课治理宣传。", False),
-            ("建议成绩不理想的学生报名参加周末辅导班，保证提分。", False),
         )
         for sentence, expected in cases:
             path = self.write("补课.txt", sentence)
@@ -747,6 +748,13 @@ class K12PolicyRulesTest(K12TestCase):
                         report = self.run_json(command, str(path), "--stage", stage)
                         self.assertEqual([(i["line"], i["level"]) for i in report["issues"] if i["id"] == rid],
                                          [(1, "P0")] if expected else [], command)
+
+    def test_legacy_recommendation_without_explicit_price(self):
+        text = "建议成绩不理想的学生报名参加周末辅导班，保证提分。"
+        self._assert_review_hits((("parents", "JZ-008", text, "P0"), ("general", "K12-G09", text, "P1")))
+        report = self.run_json("general", str(self.write("建议.txt", text)))
+        issue = next(i for i in report["issues"] if i["id"] == "K12-G09")
+        self.assertEqual(issue["message"], "疑似推荐校外培训，请人工核对是否为校外、有偿")
 
     def test_g06_paragraph_basis_and_legacy_jz007(self):
         authority = "依据：《课后服务收费办法》（某教〔2026〕12号）。"
@@ -864,6 +872,44 @@ class K12PolicyRulesTest(K12TestCase):
         self._assert_review_hits((command, rid, body, level) for body, level in cases
                                  for command, rid in (("general", general_id), ("parents", parents_id)))
 
+    def test_review_probes_and_new_adversarial_cases(self):
+        for row in self.policy_cases():
+            for command, (rid, expected) in row["expect"].items():
+                with self.subTest(case=row["id"], command=command, text=row["text"]):
+                    path = self.write("专项.txt", row["text"])
+                    report = self.run_json(command, str(path))
+                    hits = [i["level"] for i in report["issues"] if i["id"] == rid]
+                    self.assertIn(min(hits, default="SKIP"), expected.split("|"))
+
+    @staticmethod
+    def policy_cases():
+        return [json.loads(line) for line in (SAMPLES / "policy_review_cases.jsonl").read_text(encoding="utf-8").splitlines()]
+
+    def test_cross_entry_presence_all_review_inputs(self):
+        for case in self.policy_cases():
+            path = self.write("两入口.txt", case["text"])
+            parents = self.run_json("parents", str(path))
+            general = self.run_json("general", str(path))
+            for rule in k12_check.CROSS_ENTRY_RULES:
+                with self.subTest(case=case["id"], rule=rule.parents_id):
+                    left = {i["line"] for i in parents["issues"] if i["id"] == rule.parents_id}
+                    right = {i["line"] for i in general["issues"] if i["id"] == rule.general_id}
+                    self.assertEqual(left, right)
+
+    def test_frozen_baseline_union(self):
+        cases = {row["id"]: row["text"] for row in self.policy_cases()}
+        frozen = (SAMPLES / "baseline_eea1232.jsonl").read_text(encoding="utf-8").splitlines()
+        for row in map(json.loads, frozen):
+            with self.subTest(case=row["case"], cmd=row["cmd"]):
+                report = self.run_json(row["cmd"], str(self.write("基线.txt", cases[row["case"]])))
+                for rid, level, number in row["hits"]:
+                    levels = [i["level"] for i in report["issues"] if i["id"] == rid and i["line"] == number]
+                    if rid in row.get("exempt", []):
+                        self.assertIn(rid, k12_check.BASELINE_EXEMPTIONS)
+                        self.assertEqual(levels, [])
+                    else:
+                        self.assertTrue(any(actual <= level for actual in levels), (rid, level, number, levels))
+
     def test_review_r1_b1_rank_negation_and_independent_score(self):
         cases = (
             ('parents', 'JZ-003', '考试成绩不排名是不可能的。', 'P0'),
@@ -968,7 +1014,6 @@ class K12PolicyRulesTest(K12TestCase):
         cases = (
             ('周五报名完全自愿，所有学生必须购买运动器材。', 'P1'),
             ('秋游自愿参加，不参加不收费；必须购买交通卡。', 'P0'),
-            ('报纸须统一征订，家长可自行购买运动鞋。', 'SKIP'),
             ('学校禁止规定不缴校服费不得入学。', 'SKIP'),
             ('选读材料自愿参加，未缴纳练习册费不得选课。', 'P0'),
             ('统一代收费的项目必须列出明细。', 'SKIP'),
@@ -983,6 +1028,10 @@ class K12PolicyRulesTest(K12TestCase):
         )
         self._assert_review_pair(cases, "K12-G05", "JZ-006")
 
+    def test_periodical_uses_legacy_parent_level(self):
+        sentence = "报纸须统一征订，家长可自行购买运动鞋。"
+        self._assert_review_hits((("general", "K12-G05", sentence, "P1"), ("parents", "JZ-006", sentence, "P0")))
+
     def test_review_r1_b4_tutoring_and_governance(self):
         cases = (
             ('班主任组织同学们参加校外有偿补课。', 'P0'),
@@ -994,8 +1043,8 @@ class K12PolicyRulesTest(K12TestCase):
             ('学校向校外培训机构提供学生和家长信息。', 'P0'),
             ('教师向校外培训机构推荐生源。', 'P0'),
             ('学校为校外培训机构输送生源。', 'P0'),
-            ('老师推荐学生参加校外有偿培训班。', 'SKIP'),
-            ('学校推荐学生参加校外培训机构的有偿辅导。', 'SKIP'),
+            ('老师推荐学生参加校外有偿培训班。', 'P0'),
+            ('学校推荐学生参加校外培训机构的有偿辅导。', 'P0'),
             ('年级组组织学生参加校外有偿补课。', 'P0'),
             ('学校不组织校内免费辅导而组织学生参加校外有偿补课。', 'P0'),
             ('班主任向“新星教育”培训机构介绍生源。', 'P0'),
@@ -1023,7 +1072,7 @@ class K12PolicyRulesTest(K12TestCase):
             ('家长委托教师把学生电话提供给校外培训机构。', 'SKIP'),
             ('学校组织学生参加校外收费书法兴趣活动。', 'SKIP'),
             ('班主任将家长电话发给“青苗培训机构”。', 'P0'),
-            ('学校发布承诺书，不组织校外有偿补课，向培训机构介绍生源。', 'SKIP'),
+            ('学校发布承诺书，不组织校外有偿补课，向培训机构介绍生源。', 'P0'),
         )
         self._assert_review_pair(cases, "K12-G09", "JZ-008")
 
@@ -1087,14 +1136,16 @@ class K12PolicyRulesTest(K12TestCase):
         ids = {"K12-G04", "K12-G05", "K12-G06", "K12-G09", "JZ-006", "JZ-008"}
         rank_ids = {"JZ-003", "JZ-014", "K12-G01"}
         # 当前规范文档已有历史命中。固定允许的旧行，保护新增 P0 和既有测试的可移植性。
+        frozen = json.loads((SAMPLES / "reference_fee_baseline.json").read_text(encoding="utf-8"))
         for command in ("general", "parents"):
             for path in paths:
                 with self.subTest(command=command, path=path.name):
                     report = self.run_json(command, str(path))
-                    self.assertEqual([i for i in report["issues"] if i["id"] in ids and i["level"] == "P0"
-                                      and i["message"] != "表格姓名列出现真实姓名"], [])
                     baseline = REFERENCE_RANK_BASELINE.get(path.name, ())
                     source = k12_check.load_document(path).lines
+                    actual = [[i["id"], source[i["line"] - 1]] for i in report["issues"]
+                              if i["id"] in ids and i["level"] == "P0" and i["message"] != "表格姓名列出现真实姓名"]
+                    self.assertCountEqual(actual, frozen.get(command, {}).get(path.name, []))
                     for issue in report["issues"]:
                         if issue["level"] != "P0" or issue["id"] not in rank_ids:
                             continue

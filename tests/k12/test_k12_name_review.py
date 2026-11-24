@@ -229,13 +229,12 @@ class RelationAnchorTest(EngineCase):
             "受助学生王老师指导填报。",
             "患病学生李老师已登记。",
             "经排查，王小明因肺炎住院，现已返校。",
-            "王小明自身患病需长期随访。",
             "王小明同学为残疾学生提供帮助。",
-            "王小明同学为残疾学生。",
             "王小明同学是特殊教育教研项目的志愿者。",
             "王小明同学不属于资助对象。",
             "残疾学生：初一、初二各3人。",
         )
+        self._assert_relation_levels((("王小明同学为残疾学生。", "P1"), ("王小明自身患病需长期随访。", "P1")))
         for sentence in positives:
             with self.subTest(sentence=sentence):
                 issues = self.g04(sentence)
