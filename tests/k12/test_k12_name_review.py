@@ -170,6 +170,16 @@ class NamedSentencesTest(EngineCase):
             with self.subTest(s=sentence):
                 self.assertEqual(self.g04(sentence), [])
 
+    def test_classmate_title_does_not_reveal_a_name(self):
+        for sentence in ("低保学生李同学成绩优秀。", "特困学生陈同学学期表现良好。"):
+            with self.subTest(s=sentence):
+                self.assertEqual(self.g04(sentence), [])
+
+    def test_full_name_before_classmate_title_is_reported_and_masked(self):
+        issues = self.g04("低保家庭学生李小明同学近期情绪低落。")
+        self.assertEqual([i["level"] for i in issues], ["P0"])
+        self.assertEqual(issues[0]["excerpt"], "低保家庭学生〔姓名1〕同学近期情绪低落")
+
     def test_grade_and_class_words_are_not_names_in_lists_with_identity_word(self):
         # 年级、班名里首字恰是姓氏（高一、高二、初一的“高”，“雷锋班”“焦裕禄班”）：不当姓名
         for words in ("高一、高二", "高三、初三", "雷锋班、焦裕禄班", "实验班、火箭班"):

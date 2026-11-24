@@ -49,7 +49,11 @@ NOISE_BIGRAMS: frozenset = frozenset((
     "文用 文的 文管 文规 文里 新原 新后 新开 时不 时以 时使 时先 时写 时只 时完 时才 时按 时提 时用 时的 时读 时运 明一 明不 明中 明依 明写 明出 明原 明只 明和 明哪 明待 "
     "明提 明末 明来 明注 明的 明请 有一 有下 有事 有企 有依 有具 有写 有原 有提 有数 有文 有本 有标 有没 有画 有的 有要 期或 来的 民会 民的 理办 理工 理成 理的 理规 理部 "
     "生信 生健 生姓 生的 眉页 立医 策程 纯文 育局 育教 育部 致家 致的 良事 设机 词版 语化 谨模 轮交 进一 进正 进起 长会 长办 长的 "
+    "不覆 尾提 律脱 纸摘 续让 "
 ).split())
+
+# 低于文档频次阈值也保留，避免把已脱敏写法“李同学”中的“李同”误识别为姓名。
+REQUIRED_BIGRAMS: frozenset = frozenset({"同学"})
 
 
 def collect_docs() -> List[Tuple[Path, str]]:
@@ -78,7 +82,8 @@ def bigram_docfreq(docs: List[Tuple[Path, str]]) -> Counter:
 
 
 def build_bigrams(df: Counter) -> List[str]:
-    return sorted(g for g, n in df.items() if n >= MIN_DF and g not in NOISE_BIGRAMS)
+    common = {g for g, n in df.items() if n >= MIN_DF and g not in NOISE_BIGRAMS}
+    return sorted(common | REQUIRED_BIGRAMS)
 
 
 def load() -> Dict[str, object]:
