@@ -1389,7 +1389,7 @@ def main(argv: Optional[Sequence[str]] = None, repo_root: Optional[Path] = None)
                 print(f"警告：找不到 {rel}，离线包里不会有它")
             try:
                 target, count = write_offline_zip(root, version, include_wheelhouse=not args.no_wheelhouse)
-            except OSError as exc:
+            except (OSError, ValueError) as exc:
                 print(f"错误：生成离线包失败（{exc}）")
                 return 1
             print(f"已生成离线包：{target.relative_to(root).as_posix()}（{count} 个文件）")
