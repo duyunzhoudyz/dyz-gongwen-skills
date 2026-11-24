@@ -3,7 +3,7 @@ import json
 from unittest.mock import patch
 
 
-def check_masked_outputs(names_module, run):
+def check_masked_outputs(names_module, run, expected_names=()):
     registered = set()
     add = names_module.NameTable.add
 
@@ -13,6 +13,9 @@ def check_masked_outputs(names_module, run):
 
     with patch.object(names_module.NameTable, "add", record):
         report, screen = run()
+    missing = set(expected_names) - registered
+    if missing:
+        raise AssertionError(f"预期姓名未登记：{sorted(missing)}")
     outputs = (json.dumps(report, ensure_ascii=False), screen)
     leaked = sorted(name for name in registered if any(name in output for output in outputs))
     if leaked:

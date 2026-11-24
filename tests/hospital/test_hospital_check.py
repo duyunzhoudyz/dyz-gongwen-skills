@@ -1450,8 +1450,8 @@ class RepairRoundTest(HospitalCheckBase):
 
 
 class MarkdownNameTableTest(HospitalCheckBase):
-    def run_table(self, name, body):
-        return check_masked_outputs(hc.shared_kit().names, lambda: self._run_table(name, body))
+    def run_table(self, name, body, expected_names=()):
+        return check_masked_outputs(hc.shared_kit().names, lambda: self._run_table(name, body), expected_names)
 
     def _run_table(self, name, body):
         path = self.tmp / name
@@ -1465,7 +1465,7 @@ class MarkdownNameTableTest(HospitalCheckBase):
     def test_sensitive_and_ordinary_rows_keep_document_numbering(self) -> None:
         body = ("| 患者姓名 | 诊断 |\n| --- | --- |\n| 王秀英 | 复查观察 |\n\n"
                 "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
-        report, screen = self.run_table("王秀英附表.md", body)
+        report, screen = self.run_table("王秀英附表.md", body, ("王秀英", "欧阳明月"))
         rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
                 if i["id"] == "HOS-031"]
         self.assertEqual(rows, [("HOS-031", "P0", 3, "〔姓名1〕"),

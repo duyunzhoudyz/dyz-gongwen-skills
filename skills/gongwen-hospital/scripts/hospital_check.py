@@ -100,7 +100,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
 
-VERSION = "1.3.2"
+VERSION = "1.3.3"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "hospital_rules.json"
 LEVELS = ("P0", "P1", "P2")

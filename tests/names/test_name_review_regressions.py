@@ -84,11 +84,11 @@ PERSON_ACTION = (
     soe("M3.1d", "对李钢分别给予开除党籍处分。", ("李钢",), "P0"),
     soe("M3.2a", "对李钢（厂长）给予警告处分。", ("李钢",), "P0"),
     soe("M3.2b", "对李钢（总会计师）给予警告处分。", ("李钢",), "P0"),
-    soe("M3.3a", "拟提拔人选：副书记李钢、王建国。", ("李钢", "王建国"), "P1",
+    soe("M3.3a", "拟提拔人选：副书记李钢、王建国。", ("李钢", "王建国"), "P0",
         excerpts=("拟提拔人选：副书记〔姓名1〕、〔姓名2〕。",)),
-    soe("M3.3b", "拟提拔人选：总工程师李钢。", ("李钢",), "P1"),
+    soe("M3.3b", "拟提拔人选：总工程师李钢。", ("李钢",), "P0"),
     soe("M3.4", "东岭冶炼有限责任公司（以下简称“唐钢”）。\n\n" + md("| 处分对象 | 处分 |", "| 唐钢 | 警告 |"),
-        ("唐钢",), visible=True),
+        ("唐钢",), "P0"),
 )
 SCOPE_AND_DEDUP = (
     Case("M4.1", "k12", md("| 学生姓名 | 困难类型 |", "| 王秀英同学 | 低保 |"), ("王秀英",), ("P0",),
@@ -108,7 +108,7 @@ ADVERSARIAL_PEOPLE = (
     soe("人05", "华东王铁公司已回函。\n对王铁给予政务记过处分。", ("王铁",), "P0"),
     soe("人06", "何建集团已回函。\n何建（工号77）受到警告处分。", ("何建",), "P0"),
     soe("人07", "对周航进行了诫勉谈话。\n周航公司回函。", ("周航",), "P0"),
-    soe("人08", "陈建股份有限公司已回函。\n拟提拔人选：副董事长陈建、魏文静。", ("陈建", "魏文静"), "P1"),
+    soe("人08", "陈建股份有限公司已回函。\n拟提拔人选：副董事长陈建、魏文静。", ("陈建", "魏文静"), "P0"),
     soe("人09", "有关制度文件（以下简称‘张伟’）已经印发。\n张伟被免职。", ("张伟",), "P0"),
     soe("人10", "南方建设有限公司（以下简称“赵铁”）。\n" + md("| 处分对象 | 处分 |", "| 赵铁 | 政务记过 |"),
         ("赵铁",), "P0"),
@@ -157,10 +157,10 @@ ROUND2_PEOPLE = (
     soe("NB1_09", "在李强公司工作期间考勤造假。\n拟安置人员：李强、周敏。", ("李强", "周敏"), "P1"),
     soe("NB1_10", "对赵磊公司期间报销开展核查。\n对赵磊给予警告处分。", ("赵磊",), "P0"),
     soe("NB1_11", "唐钢公司回函。\n对唐钢（42岁，男）给予警告处分。", ("唐钢",), "P0"),
-    soe("NB1_12", "唐钢公司回函。\n拟安置人员：唐钢（42岁，男）、王建国。", ("唐钢", "王建国"), "P1"),
+    soe("NB1_12", "唐钢公司回函。\n拟安置人员：唐钢（42岁，男）、王建国。", ("唐钢", "王建国"), "P0"),
     soe("NB1_13", "东岭冶炼有限责任公司（以下简称“唐钢”）。\n\n" +
         md("| 职工姓名 | 处分 |", "| 唐钢 | 警告 |"), ("唐钢",), "P0"),
-    soe("NB1_14", "孙建公司副厂长任职期满。\n对孙建给予记过处分。", ("孙建",), "P1"),
+    soe("NB1_14", "孙建公司副厂长任职期满。\n对孙建给予记过处分。", ("孙建",), "P0"),
 )
 
 
@@ -200,7 +200,7 @@ ROUND2_DUTY = (
 
 # 弱处分锚点与独立身份说明分开；严格定义放在正文前、后两种位置。
 NEW_PEOPLE = (
-    *(soe(f"真人{i:02}", f"河西检测中心（以下简称“陆航”）。\n对陆航给予警告处分。\n{identity}", ("陆航",), "P0")
+    *(soe(f"真人{i:02}", f"河西检测中心（以下简称“陆航”）。\n对陆航给予警告处分。\n{identity}", ("陆航",), "P1")
       for i, identity in enumerate((
           "人员身份已核验：纪委书记陆航签字。", "人员身份已核验：陆航副总审计师签字。",
           "签收记录：陆航（档案编号37，工号82）。", "出席凭据：陆航（本期核验，56岁）。",
@@ -208,21 +208,21 @@ NEW_PEOPLE = (
           "班务履历：陆航同学曾任班长。", "紧急联络人：工会主席陆航。",
           "交接记录：陆航（已返岗）。", "负责人：党组副书记陆航。",
       ), 1)),
-    soe("真人11", "对姚钢给予警告处分。\n交接由姚钢副总法律顾问签字。\n河东冶炼厂，以下简称姚钢。", ("姚钢",), "P0"),
+    soe("真人11", "对姚钢给予警告处分。\n交接由姚钢副总法律顾问签字。\n河东冶炼厂，以下简称姚钢。", ("姚钢",), "P1"),
     soe("真人12", "北岸电力有限公司（以下简称“唐钢-A”）。\n对唐钢给予警告处分。", ("唐钢",), "P1"),
     soe("真人13", "东岭资产有限公司审计方案（以下简称“罗敏”）。\n对罗敏给予警告处分。", ("罗敏",), "P0"),
     soe("真人14", "西岭资产有限公司《资金管理规定》（以下简称“谢华”）。\n对谢华给予记过处分。", ("谢华",), "P0"),
     soe("真人15", "东岭检测中心（以下简称“许航”）。\n对许航给予警告处分。\n" +
-        md("| 随访员姓名 | 序号 |", "| 许航 | 7 |"), ("许航",), "P0", "P1"),
+        md("| 随访员姓名 | 序号 |", "| 许航 | 7 |"), ("许航",), "P1", "P0"),
     *(soe(f"真人{i}", f"{phrase}（以下简称“唐钢”）。\n对唐钢给予警告处分。", ("唐钢",), "P1")
       for i, phrase in enumerate(("公共场所", "园区布局", "患者入院", "依法治厂"), 16)),
     *(soe(f"真人{i}", f"河西检测中心（以下简称“{name}”）。\n{body}", (name,), lv)
       for i, name, body, lv in (
           (20, "刘海", "对刘海（42岁，男）给予警告处分。", "P0"),
-          (21, "刘海", "拟安置人员：刘海（42岁，男）。", "P1"),
+          (21, "刘海", "拟安置人员：刘海（42岁，男）。", "P0"),
           (22, "唐钢", "对唐钢同学给予警告处分。", "P0"),
           (23, "唐钢", "唐钢同学受到警告处分。", "P0"),
-          (24, "唐钢", "任命唐钢担任副总经理。\n对唐钢给予警告处分。", "P0"),
+          (24, "唐钢", "任命唐钢担任副总经理。\n对唐钢给予警告处分。", "P1"),
       )),
 )
 
@@ -289,7 +289,7 @@ def run_case(case: Case, path: Path):
         report = check()
         return report, render(report)
 
-    return check_masked_outputs(names, run)
+    return check_masked_outputs(names, run, expected_names=() if case.visible else case.names)
 
 
 class NameReviewRegressionTest(unittest.TestCase):
@@ -316,8 +316,12 @@ class NameReviewRegressionTest(unittest.TestCase):
                     self.assertIn("〔姓名", report["file"])
                 if case.key in ("B1.5", "M4.2"):
                     self.assertIn("可能是单位简称，请人工确认", rows[0]["message"])
-                if (case.key.startswith("M3.") and case.levels) or case.key in ("人02", "人12"):
+                if case.key.startswith("M3.") or case.key == "人02":
                     self.assertTrue(all("可能是单位简称" not in row["message"] for row in rows), rows)
+
+                if case.key == "人12":
+                    self.assertNotIn("可能是单位简称", rows[0]["message"])
+                    self.assertIn("可能是单位简称", rows[1]["message"])
 
     def test_unknown_cells_warn_once_per_row_and_respect_scope(self):
         for domain, header, rule, types in (
@@ -355,12 +359,13 @@ class NameReviewRegressionTest(unittest.TestCase):
                             for a in rule.anchors if a.kind == "frame"))
         for unit in ("能源有限公司", "能源有限责任公司", "能源股份有限公司", "集团公司", "集团有限公司",
                      "总公司", "分公司", "电机厂", "矿务局", "设计院", "研究所", "检测中心", "管理委员会"):
-            body = f"河西{unit}（以下简称“陆航”）。\\n对陆航给予警告处分。"
-            case = soe("简称", body, ("陆航",), visible=True)
+            body = f"河西{unit}（以下简称“陆航”）。\n对陆航给予警告处分。"
+            case = soe("简称", body, ("陆航",), "P1")
             with self.subTest(unit=unit), tempfile.TemporaryDirectory() as work:
                 report, _ = run_case(case, Path(work) / "陆航.md")
-                self.assertEqual(report["file"], "陆航.md")
-                self.assertFalse(any(i["id"] in NAME_RULES["soe"] for i in report["issues"]))
+                self.assertEqual(report["file"], "〔姓名1〕.md")
+                self.assertEqual([(i["level"], i["message"]) for i in report["issues"] if i["id"] == "SOE-022"],
+                                 [("P1", gn.DEFINED_ABBREVIATION_HINT)])
         for title in ("副总工程师", "副总会计师", "副总经济师", "副厂长", "纪委书记", "党委委员", "总法律顾问"):
             body = md("| 处分对象 | 处分 |", f"| {title}陆航 | 警告 |")
             case = soe("职务", body, ("陆航",), "P0")

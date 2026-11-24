@@ -53,7 +53,7 @@ P1 的说明文案按 find_inversions 给出的 reason_code 选用，不会出�
   2. 名字里用了黑名单字、或尾字是地名机构字的姓名会漏报（如“李山”“孙湖”“王会”）。
   3. 少见姓、歧义姓只给 P1，弱语境下漏报；与整词排除词同形的姓名（刘海、林海）没有强证据时漏报；处分对象与处分隔着分句
      （“李建华……已被开除党籍”）识别不了。
-  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。仅在正文用单位全称显式定义该简称、且没有人名证据时跳过，任免、称谓、身份括注和个人专属处分等人名证据优先。
+  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。显式定义的单位简称也登记并遮蔽，提示中标明定义。紧贴本次出现的前置职务、个人称呼、个人信息括注、自然人列，以及同一框架内的个人专属处分可升为 P0。
   5. 名单类锚点按顿号、逗号读到句末，用分号或换行分开的后续名单项读不到；带“·”的姓名、外文名、昵称识别不了。
   6. 全文遮蔽是整串替换，会过度遮蔽（姓名“高明”会把“高明的做法”也遮成占位）。
   7. 文件名：报告头和 JSON 的 file 字段按全文姓名表遮蔽；文件名里写着、正文没有被锚点识别到的姓名遮不住。
@@ -85,7 +85,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.3.2"
+VERSION = "1.3.3"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -583,6 +583,8 @@ def scan_names(lines: Lines, ruleset: RuleSet):
     """
     gn, _gc, lex = _shared()
     texts = [text for _number, text in lines]
+    organizations = gn.organization_names(texts, lex)
+    table = gn.NameTable()
     table_rows = gn.find_table_names(texts, lex, "soe")
     per_line: Dict[int, List[Tuple[Rule, Any]]] = {}
     unknown_rows = []
@@ -590,35 +592,21 @@ def scan_names(lines: Lines, ruleset: RuleSet):
     by_id = {rule.id: rule for rule in rules}
     for idx, (_number, text) in enumerate(lines):
         entries = [(rule, hit) for rule in rules
-                   for hit in gn.find_names(text, rule.anchors, lex, collect_person_evidence=True)]
+                   for hit in gn.find_names(text, rule.anchors, lex, organizations)]
         row = table_rows.get(idx)
         if row:
             discipline = any(re.search(r"处分|违纪|诫勉|问责", label) for label in row.headers)
             rule = by_id.get("SOE-022" if discipline else "SOE-023")
             if rule is not None:
-                entries.extend((rule, hit) for hit in row.hits)
+                for hit in row.hits:
+                    gn.grade_abbreviation(hit, lex, organizations)
+                    entries.append((rule, hit))
                 if row.unrecognized:
                     unknown_rows.append((_number, rule))
         if entries:
+            entries.sort(key=lambda e: (e[1].start, e[1].end))
             per_line[idx] = entries
-    # 同一写法既有单位证据也有明确的人名证据时，优先保护实名，包括它在别处的弱锚点。
-    people = {hit.name for entries in per_line.values() for _, hit in entries
-              if hit.person_evidence and not hit.pseudo}
-    aliases = gn.organization_names(texts, lex)
-    ambiguous = frozenset(hit.name for entries in per_line.values() for _, hit in entries
-                          if len(hit.name) in (2, 3) and hit.name[-1] in lex.org_abbr_end)
-    people.update(gn.person_context_names(texts, aliases | ambiguous))
-    organizations = aliases - people
-    table = gn.NameTable(organizations)
-    for idx, entries in per_line.items():
-        kept = []
-        for rule, hit in entries:
-            hit.person_evidence = hit.name in people
-            if gn.keep_person_hit(hit, lex, organizations):
-                kept.append((rule, hit))
-        kept.sort(key=lambda e: (e[1].start, e[1].end))
-        per_line[idx] = kept
-        table.add_hits(hit for _, hit in kept)
+            table.add_hits(hit for _, hit in entries)
     return table, per_line, unknown_rows
 
 
@@ -632,7 +620,7 @@ def check_names(lines: Lines, doc_type: Optional[str], external: bool,
         # 同一规则、同一锚点下的并列姓名（“名单：张三、李四”）共用一条摘录：从锚点读到最后一个姓名再加右侧上下文，
         # 这样各姓名的摘录完全相同，由 merge_issues 合并成一条并带 count
         group_end: Dict[Tuple[str, int], int] = {}
-        group_flags: Dict[Tuple[str, int], set] = {}
+        group_flags: Dict[Tuple[str, int, str], set] = {}
         reportable = []
         for rule, hit in entries:
             key = (rule.id, hit.anchor_start)
@@ -642,23 +630,26 @@ def check_names(lines: Lines, doc_type: Optional[str], external: bool,
                 continue
             if hit.anchor_start >= 0 and _is_exempt(rule, text, hit.start, hit.end):
                 continue
-            reportable.append((rule, hit))
-            if hit.anchor_start >= 0:
-                group_flags.setdefault(key, set()).add(hit.maybe_org)
-        for rule, hit in reportable:
-            if hit.anchor_start < 0:
-                level = "P0" if hit.score >= gn.SCORE_HIGH else "P1"
-                issues.append(_issue(rule, level, number, table.placeholder(hit.name), message=gn.ABBREVIATION_HINT if hit.maybe_org else "表格姓名列出现真实姓名"))
-                continue
             high = _rule_level(rule, external)
-            level = high if hit.score >= gn.SCORE_HIGH else (rule.low_level or high)
+            level = hit.org_level or (high if hit.score >= gn.SCORE_HIGH else rule.low_level or high)
+            reportable.append((rule, hit, level))
+            if hit.anchor_start >= 0:
+                group_flags.setdefault((*key, level), set()).add(hit.org_hint)
+        for rule, hit, level in reportable:
+            if hit.anchor_start < 0:
+                level = hit.org_level or ("P0" if hit.score >= gn.SCORE_HIGH else "P1")
+                issues.append(_issue(rule, level, number, table.placeholder(hit.name), message=hit.org_hint or "表格姓名列出现真实姓名"))
+                continue
             a0 = hit.anchor_start if 0 <= hit.anchor_start <= hit.start else hit.start
             key = (rule.id, hit.anchor_start)
             end = group_end[key]
-            flags = group_flags[key]
+            flags = group_flags[(*key, level)]
             message, suggestion = None, None
-            if True in flags:
-                message = gn.ABBREVIATION_HINT if flags == {True} else f"{rule.message}；部分对象{gn.ABBREVIATION_HINT}"
+            hints = sorted(flags - {""})
+            if hints:
+                message = "；".join(hints)
+                if "" in flags:
+                    message = f"{rule.message}；部分对象{message}"
                 suggestion = "核对处分对象或名单项是否为个人，确为实名时按规定遮蔽"
             issues.append(_issue(rule, level, number, text[a0:max(end, hit.end) + NAME_TAIL].strip(),
                                  message=message, suggestion=suggestion))

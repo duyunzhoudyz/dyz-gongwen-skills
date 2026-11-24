@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.2"
+VERSION = "1.2.3"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -1192,7 +1192,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         "similar_pairs": pairs,
         "issues": [i.to_dict() for i in issues],
     }
-    return table.mask_output(result) if any(row.hits for row in table_rows.values()) else result
+    return table.mask_output(result) if table_rows else result
 
 
 # ---------------------------------------------------------------------------
@@ -1580,13 +1580,14 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
 def _table_name_issues(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], gw: Any) -> List[Issue]:
     rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
     positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits]
-    names = dict.fromkeys(name for _, name in sorted(positions))
-    for name in names:
+    for _, name in sorted(positions):
         table.add(name)
     issues = []
-    if row.hits:
-        level = "P0" if row.hits[0].score >= gw.SCORE_HIGH else "P1"
-        excerpt = "、".join(table.placeholder(name) for name in names)
+    reported = [hit for hit in row.hits if not hit.table_only]
+    if reported:
+        level = "P0" if max(hit.score for hit in reported) >= gw.SCORE_HIGH else "P1"
+        shown = sorted([*prose_names, *((h.start, h.name) for h in reported)])
+        excerpt = "、".join(dict.fromkeys(table.placeholder(name) for _, name in shown))
         issues.append(Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
                             suggestion=suggest, basis=basis, line=line, excerpt=excerpt))
     if row.unrecognized:
@@ -1621,10 +1622,11 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                 picked = _g04_pick(line, cands, level)
                 if row:
                     table_issues = _table_name_issues(row, table, index, names, gw)
-                    if row.hits and picked is not None and LEVELS.index(picked[0]) < LEVELS.index(table_issues[0].level):
+                    has_name = any(not hit.table_only for hit in row.hits)
+                    if has_name and picked is not None and LEVELS.index(picked[0]) < LEVELS.index(table_issues[0].level):
                         table_issues[0].level = picked[0]
                     issues.extend(table_issues)
-                    if row.hits:
+                    if has_name:
                         continue
                 for _, name in names:
                     table.add(name)

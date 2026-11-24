@@ -458,7 +458,7 @@ class MarkdownNameTableTest(EngineCase):
         def run():
             report = k12_check.check_comments(path)
             return report, k12_check.render_check_text(report)
-        report, _ = check_masked_outputs(k12_check.shared_names()[0], run)
+        report, _ = check_masked_outputs(k12_check.shared_names()[0], run, ("王秀英", "李明"))
         self.assertEqual(report["file"], "〔姓名1〕及〔姓名2〕评语.md")
         self.assertEqual(report["entries"][0]["label"], "〔姓名1〕＋〔姓名2〕")
         self.assertFalse(any(i["id"] == "K12-G04" for i in report["issues"]))
@@ -472,13 +472,13 @@ class MarkdownNameTableTest(EngineCase):
             self.assertEqual(text_code, 1, text_err)
             return json.loads(output), screen
 
-        report, _ = check_masked_outputs(k12_check.shared_names()[0], run)
+        report, _ = check_masked_outputs(k12_check.shared_names()[0], run, ("王秀英",))
         rows = [(i["id"], i["level"], i["excerpt"]) for i in report["issues"]]
         self.assertEqual(rows, [("K12-G04", "P0", "〔姓名1〕")])
         self.assertEqual(report["file"], "〔姓名1〕回访单.md")
 
-    def run_table(self, name, body):
-        return check_masked_outputs(k12_check.shared_names()[0], lambda: self._run_table(name, body))
+    def run_table(self, name, body, expected_names=()):
+        return check_masked_outputs(k12_check.shared_names()[0], lambda: self._run_table(name, body), expected_names)
 
     def _run_table(self, name, body):
         path = self.tmp / name
@@ -492,7 +492,7 @@ class MarkdownNameTableTest(EngineCase):
     def test_sensitive_and_ordinary_rows_keep_document_numbering(self) -> None:
         body = ("| 学生姓名 | 困难类型 |\n| --- | --- |\n| 王秀英 | 低保 |\n\n"
                 "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
-        report, screen = self.run_table("王秀英附表.md", body)
+        report, screen = self.run_table("王秀英附表.md", body, ("王秀英", "欧阳明月"))
         rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
                 if i["id"] == "K12-G04"]
         self.assertEqual(rows, [("K12-G04", "P0", 3, "〔姓名1〕"),

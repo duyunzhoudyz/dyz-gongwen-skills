@@ -405,8 +405,8 @@ class FileNameMaskTest(unittest.TestCase):
         path = self.write("张伟的材料.txt", "给予王建国同志党内警告处分。")
         self.assertEqual(sc.check_file(path, "纪要", ruleset=self.ruleset)["file"], "张伟的材料.txt")
 
-    def run_table(self, name, body):
-        return check_masked_outputs(sc._shared()[0], lambda: self._run_table(name, body))
+    def run_table(self, name, body, expected_names=()):
+        return check_masked_outputs(sc._shared()[0], lambda: self._run_table(name, body), expected_names)
 
     def _run_table(self, name, body):
         path = self.tmp / name
@@ -425,7 +425,7 @@ class FileNameMaskTest(unittest.TestCase):
     def test_sensitive_and_ordinary_rows_keep_document_numbering(self) -> None:
         body = ("| 职工姓名 | 处分 |\n| --- | --- |\n| 王秀英 | 警告 |\n\n"
                 "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
-        report, screen = self.run_table("王秀英附表.md", body)
+        report, screen = self.run_table("王秀英附表.md", body, ("王秀英", "欧阳明月"))
         rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
                 if i["id"] in ("SOE-022", "SOE-023")]
         self.assertEqual(rows, [("SOE-022", "P0", 3, "〔姓名1〕"),
@@ -478,7 +478,7 @@ class FileNameMaskTest(unittest.TestCase):
         for body, name, level in examples:
             with self.subTest(body=body):
                 path = self.write(f"{name}核查.txt", body)
-                report = sc.check_file(path, "纪要", ruleset=self.ruleset)
+                report, _ = self.run_table(path.name, body, (name,))
                 rid = "SOE-023" if "拟安置" in body else "SOE-022"
                 issues = [i for i in report["issues"] if i["id"] == rid and "〔姓名" in i["excerpt"]]
                 self.assertIn(level, [i["level"] for i in issues])
@@ -491,19 +491,14 @@ class FileNameMaskTest(unittest.TestCase):
             "东岭冶炼有限责任公司（以下简称“唐钢”）。\n对唐钢给予警告处分。",
             "东岭物资有限公司（以下简称“唐华”）。\n对唐华给予警告处分。",
         ]
-        misfires = 0
         for body in controls:
             name = "唐华" if "唐华" in body else "唐钢"
             with self.subTest(body=body):
-                path = self.write(f"{name}核查.txt", body)
-                report = sc.check_file(path, "纪要", ruleset=self.ruleset)
-                self.assertEqual(report["file"], path.name)
-                for row in report["issues"]:
-                    self.assertNotIn("可能是单位简称", row["message"])
-                    self.assertNotEqual(row["id"], "SOE-022")
-                    self.assertNotIn("〔姓名2〕", row["excerpt"])
-                misfires += int(report["file"] != path.name)
-        sys.stderr.write(f"\n企业简称回归：预期命中 {detected}/{len(examples)}，有单位证据误报 {misfires}/{len(controls)}。\n")
+                report, _ = self.run_table(f"{name}核查.txt", body, (name,))
+                self.assertEqual(report["file"], "〔姓名1〕核查.txt")
+                self.assertEqual([(i["level"], i["message"]) for i in report["issues"] if i["id"] == "SOE-022"],
+                                 [("P1", "文内已定义为单位简称，如确指单位可忽略")])
+        sys.stderr.write(f"\n企业简称回归：预期命中 {detected}/{len(examples)}，严格定义提示 {len(controls)}/{len(controls)}。\n")
 
 
 if __name__ == "__main__":

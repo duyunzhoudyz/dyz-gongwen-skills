@@ -214,7 +214,7 @@ class LexiconStructureTest(unittest.TestCase):
 
     # ---- 1.1.0 新增字段 ----
     def test_version_and_new_fields(self) -> None:
-        self.assertEqual(LEX.version, "1.2.2")
+        self.assertEqual(LEX.version, "1.2.3")
         self.assertGreaterEqual(len(LEX.given), 400)
         self.assertGreaterEqual(len(LEX.word_bigrams), 2000)
         self.assertTrue(LEX.soft_given and LEX.stopwords_exact)
@@ -253,7 +253,7 @@ class LexiconStructureTest(unittest.TestCase):
                  "stopwords_exact": len(LEX.stopwords_exact), "right_strong": len(LEX.right_strong),
                  "right_weak": len(LEX.right_weak), "left_words": len(LEX.left_words), "word_bigrams": len(LEX.word_bigrams),
                  "table_names": len(LEX.table_names), "table_public": len(LEX.table_public),
-                 "table_nonnames": len(LEX.table_nonnames), "org_abbr_end": len(LEX.org_abbr_end),
+                 "table_nonnames": len(LEX.table_nonnames), "org_abbr_end": len(LEX.org_abbr_end), "personal_actions": len(LEX.personal_actions),
                  **{"table_sensitive_" + d: len(words) for d, words in LEX.table_sensitive.items()}}
         for key, floor in gn.MIN_SIZES.items():
             self.assertGreaterEqual(sizes[key], floor, key)
@@ -1078,7 +1078,7 @@ HOSPITAL_FLAG = [
     ("患者李秀英在病房跌倒。", "李秀英"), ("患者黄晓明病情加重。", "黄晓明"), ("患者孙浩然跌倒致骨折。", "孙浩然"),
 ]
 SOE_CLEAN = [
-    "对林业局给予警告。", "对孙公司给予警告。", "对项目经理给予警告处分。", "唐钢集团（以下简称唐钢）。对唐钢给予警告处分。", "对时任总经理给予警告。",
+    "对林业局给予警告。", "对孙公司给予警告。", "对项目经理给予警告处分。", "对时任总经理给予警告。",
     "对贺州分公司给予通报批评。", "对董事会办公室给予警告。", "对集团公司给予警告处分。",
     "对李渡镇项目部给予警告。", "对王府井店给予警告处分。", "对工程部给予警告。", "对黄岛项目给予警告处分。",
     "对郑州分公司给予记过。", "对林业公司给予警告。", "对和平路店给予警告处分。", "严禁对违规人员不予处分。",
@@ -1187,7 +1187,16 @@ class AdversarialProbeTest(unittest.TestCase):
     def test_undefined_abbreviation_reports_p1(self) -> None:
         text = "对唐钢给予警告处分。"
         hits = gn.find_names(text, ANCHORS["soe_new"], LEX, frozenset())
-        self.assertEqual([(h.name, h.score, h.maybe_org) for h in hits], [("唐钢", gn.SCORE_LOW, True)])
+        self.assertEqual([(h.name, h.score, h.org_hint) for h in hits], [("唐钢", gn.SCORE_LOW, gn.ABBREVIATION_HINT)])
+
+    def test_defined_abbreviation_reports_p1(self) -> None:
+        for action in ("警告处分", "通报批评"):
+            text = f"唐钢集团（以下简称唐钢）。对唐钢给予{action}。"
+            engine = ROOT / "skills" / "gongwen-soe" / "scripts" / "soe_rules.json"
+            rule = next(r for r in json.loads(engine.read_text(encoding="utf-8"))["rules"] if r["id"] == "SOE-022")
+            hits = gn.find_names(text, gn.compile_anchors(rule["name_anchors"]), LEX, gn.organization_names([text], LEX))
+            self.assertEqual([(h.name, h.score, h.org_hint) for h in hits],
+                             [("唐钢", gn.SCORE_LOW, gn.DEFINED_ABBREVIATION_HINT)])
 
     def test_task_sentences_exact(self) -> None:
         """方案给定的整组句子：应识别、不应识别各一遍。"""
