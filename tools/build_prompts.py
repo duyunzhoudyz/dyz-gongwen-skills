@@ -68,6 +68,8 @@ STATUS_LABELS = {
 }
 CN_DIGITS = "零一二三四五六七八九"
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+PROMPT_OMIT_OPEN_RE = re.compile(r"<!-- prompt:omit(?:: (.+?))? -->")
+PROMPT_OMIT_CLOSE = "<!-- /prompt:omit -->"
 CODE_LANGS = {".json": "json", ".py": "python", ".yaml": "yaml", ".yml": "yaml", ".csv": "csv"}
 
 # 离线包中跳过的缓存和系统文件；.gongwen（单位画像）和 公文（用户产出）可能含内部信息，也不得打包
@@ -100,6 +102,42 @@ OFFLINE_GUIDE_NAME = "离线使用说明.md"
 
 def normalize_newlines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def strip_prompt_omissions(text: str) -> str:
+    """仅在提示词版中省略标记块，保留代码围栏中的标记示例。"""
+    if "prompt:omit" not in text:
+        return text
+    out: List[str] = []
+    opened_at: Optional[int] = None
+    fence = ""
+    for number, line in enumerate(text.split("\n"), start=1):
+        fence_match = FENCE_RE.match(line)
+        if fence_match:
+            marker = fence_match.group(1)
+            if not fence:
+                fence = marker
+            elif marker[0] == fence[0] and len(marker) >= len(fence):
+                fence = ""
+        elif not fence:
+            opening = PROMPT_OMIT_OPEN_RE.fullmatch(line.strip())
+            if opening:
+                if opened_at is not None:
+                    raise ValueError(f"第 {number} 行：prompt:omit 标记不能嵌套（块开始于第 {opened_at} 行）")
+                opened_at = number
+                if opening.group(1) is not None:
+                    out.append(opening.group(1))
+                continue
+            if line.strip() == PROMPT_OMIT_CLOSE:
+                if opened_at is None:
+                    raise ValueError(f"第 {number} 行：prompt:omit 结束标记没有对应的开标记")
+                opened_at = None
+                continue
+        if opened_at is None:
+            out.append(line)
+    if opened_at is not None:
+        raise ValueError(f"第 {opened_at} 行：prompt:omit 标记未闭合")
+    return "\n".join(out)
 
 
 def cn_number(n: int) -> str:
@@ -331,9 +369,12 @@ def render_skill(skill_dir: Path) -> RenderResult:
         result.errors.append("缺少 SKILL.md")
         return result
     try:
-        skill_text = normalize_newlines((skill_dir / "SKILL.md").read_text(encoding="utf-8"))
+        skill_text = strip_prompt_omissions(normalize_newlines((skill_dir / "SKILL.md").read_text(encoding="utf-8")))
     except UnicodeDecodeError:
         result.errors.append("SKILL.md 不是合法的 UTF-8 编码")
+        return result
+    except ValueError as exc:
+        result.errors.append(f"SKILL.md：{exc}")
         return result
     fields, body, _fm_errors, has_fm = split_frontmatter(skill_text)
     if not has_fm:
@@ -370,8 +411,13 @@ def render_skill(skill_dir: Path) -> RenderResult:
         try:
             # utf-8-sig：去掉记事本等工具写入的 BOM，避免混入提示词、影响标题识别
             content = normalize_newlines((skill_dir / rel).read_text(encoding="utf-8-sig"))
+            if PurePosixPath(rel).suffix.lower() in (".md", ".markdown"):
+                content = strip_prompt_omissions(content)
         except UnicodeDecodeError:
             result.errors.append(f"prompt_bundle 文件不是 UTF-8 文本：{rel}")
+            continue
+        except ValueError as exc:
+            result.errors.append(f"prompt_bundle 文件 {rel}：{exc}")
             continue
         mapping[rel] = f"（见附录{cn_number(len(files) + 1)}）"
         files.append((rel, content))
@@ -381,7 +427,12 @@ def render_skill(skill_dir: Path) -> RenderResult:
     # 网页版跨 skill 转交需要交接卡和安装命令（开发规范 D14）。没有整份打包 output-format.md 的，
     # 自动附上它的第四部分"交接卡与转交"，避免各 skill 为此超出字数目标。
     if HANDOFF_SOURCE not in mapping and exists_exact(skill_dir, HANDOFF_SOURCE, want_dir=False):
-        handoff = extract_handoff(normalize_newlines((skill_dir / HANDOFF_SOURCE).read_text(encoding="utf-8-sig")))
+        try:
+            handoff_text = normalize_newlines((skill_dir / HANDOFF_SOURCE).read_text(encoding="utf-8-sig"))
+            handoff = extract_handoff(strip_prompt_omissions(handoff_text))
+        except ValueError as exc:
+            result.errors.append(f"{HANDOFF_SOURCE}：{exc}")
+            return result
         if handoff:
             files.append((HANDOFF_SOURCE[:-3] + "-第四部分.md", handoff))
 

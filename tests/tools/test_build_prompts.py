@@ -62,6 +62,43 @@ class BuildPromptsTest(TempRepoTestCase):
         self.assertEqual(text.count("六条写作红线"), 1)
         self.assertNotIn("\r", text)
 
+    def test_prompt_omissions_in_skill_and_appendix(self):
+        skill_text = skill_md(
+            "gongwen-demo",
+            extra_body="\n<!-- prompt:omit -->\n仅供 Agent 的流程\n<!-- /prompt:omit -->\n",
+        )
+        d = self.repo.add_skill(skill_text=skill_text)
+        appendix = (
+            "# 自检清单\n\n<!-- prompt:omit: 保密见 `references/_shared/guardrails.md`。 -->\n"
+            "仅供 Agent 的自检\n<!-- /prompt:omit -->\n\n"
+            "```text\n<!-- /prompt:omit -->\n```\n"
+        )
+        source = write_text(d / "references/checklist.md", appendix)
+        code, out = self.build()
+        self.assertEqual(code, 0, out)
+        text = self.read_prompt()
+        self.assertNotIn("仅供 Agent", text)
+        self.assertNotIn("<!-- prompt:omit", text)
+        self.assertIn("# 附录三　自检清单\n\n保密见（见附录一）。", text)
+        self.assertIn("```text\n<!-- /prompt:omit -->\n```", text)
+        self.assertEqual((d / "SKILL.md").read_text(encoding="utf-8"), skill_text)
+        self.assertEqual(source.read_text(encoding="utf-8"), appendix)
+
+    def test_invalid_prompt_omissions_fail_build_and_check(self):
+        for rel, broken, error in (
+            ("SKILL.md", "<!-- prompt:omit -->\n", "标记未闭合"),
+            ("references/checklist.md", "<!-- prompt:omit -->\n<!-- prompt:omit -->\n", "标记不能嵌套"),
+            ("references/checklist.md", "<!-- /prompt:omit -->\n", "结束标记没有对应的开标记"),
+        ):
+            with self.subTest(source=rel, error=error):
+                d = self.repo.add_skill()
+                source = d / rel
+                write_text(source, source.read_text(encoding="utf-8") + "\n" + broken)
+                for args in ((), ("--check",)):
+                    code, out = self.build(*args)
+                    self.assertEqual(code, 1, out)
+                    self.assertRegex(out, rf"{rel}：第 \d+ 行：prompt:omit {error}")
+
     def test_index_readme(self):
         self.repo.add_skill("gongwen-a")
         self.repo.add_skill("gongwen")
@@ -360,3 +397,16 @@ class HandoffAppendixTest(TempRepoTestCase):
         self.assertEqual(code, 0, out)
         text = (self.root / "dist/prompts/gongwen-demo.md").read_text(encoding="utf-8")
         self.assertNotIn("摘自输出格式规范第四部分", text)
+
+    def test_prompt_omissions_in_automatic_handoff(self):
+        d = self.repo.add_skill(bundle=["references/_shared/guardrails.md"])
+        handoff = self.OUTPUT_FORMAT.replace(
+            "给交接卡和安装命令。\n",
+            "给交接卡和安装命令。\n\n<!-- prompt:omit -->\n仅供 Agent 的交接\n<!-- /prompt:omit -->\n",
+        )
+        write_text(d / build_prompts.HANDOFF_SOURCE, handoff)
+        code, out = self.build()
+        self.assertEqual(code, 0, out)
+        text = (self.root / "dist/prompts/gongwen-demo.md").read_text(encoding="utf-8")
+        self.assertIn("给交接卡和安装命令。", text)
+        self.assertNotIn("仅供 Agent 的交接", text)

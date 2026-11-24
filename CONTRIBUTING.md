@@ -73,7 +73,7 @@
 - 行业事实注明出处与年份；
 - `evals/evals.json` 中，审稿模式用例、保密用例、防编造用例各不少于 3 条，应转交其他 skill 的边界用例不少于 2 条；
 - 配有专用机检脚本的，要有必错和必过两类标本的测试，放在 `tests/<短名>/`；
-- 网页版提示词不超过 29000 字符。这是硬上限：`tools/build_prompts.py` 按最终提示词版全文计数（含信息块和自动附加的交接卡一节），超过时 `python tools/build_prompts.py --check` 会失败。
+- 网页版提示词不超过 29000 字符。这是硬上限：`tools/build_prompts.py` 按最终提示词版全文计数（含信息块和自动附加的交接卡一节），超过时 `python tools/build_prompts.py --check` 会失败。在 Markdown 源文件中用单独成行的 `<!-- prompt:omit -->` 和 `<!-- /prompt:omit -->` 包住网页版应省略的内容，开标记可写成 `<!-- prompt:omit: 见附录三 -->` 以在网页版输出一行替换文字。
 
 上面的工程门槛里，除“行业事实注明出处与年份”外，都由 `python tools/validate.py` 自动检查（行业包按 `.claude-plugin/marketplace.json` 中非 `gongwen` 的 plugin 识别，与安装器的 `--pack` 一致），不满足时报错：
 
