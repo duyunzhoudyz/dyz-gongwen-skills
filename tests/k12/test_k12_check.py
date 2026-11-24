@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import csv
 import io
+import inspect
 import json
+import re
 import shutil
 import sys
 import tempfile
@@ -614,6 +616,238 @@ class GeneralNameRecognitionTest(K12TestCase):
         p = self.write("g.txt", "低保户张明同学。\n")
         code, out, _err = self.run_main("general", str(p), "--stage", "高中", "--json")
         self.assertEqual(json.loads(out)["issues"][0]["level"], "P0")
+
+
+class K12PolicyRulesTest(K12TestCase):
+    def test_jz003_scoped_negation_preserves_affirmative_disclosures(self):
+        cases = (
+            ("义务教育", "不晒成绩。", False),
+            ("高中", "不在家长群发布成绩单，不按成绩给学生排名次张贴。", False),
+            ("义务教育", "学校不按成绩排名次。", False),
+            ("义务教育", "学校不公布、不张贴、不通报排名。", False),
+            ("高中", "不公布排名，也不在班群发布成绩单。", False),
+            ("义务教育", "学校不仅公布成绩，还张贴考试排名。", True),
+            ("义务教育", "学校不得不公布成绩。", True),
+            ("高中", "考试成绩，没有不公布的。", True),
+            ("义务教育", "学校没有不公布成绩的。", True),
+            ("义务教育", "不收班费并发布考试成绩。", True),
+            ("高中", "不在教师群发布成绩，在家长群发布成绩。", True),
+            ("高中", "不在课堂讨论，而是张贴考试排名。", True),
+        )
+        for stage, sentence, expected in cases:
+            with self.subTest(stage=stage, sentence=sentence):
+                path = self.write("成绩.txt", sentence)
+                report = self.run_json("parents", str(path), "--stage", stage)
+                self.assertEqual("JZ-003" in self.ids(report), expected)
+
+    def test_score_and_general_rank_use_scoped_negation(self):
+        cases = (
+            ("parents", "JZ-014", "学校不在家长群公布平均分95分。", []),
+            ("parents", "JZ-014", "学校不得不公布平均分95分。", ["P0"]),
+            ("parents", "JZ-014", "学校不仅公布平均分95分，还张贴个人成绩。", ["P0"]),
+            ("general", "K12-G01", "学校不在家长群张贴考试成绩。", []),
+            ("general", "K12-G01", "学校不按成绩排名。", []),
+            ("general", "K12-G01", "学校没有不公布考试成绩的。", ["P0"]),
+            ("general", "K12-G01", "学校不收资料费并张贴考试成绩。", ["P0"]),
+        )
+        for command, rid, text, expected in cases:
+            with self.subTest(command=command, text=text):
+                path = self.write("成绩.txt", text)
+                report = self.run_json(command, str(path))
+                self.assertEqual([i["level"] for i in report["issues"] if i["id"] == rid], expected)
+
+    def test_r1_matrix_both_entries(self):
+        p0 = ("P0", "P1", "P1")
+        skip = ("skip",) * 3
+        cases = (
+            ("force", "全体学生必须购买意外伤害保险。", p0, "第四十六条"),
+            ("force", "家委会向每户收取班费80元。", p0, "不得以家长委员会名义违规收费"),
+            ("force", "学校强制要求学生缴纳校服费。", p0, "第五条"),
+            ("force", "课后服务不缴费则不予报名。", p0, "第9段、第20段"),
+            ("force", "拒缴校服费，将不发放教材。", p0, "第五条"),
+            ("force", "全体学生必须购买教辅材料。", p0, "中小学教辅材料管理办法"),
+            ("uniform", "统一购买校服，开学第一周缴费。", p0, "第五条"),
+            ("uniform", "学校统一订购教辅资料。", p0, "中小学教辅材料管理办法"),
+            ("uniform", "学校统一办理意外伤害保险。", p0, "第四十六条"),
+            ("uniform", "开学后统一缴纳班费。", p0, "第五条"),
+            ("optout", "该保险由家长自愿报名，不参加不收费，学校仅代办。", skip, ""),
+            ("optout", "保险由家长自愿统一办理，不参加不收费。", skip, ""),
+            ("optout", "校服由家长自愿统一购买，也可自行购买。", skip, ""),
+            ("optout", "教辅自愿统一订购，不强制。", skip, ""),
+            ("optout", "家委会只代收保险费用，家长自愿报名，不参加不收费。", skip, ""),
+            ("ambiguous", "教辅由家长自愿统一购买。", ("P1",) * 3, "中小学教辅材料管理办法"),
+            ("ambiguous", "校内自愿购买意外伤害保险，学校统一办理。", ("P1",) * 3, "第四十六条"),
+            ("conflict", "该保险自愿报名，但全体学生必须购买。", p0, "第四十六条"),
+            ("conflict", "课后服务费写明自愿，但拒缴不予报名。", p0, "第20段"),
+            ("conflict", "学校称家长可以自愿认购，可实际强制要求学生缴纳保险费。", p0, "第四十六条"),
+            ("different", "课后服务自愿参加，但全体学生必须购买意外伤害保险。", p0, "第四十六条"),
+            ("different", "本项免收费用，但要求全体学生缴费购买教辅。", p0, "中小学教辅材料管理办法"),
+            ("quoted", "严禁统一订购教辅。", skip, ""),
+            ("quoted", "学校不统一订购教辅资料。", skip, ""),
+            ("quoted", "家委会不得以班费名义向家长收取材料费。", skip, ""),
+            ("periodical", "全体学生必须统一征订报刊。", skip, ""),
+        )
+        self.assertEqual({key for key, *_ in cases}, set(k12_check.FEE_MATRIX))
+        for key, sentence, expected, basis in cases:
+            self.assertEqual(k12_check.FEE_MATRIX[key][1], expected, key)
+            path = self.write("收费.txt", sentence)
+            for stage, level in zip(k12_check.STAGES, expected):
+                with self.subTest(sentence=sentence, stage=stage):
+                    for command, rid in (("general", "K12-G05"), ("parents", "JZ-006")):
+                        report = self.run_json(command, str(path), "--stage", stage)
+                        items = [i for i in report["issues"] if i["id"] == rid]
+                        self.assertEqual([(i["line"], i["level"]) for i in items],
+                                         [] if level == "skip" else [(1, level)], command)
+                        if items:
+                            self.assertIn(basis, items[0]["basis"])
+                            if key == "ambiguous":
+                                self.assertIn("请核对是否可以不参加", items[0]["message"])
+
+    def test_paid_tutoring_both_entries(self):
+        cases = (
+            ("学校推荐学生参加校外有偿补课。", True),
+            ("班主任组织八年级学生到校外机构付费补习。", True),
+            ("我校安排学生在校外补课，参加者每人收费200元。", True),
+            ("教师向校外培训机构介绍生源。", True),
+            ("学校向培训机构提供学生信息。", True),
+            ("教师提供学生名单给校外培训机构。", True),
+            ("学校组织校外培训机构为教师开展免费急救培训。", False),
+            ("学校组织学生参加校内免费作业辅导。", False),
+            ("禁止学校组织或推荐学生参加校外有偿补课。", False),
+            ("学校明确不得向培训机构提供学生信息。", False),
+            ("学校组织学生参加校外非学科公益活动。", False),
+            ("学校推荐学生参加校外免费辅导。", False),
+            ("我校安排学生在校外补课，报名者可获100元补贴。", False),
+            ("学生家长向学校推荐学生参加校外有偿补课。", False),
+            ("学校组织学生参加校外有偿补课治理宣传。", False),
+            ("建议成绩不理想的学生报名参加周末辅导班，保证提分。", False),
+        )
+        for sentence, expected in cases:
+            path = self.write("补课.txt", sentence)
+            for stage in k12_check.STAGES:
+                with self.subTest(sentence=sentence, stage=stage):
+                    for command, rid in (("general", "K12-G09"), ("parents", "JZ-008")):
+                        report = self.run_json(command, str(path), "--stage", stage)
+                        self.assertEqual([(i["line"], i["level"]) for i in report["issues"] if i["id"] == rid],
+                                         [(1, "P0")] if expected else [], command)
+
+    def test_g06_paragraph_basis_and_legacy_jz007(self):
+        authority = "依据：《课后服务收费办法》（某教〔2026〕12号）。"
+        cases = (
+            ("每生收费120元。\n" + authority, [], [1]),
+            ("收费标准：每生 120 元。\n" + authority, [], [1]),
+            ("根据报名人数统计，每生收费120元。", [1], []),
+            ("每生收费120元。\n\n" + authority, [1], [1]),
+            (authority + "\n\n每生收费120元。", [3], [3]),
+        )
+        for draft, expected_general, expected_parents in cases:
+            path = self.write("依据.txt", draft)
+            with self.subTest(draft=draft):
+                for command, rid, expected in (("general", "K12-G06", expected_general),
+                                                ("parents", "JZ-007", expected_parents)):
+                    report = self.run_json(command, str(path))
+                    self.assertEqual([(i["line"], i["level"]) for i in report["issues"] if i["id"] == rid],
+                                     [(line, "P1") for line in expected])
+
+    def test_g06_table_scope_and_exemptions(self):
+        rows = (
+            "项目 | 金额 | 依据\n--- | --- | ---\n"
+            "收取课后服务费 | 120元 | 《课后服务收费办法》\n"
+            "缴纳校服费 | 180元 | 根据报名人数统计\n"
+            "收取资料费 | 35元 |\n"
+            "教辅 | 免收20元 |\n"
+        )
+        prose = (
+            "\n统计本学期实收120元。\n免收每生120元。\n财政预算拨付120元，用于课后服务。\n"
+            "缴纳课后服务费【待补：每生120元】。\n缴纳费40元，收费依据：【待补】。\n"
+            "\n收取保险费10元。\n依据：《课后服务收费办法》。\n"
+            "\n收取教材费20元，按经区教育局批准的收费标准执行。\n"
+            "\n收费标准：\n每生120元。\n\n每人一百二十元，须缴纳资料费。\n"
+            "【起草说明】\n每生缴纳60元。"
+        )
+        path = self.write("收费表.md", rows + prose)
+        issues = [i for i in self.run_json("general", str(path))["issues"] if i["id"] == "K12-G06"]
+        self.assertEqual([i["line"] for i in issues], [4, 5, 14, 20, 22])
+        self.assertTrue(all(i["level"] == "P1" for i in issues))
+
+    @unittest.skipUnless(HAS_DOCX, "未安装 python-docx")
+    def test_g06_word_tables_keep_rows_and_draft_boundary(self):
+        d = docx.Document()
+        d.add_paragraph("按下表所列标准收费。")
+        table = d.add_table(rows=2, cols=2)
+        table.cell(0, 0).text = "收取课后服务费120元"
+        table.cell(0, 1).text = "《课后服务收费办法》"
+        table.cell(1, 0).text = "缴纳校服费180元"
+        d.add_paragraph("【起草说明】")
+        table = d.add_table(rows=1, cols=1)
+        table.cell(0, 0).text = "每生收取50元"
+        path = self.tmp / "收费表.docx"
+        d.save(path)
+        issues = [i for i in self.run_json("general", str(path))["issues"] if i["id"] == "K12-G06"]
+        self.assertEqual([(i["line"], i["level"]) for i in issues], [(4, "P1")])
+
+    def test_vocational_stage_routes_and_skips(self):
+        path = self.write("中职.txt", "全体学生必须购买意外伤害保险。\n一年级布置书面作业。\n课后服务一律参加。")
+        for command, rid in (("parents", "JZ-006"), ("general", "K12-G05")):
+            report = self.run_json(command, str(path), "--stage", "中职", "--strict")
+            self.assertEqual(report["stage"], "中职")
+            self.assertIn(rid, self.ids(report, "P1"))
+            self.assertNotIn("JZ-004", self.ids(report))
+
+    def test_rule_catalog_text_json_and_live_rules(self):
+        code, stdout, err = self.run_main("--list-rules")
+        self.assertEqual((code, err), (0, ""))
+        self.assertIn("中小学专检规则（38 条）", stdout)
+        code, out, err = self.run_main("--list-rules", "--json")
+        self.assertEqual((code, err), (0, ""))
+        data = json.loads(out)
+        rules = {rule["id"]: rule for rule in data["rules"]}
+        self.assertEqual((len(rules), len(data["rules"])), (38, 38))
+        expected = {
+            "comments": set(re.findall(r"PY-\d{3}", inspect.getsource(k12_check.check_comments))),
+            "parents": {rule.id for rule in k12_check.PARENT_RULES} | {"K12-G04"},
+            "general": {rule[0] for rule in k12_check.GENERAL_RULES} | {k12_check.FEE_BASIS_RULE[0]},
+        }
+        for rule in k12_check.CROSS_ENTRY_RULES:
+            expected["parents"].add(rule.parents_id)
+            expected["general"].add(rule.general_id)
+        for command, ids in expected.items():
+            self.assertEqual({rid for rid, rule in rules.items() if command in rule["commands"]}, ids)
+        for rid, rule in rules.items():
+            self.assertTrue(rule["condition"])
+            self.assertIn(rid + " | ", stdout)
+        for rid, levels in {"PY-003": ["P0", "P1", "P2"], "PY-017": ["P1", "P2"],
+                            "JZ-002": ["P0", "P1", "P2"], "K12-G04": ["P0", "P1"],
+                            "JZ-006": ["P0", "P1", "skip"], "K12-G05": ["P0", "P1", "skip"]}.items():
+            self.assertEqual(rules[rid]["levels"], levels)
+        for rid in ("JZ-004", "JZ-009", "JZ-010"):
+            stages = rules[rid]["stage_levels"]["parents"]
+            self.assertEqual((stages["高中"], stages["中职"]), (["skip"], ["skip"]))
+        self.assertEqual(len(data["fee_matrix"]), len(k12_check.FEE_MATRIX))
+        for row, (text, levels) in zip(data["fee_matrix"], k12_check.FEE_MATRIX.values()):
+            self.assertEqual(row, {"condition": text, "stage_levels": dict(zip(k12_check.STAGES, levels))})
+            self.assertIn(text + " | " + " | ".join(levels), stdout)
+
+    def test_rule_catalog_usage_errors(self):
+        path = str(self.write("样稿.txt", "测试"))
+        for args in ((), ("--json",), ("--list-rules", "--stage", "中职"), ("--list-rules", "--wrong"),
+                     ("parents", path, "--list-rules"), ("--list-rules", "general", path),
+                     ("comments", path, "--stage", "未知")):
+            with self.subTest(args=args):
+                self.assertEqual(self.run_main(*args)[0], 2)
+
+    def test_new_p0_guardrail_on_reference_and_example_docs(self):
+        references = REPO_ROOT / "skills" / "gongwen-k12" / "references"
+        examples = next((REPO_ROOT / "examples").glob("D-*"))
+        paths = sorted(references.rglob("*.md")) + sorted(examples.glob("*.md")) + sorted(examples.glob("*.txt"))
+        self.assertGreater(len(paths), 36)
+        ids = {"K12-G04", "K12-G05", "K12-G06", "K12-G09", "JZ-006", "JZ-008"}
+        for command in ("general", "parents"):
+            for path in paths:
+                with self.subTest(command=command, path=path.name):
+                    report = self.run_json(command, str(path))
+                    self.assertEqual([i for i in report["issues"] if i["id"] in ids and i["level"] == "P0"
+                                      and i["message"] != "表格姓名列出现真实姓名"], [])
 
 
 class ParentsAndCommentsMaskTest(K12TestCase):

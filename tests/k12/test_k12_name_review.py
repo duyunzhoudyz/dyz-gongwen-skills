@@ -202,6 +202,77 @@ class NamedSentencesTest(EngineCase):
 # ---------------------------------------------------------------------------
 # 2. HEAD 对照（引擎层）
 # ---------------------------------------------------------------------------
+class RelationAnchorTest(EngineCase):
+    def test_new_relation_anchors_report_only_identified_pupils(self):
+        positives = (
+            "留守学生王小明由祖父母照料。",
+            "残疾学生王小明需要随访。",
+            "患病学生王小明已返校。",
+            "被记过的学生王小明最近参加了班会。",
+            "王小明同学属于资助对象。",
+            "王小明学生系事实无人抚养儿童。",
+            "王小明同学为残疾学生。",
+            "王小明同学患有慢性肾病。",
+            "王小明同学确诊为焦虑症。",
+            "王小明同学被记过。",
+            "王小明同学被处分。",
+            "王小明同学享受助学金。",
+            "受助：王小明、李文静。",
+            "随班就读学生名单：王小明、李文静。",
+        )
+        negatives = (
+            "王小明同学参与受助人数统计。",
+            "王小明同学参加特殊教育教研活动。",
+            "残疾学生共3人。受助人数合计12人。",
+            "残疾学生共3人。受助人数合计12人。全校留守学生有4人，患病学生2人。",
+            "本校设置特殊教育王老师负责。",
+            "受助学生王老师指导填报。",
+            "患病学生李老师已登记。",
+            "经排查，王小明因肺炎住院，现已返校。",
+            "王小明自身患病需长期随访。",
+            "王小明同学为残疾学生提供帮助。",
+            "王小明同学是特殊教育教研项目的志愿者。",
+            "王小明同学不属于资助对象。",
+            "残疾学生：初一、初二各3人。",
+        )
+        for sentence in positives:
+            with self.subTest(sentence=sentence):
+                issues = self.g04(sentence)
+                self.assertEqual([i["level"] for i in issues], ["P0"])
+                self.assertIn("〔姓名1〕", issues[0]["excerpt"])
+                self.assertNotIn("王小明", issues[0]["excerpt"])
+                if "李文静" in sentence:
+                    self.assertIn("〔姓名2〕", issues[0]["excerpt"])
+                    self.assertNotIn("李文静", issues[0]["excerpt"])
+        for sentence in negatives:
+            with self.subTest(sentence=sentence):
+                self.assertEqual(self.g04(sentence), [])
+
+    def test_new_relation_anchors_mask_in_all_three_entries(self):
+        cases = (
+            ("general", "王小明同学属于资助对象。\n学校拟公布王小明的考试成绩排名。\n", "K12-G01"),
+            ("parents", "王小明同学属于资助对象。\n学校将在家长群公布王小明考试成绩排名。\n", "JZ-003"),
+            ("comments", "S01：王小明同学患有慢性肾病。你还说王小明很笨。\n", "PY-001"),
+        )
+        for command, draft, rid in cases:
+            path = self.write("关系锚点.txt", draft)
+            with self.subTest(command=command):
+                code, stdout, err = self.run_main(command, str(path))
+                code_json, out, err_json = self.run_main(command, str(path), "--json")
+                self.assertEqual((code, code_json, err, err_json), (0, 0, "", ""))
+                self.assertNotIn("王小明", stdout)
+                self.assertNotIn("王小明", out)
+                items = [i for i in json.loads(out)["issues"] if i["id"] == rid]
+                self.assertEqual(len(items), 1)
+                self.assertIn("〔姓名1〕", items[0]["excerpt"])
+
+    def test_relation_and_existing_markdown_name_rule_on_same_row(self):
+        draft = "| 姓名 | 备注 |\n| --- | --- |\n| 王小明 | 王小明同学属于资助对象。 |\n"
+        issues = self.g04(draft)
+        self.assertEqual([(i["line"], i["level"]) for i in issues], [(3, "P0")])
+        self.assertNotIn("王小明", issues[0]["excerpt"])
+
+
 class HeadBaselineTest(EngineCase):
 
     def test_engine_not_below_head_on_fixture_names(self):
