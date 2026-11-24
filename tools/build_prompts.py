@@ -68,6 +68,8 @@ STATUS_LABELS = {
 }
 CN_DIGITS = "零一二三四五六七八九"
 FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+PROMPT_OMIT_OPEN_RE = re.compile(r"<!-- prompt:omit(?:: ((?:(?!<!--|-->).)+?))? -->")
+PROMPT_OMIT_CLOSE = "<!-- /prompt:omit -->"
 CODE_LANGS = {".json": "json", ".py": "python", ".yaml": "yaml", ".yml": "yaml", ".csv": "csv"}
 
 # 离线包中跳过的缓存和系统文件；.gongwen（单位画像）和 公文（用户产出）可能含内部信息，也不得打包
@@ -100,6 +102,47 @@ OFFLINE_GUIDE_NAME = "离线使用说明.md"
 
 def normalize_newlines(text: str) -> str:
     return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def strip_prompt_omissions(text: str) -> str:
+    """仅在提示词版中省略标记块，保留代码围栏中的标记示例。"""
+    if "prompt:omit" not in text:
+        return text
+    out: List[str] = []
+    opened_at: Optional[int] = None
+    fence = ""
+    for number, line in enumerate(text.split("\n"), start=1):
+        if not fence and ("<!-- prompt:omit" in line or "<!-- /prompt:omit" in line):
+            stripped = line.strip()
+            opening = PROMPT_OMIT_OPEN_RE.fullmatch(stripped)
+            if opening:
+                replacement = opening.group(1)
+                if replacement is not None and not replacement.strip():
+                    raise ValueError(f"第 {number} 行：prompt:omit 替换文字不能为空白")
+                if opened_at is not None:
+                    raise ValueError(f"第 {number} 行：prompt:omit 标记不能嵌套（块开始于第 {opened_at} 行）")
+                opened_at = number
+                if replacement is not None:
+                    out.append(replacement)
+                continue
+            if stripped == PROMPT_OMIT_CLOSE:
+                if opened_at is None:
+                    raise ValueError(f"第 {number} 行：prompt:omit 结束标记没有对应的开标记")
+                opened_at = None
+                continue
+            raise ValueError(f"第 {number} 行：prompt:omit 格式无效，标记须独占一行，替换文字不得含注释定界符")
+        fence_match = FENCE_RE.match(line)
+        if fence_match:
+            marker = fence_match.group(1)
+            if not fence:
+                fence = marker
+            elif marker[0] == fence[0] and len(marker) >= len(fence) and not line[fence_match.end():].strip():
+                fence = ""
+        if opened_at is None:
+            out.append(line)
+    if opened_at is not None:
+        raise ValueError(f"第 {opened_at} 行：prompt:omit 标记未闭合")
+    return "\n".join(out)
 
 
 def cn_number(n: int) -> str:
@@ -273,6 +316,9 @@ def render_appendix(index: int, rel: str, content: str, mapping: Dict[str, str])
         if title is not None and line_index == first_text:
             del lines[line_index]  # 文件标题已用作附录小标题
         body = replace_bundle_paths(strip_toc("\n".join(lines)).strip("\n"), mapping)
+        if rel == HANDOFF_SOURCE:
+            # 仅清理完整附录中交接卡标题前的多余空行，保留共享源文。
+            body = body.replace("\n\n\n### （二）交接卡\n", "\n\n### （二）交接卡\n")
         heading = title or pure.name
     elif suffix == ".txt":
         body = replace_bundle_paths(content.strip("\n"), mapping)
@@ -331,9 +377,12 @@ def render_skill(skill_dir: Path) -> RenderResult:
         result.errors.append("缺少 SKILL.md")
         return result
     try:
-        skill_text = normalize_newlines((skill_dir / "SKILL.md").read_text(encoding="utf-8"))
+        skill_text = strip_prompt_omissions(normalize_newlines((skill_dir / "SKILL.md").read_text(encoding="utf-8")))
     except UnicodeDecodeError:
         result.errors.append("SKILL.md 不是合法的 UTF-8 编码")
+        return result
+    except ValueError as exc:
+        result.errors.append(f"SKILL.md：{exc}")
         return result
     fields, body, _fm_errors, has_fm = split_frontmatter(skill_text)
     if not has_fm:
@@ -370,8 +419,13 @@ def render_skill(skill_dir: Path) -> RenderResult:
         try:
             # utf-8-sig：去掉记事本等工具写入的 BOM，避免混入提示词、影响标题识别
             content = normalize_newlines((skill_dir / rel).read_text(encoding="utf-8-sig"))
+            if PurePosixPath(rel).suffix.lower() in (".md", ".markdown"):
+                content = strip_prompt_omissions(content)
         except UnicodeDecodeError:
             result.errors.append(f"prompt_bundle 文件不是 UTF-8 文本：{rel}")
+            continue
+        except ValueError as exc:
+            result.errors.append(f"prompt_bundle 文件 {rel}：{exc}")
             continue
         mapping[rel] = f"（见附录{cn_number(len(files) + 1)}）"
         files.append((rel, content))
@@ -381,7 +435,12 @@ def render_skill(skill_dir: Path) -> RenderResult:
     # 网页版跨 skill 转交需要交接卡和安装命令（开发规范 D14）。没有整份打包 output-format.md 的，
     # 自动附上它的第四部分"交接卡与转交"，避免各 skill 为此超出字数目标。
     if HANDOFF_SOURCE not in mapping and exists_exact(skill_dir, HANDOFF_SOURCE, want_dir=False):
-        handoff = extract_handoff(normalize_newlines((skill_dir / HANDOFF_SOURCE).read_text(encoding="utf-8-sig")))
+        try:
+            handoff_text = normalize_newlines((skill_dir / HANDOFF_SOURCE).read_text(encoding="utf-8-sig"))
+            handoff = extract_handoff(strip_prompt_omissions(handoff_text))
+        except ValueError as exc:
+            result.errors.append(f"{HANDOFF_SOURCE}：{exc}")
+            return result
         if handoff:
             files.append((HANDOFF_SOURCE[:-3] + "-第四部分.md", handoff))
 
@@ -632,6 +691,10 @@ def render_lite_skill(skill_dir: Path) -> Optional[PromptDoc]:
         text = head + normalize_newlines(skeleton.read_text(encoding='utf-8-sig')).strip() + '\n'
         desc = fields.get('description', '') if has_fm else ''
         return PromptDoc(name, title, label, first_sentence(desc.strip()), text, len(text), False)
+    try:
+        body = strip_prompt_omissions(body)
+    except ValueError as exc:
+        raise ValueError(f"{name}/SKILL.md：{exc}") from exc
     # 移除一级标题和署名引用块，保留核心规则
     lines = body.split("\n")
     cleaned: List[str] = []
@@ -774,7 +837,10 @@ def xinchuang_errors(repo_root: Path, sets: Sequence[Tuple[str, Dict[str, str]]]
 
 def _chunk_markdown(source_label: str, category: str, text: str, max_chars: int = RAG_CHUNK_MAX_CHARS) -> List[Tuple[str, str]]:
     """按二级/三级标题把 Markdown 拆成带语义锚点头的 RAG 知识切片。"""
-    text = normalize_newlines(text).strip()
+    try:
+        text = strip_prompt_omissions(normalize_newlines(text)).strip()
+    except ValueError as exc:
+        raise ValueError(f"{source_label}：{exc}") from exc
     if not text:
         return []
     sections: List[Tuple[str, List[str]]] = []
@@ -1263,11 +1329,15 @@ def main(argv: Optional[Sequence[str]] = None, repo_root: Optional[Path] = None)
 
     xinchuang_sets: List[Tuple[str, Dict[str, str]]] = []
     if args.xinchuang and build.skill_count > 0:
-        xinchuang_sets = [
-            (PROMPTS_LITE_REL, build_lite_prompts(root)),
-            (PROMPTS_BUNDLES_REL, build_bundle_prompts(root)),
-            (RAG_KB_REL, build_rag_kb(root)),
-        ]
+        try:
+            xinchuang_sets = [
+                (PROMPTS_LITE_REL, build_lite_prompts(root)),
+                (PROMPTS_BUNDLES_REL, build_bundle_prompts(root)),
+                (RAG_KB_REL, build_rag_kb(root)),
+            ]
+        except ValueError as exc:
+            print(f"错误：{exc}")
+            return 1
         for message in xinchuang_errors(root, xinchuang_sets):
             print('错误：' + message)
             build.errors.append(message)

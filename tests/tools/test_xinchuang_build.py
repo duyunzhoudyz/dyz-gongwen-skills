@@ -52,10 +52,17 @@ class XinchuangOutputTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(tmp), ignore_errors=True)
         skill_dir = tmp / 'skills' / 'gongwen-demo'
         skill_dir.mkdir(parents=True)
-        (skill_dir / 'SKILL.md').write_text('# 演示\n\n## 做什么\n正文内容。\n', encoding='utf-8')
+        (skill_dir / 'SKILL.md').write_text(
+            '# 演示\n\n## 做什么\n正文内容。\n'
+            '<!-- prompt:omit: 内网说明。 -->\nAgent 专用说明。\n<!-- /prompt:omit -->\n',
+            encoding='utf-8',
+        )
         files = build_prompts.build_lite_prompts(tmp)
         self.assertIn('未精修', files['gongwen-demo.md'])
         self.assertIn('未精修', files[build_prompts.INDEX_NAME])
+        self.assertIn('内网说明。', files['gongwen-demo.md'])
+        self.assertNotIn('Agent 专用说明。', files['gongwen-demo.md'])
+        self.assertNotIn('prompt:omit', files['gongwen-demo.md'])
 
     def test_bundles_use_skeletons_only(self):
         files = build_prompts.build_bundle_prompts(REPO_ROOT)
@@ -81,6 +88,17 @@ class XinchuangOutputTest(unittest.TestCase):
         self.assertTrue(chunks)
         for name in chunks:
             self.assertIn('[知识来源：', out[name], name)
+        for name in ('chunks/12-output-format.md', 'fastgpt/qa-import.csv', 'maxkb/qa-import.csv'):
+            self.assertIn('网页对话环境', out[name], name)
+            self.assertNotIn('一份素材出多个版本时', out[name], name)
+
+    def test_dist_prompt_artifacts_have_no_omission_markers(self):
+        for directory in (build_prompts.PROMPTS_REL, build_prompts.PROMPTS_LITE_REL,
+                          build_prompts.PROMPTS_BUNDLES_REL, build_prompts.RAG_KB_REL):
+            files = [p for p in (REPO_ROOT / directory).rglob('*') if p.is_file()]
+            self.assertTrue(files, directory)
+            for path in files:
+                self.assertNotIn(b'prompt:omit', path.read_bytes(), str(path))
 
     def test_offline_collect_includes_wheelhouse_and_sets_exec_bits(self):
         tmp = Path(tempfile.mkdtemp(prefix='xc-offline-wh-'))
