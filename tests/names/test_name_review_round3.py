@@ -37,7 +37,7 @@ REVIEW = (
     alias_row("A03", "| 当事人 | 违纪事实 | 处分 |", "| 唐钢 | 违规报销 | 降级 |"),
     *(discipline(k, f"对唐钢{action}，唐钢项目先行开工。", "P0") for k, action in (
         ("A04", "给予记过处分"), ("A05", "给予记大过处分"), ("A06", "进行诫勉"))),
-    *(soe(k, ALIAS + f"拟安置人员：唐钢（{note}）、王建国。", ("唐钢", "王建国"), "P0")
+    *(soe(k, ALIAS + f"拟安置人员：唐钢（{note}）、王建国。", ("唐钢", "王建国"), "P1")
       for k, note in (("A07", "原财务部主任，已退休"), ("A08", "原财务科科长，党龄20年"),
                       ("A09", "身份证号370102198001011234"))),
     soe("A11", ALIAS + "撤销唐钢党内职务。\n对唐钢给予警告处分。", ("唐钢",), "P0", "P1"),
@@ -152,6 +152,10 @@ class RoundThreeTest(unittest.TestCase):
         for action in personal + shared:
             with self.subTest(action=action), tempfile.TemporaryDirectory() as tmp:
                 case = discipline(action, f"对唐钢予以{action}。")
+                if action in shared and action not in ("警告", "开除出供应商名录"):
+                    _, issues, _ = evaluate(case._replace(names=()), tmp)
+                    self.assertEqual(issues, [])
+                    continue
                 _, issues, _ = evaluate(case, tmp)
                 self.assertEqual([i["level"] for i in issues], ["P0" if action in personal else "P1"])
                 if action in shared:

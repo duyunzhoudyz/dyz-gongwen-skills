@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.3"
+VERSION = "1.2.4"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -1171,13 +1171,14 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
     table = gw.NameTable()
     table_rows = gw.find_table_names(cut_at_boundary(doc.lines)[0], _lex, "k12") if doc.kind == "text" else {}
     for row in table_rows.values():
-        table.add_hits(row.hits)
+        table.add_hits(hit for hit in row.hits if not hit.table_only)
     for e in entries:
         label = re.sub(r"\s", "", e.label)
         if 2 <= len(label) <= 4 and not CODE_LIKE_RE.fullmatch(label) and looks_like_name(label):
             table.add(label)
         for _, name in _g04_analyze(e.body)[1]:
             table.add(name)
+    table.add_table_masks(table_rows.values())
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
     marker_text = "\n".join(e.body for e in entries)
@@ -1411,6 +1412,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=rule.suggestion, basis=rule.basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+    table.add_table_masks(table_rows.values())
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
@@ -1579,7 +1581,7 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
 
 def _table_name_issues(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], gw: Any) -> List[Issue]:
     rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
-    positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits]
+    positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits if not hit.table_only]
     for _, name in sorted(positions):
         table.add(name)
     issues = []
@@ -1647,6 +1649,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=sug, basis=basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+    table.add_table_masks(table_rows.values())
     for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
         it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))

@@ -53,7 +53,7 @@ P1 的说明文案按 find_inversions 给出的 reason_code 选用，不会出�
   2. 名字里用了黑名单字、或尾字是地名机构字的姓名会漏报（如“李山”“孙湖”“王会”）。
   3. 少见姓、歧义姓只给 P1，弱语境下漏报；与整词排除词同形的姓名（刘海、林海）没有强证据时漏报；处分对象与处分隔着分句
      （“李建华……已被开除党籍”）识别不了。
-  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。显式定义的单位简称也登记并遮蔽，提示中标明定义。紧贴本次出现的前置职务、个人称呼、个人信息括注、自然人列，以及同一框架内的个人专属处分可升为 P0。
+  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。显式定义的单位简称也登记并遮蔽，提示中标明定义。紧贴本次出现的前置职务、个人称呼、个人信息括注、自然人列，以及同一框架内的个人专属处分均交回原规则或表格分级，正文名单和普通表仍报 P1。
   5. 名单类锚点按顿号、逗号读到句末，用分号或换行分开的后续名单项读不到；带“·”的姓名、外文名、昵称识别不了。
   6. 全文遮蔽是整串替换，会过度遮蔽（姓名“高明”会把“高明的做法”也遮成占位）。
   7. 文件名：报告头和 JSON 的 file 字段按全文姓名表遮蔽；文件名里写着、正文没有被锚点识别到的姓名遮不住。
@@ -85,7 +85,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.3.3"
+VERSION = "1.3.4"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -606,7 +606,8 @@ def scan_names(lines: Lines, ruleset: RuleSet):
         if entries:
             entries.sort(key=lambda e: (e[1].start, e[1].end))
             per_line[idx] = entries
-            table.add_hits(hit for _, hit in entries)
+            table.add_hits(hit for _, hit in entries if not (hit.table_only and hit.anchor_start < 0))
+    table.add_table_masks(table_rows.values())
     return table, per_line, unknown_rows
 
 

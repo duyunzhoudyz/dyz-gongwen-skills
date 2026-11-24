@@ -30,7 +30,7 @@
 NameTable.mask 还会把“已登记姓名 + 、 + 姓氏开头的 2～3 字 + 并列尾巴（、等 两人 同志 分别 标点）”里没登记的后项也遮蔽（宁可多遮）。
 
 Markdown 表格以姓名类表头作锚点，同表出现行业敏感列时报高置信。国企可传入全文识别出的单位简称；
-有全称紧邻的“以下简称”定义、且缺少人名证据的候选跳过，末字形似单位简称但缺少人名证据的候选只给低置信。
+有严格简称定义或末字形似单位简称的候选仍登记遮蔽。缺少本处人证时降为 P1，有人证时沿用规则或表格级别。
 
 本模块只做识别、编号遮蔽和结果去重，不读文件、不联网，只用标准库（re、json、pathlib、dataclasses）。
 数据缺失或损坏时抛 LexiconError，由引擎转成输入错误（退出码 2），不做静默降级。
@@ -107,11 +107,12 @@ _TABLE_UNIT_PREFIX_RE = re.compile(r"^(?:[一-鿿]+?(?:部门|中心|公司|集�
 _TABLE_PREFIX_RE = re.compile(r"^(?:原|时任|现任)?" + _PERSON_TITLE)
 _TABLE_NOTE_PAIRS = dict(zip("（(【[《〈{｛〔「『", "）)】]》〉}｝〕」』"))
 _TABLE_TOKEN_RE = re.compile(r"[㐀-䶿一-鿿豈-﫿\U00020000-\U000323af]+")
-_TABLE_PLACEHOLDER_RE = re.compile(r"〔姓名\d+〕|某同志|(?:共计?|合计|小计|总计)?[\d一二两三四五六七八九十百]+人|N/A", re.I)
-_TABLE_DEPT_RE = re.compile(r"[一-鿿\d（）()]{2,}(?:部|处|科|室|组|队|班|中心|学院|部门)")
+_TABLE_CLASS_RE = re.compile(r"(?:[一二三四五六七八九十\d]+年级|[高初][一二三])(?:[（(]\d+[）)]班)?")
+_TABLE_PLACEHOLDER_RE = re.compile(r"〔姓名\d+〕|(?<!\w)(?:(?:共计?|合计|小计|总计)?[\d一二两三四五六七八九十百]+人|N/A)(?!\w)|[-‐‑‒–—―－]+", re.I)
+_TABLE_DEPT_END = ("部", "处", "科", "室", "组", "队", "班", "中心", "学院", "办", "病区", "部门", "公司", "集团")
 _TABLE_LINK_RE = re.compile(r"\[([^]\n]+)\]\((?:[^()\n]|\([^()\n]*\))*\)")
-_TABLE_ORDINAL_RE = re.compile(r"^\s*[一二三四五六七八九十百]+[、.．]")
-_TABLE_SUFFIX_RE = re.compile(r"(?:等(?:\d+|[一二两三四五六七八九十百]+)?[人名位]*|同志|同学)+\s*$")
+_TABLE_TAG_RE = re.compile(r"</?(?:span|strong|em|b|i|u|s|del|ins|code|mark|small|sub|sup|a|br)(?=[\s/>])(?:[^>\"']|\"[^\"]*\"|'[^']*')*>", re.I)
+_TABLE_SUFFIX_RE = re.compile(r"(?:等[一二两三四五六七八九十百]*[人名位]*|同志|同学|先生|女士)+$")
 TABLE_UNKNOWN_HINT = "姓名列内容未能识别，请人工核对"
 # 原框架的形态准入保持不变。新增处分只给已入框的同形简称定级，不能据此把地名当姓名。
 _FRAME_SHAPE_ACTION = (r"(?:党内(?:严重)?警告|严重警告|留党察看|撤销党内职务|政务(?:警告|记大?过|降级|撤职|开除)"
@@ -868,7 +869,8 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
         parts = m.groupdict()
         # 只取同一个处分框架里的动作。“撤销某人党内职务”的宾语在姓名后。
         action = (parts.get("action") or "") + (parts.get("object") or "")
-        personal_action = action in lex.personal_actions
+        prefixed_action = (parts.get("prefix") or "") + action
+        personal_action = action in lex.personal_actions or prefixed_action in lex.personal_actions
         shape_evidence = bool(_FRAME_SHAPE_ACTION_RE.match(text, ge))
         if a.suffix:
             # 姓名组里可以有“、”并列（“给予刘凤英、陈素珍党内警告处分”）：逐项取后 4、3、2 字作候选
@@ -903,6 +905,9 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
                     continue
                 score = a.strength + 3 + sh.form
                 tag = text[m.start():s]
+                # 超过旧框架 16 字的括注仅在人证或个人专属处分成立时支持高置信。
+                if len(parts.get("note") or "") > 18 and not personal_action and not _personal_context(text[:s], text[e:]):
+                    score = min(score, SCORE_LOW)
                 if sh.pseudo:
                     _put(out, NameHit(s, e, word, score, True, tag, m.start()))
                     got_one = True
@@ -1020,9 +1025,9 @@ def grade_abbreviation(hit: NameHit, lex: Lexicon, organizations: FrozenSet[str]
     defined = hit.name in organizations
     if defined or hit.name[-1] in lex.org_abbr_end:
         hit.table_only = False
-        hit.org_level = "P0" if hit.person_evidence else "P1"
-        hit.score = SCORE_HIGH if hit.person_evidence else SCORE_LOW
         if not hit.person_evidence:
+            hit.org_level = "P1"
+            hit.score = SCORE_LOW
             hit.org_hint = DEFINED_ABBREVIATION_HINT if defined else ABBREVIATION_HINT
 
 
@@ -1089,105 +1094,110 @@ def _md_table_start(lines: Sequence[str], idx: int) -> List[Tuple[int, str]]:
 
 
 def _table_nonname(value: str, lex: Lexicon) -> bool:
-    return (not value or value in lex.table_nonnames or value.isdecimal() or value in _CHAIN_GRADES
-            or bool(_TABLE_PLACEHOLDER_RE.fullmatch(value) or re.fullmatch(r"[-‐‑‒–—―－]+", value))
-            or bool(re.fullmatch(r"[一二三四五六七八九十\d]+(?:年级|班)", value))
-            or bool(_TABLE_DEPT_RE.fullmatch(value)))
+    if value in lex.table_nonnames or value in _CHAIN_GRADES:
+        return True
+    if _TABLE_CLASS_RE.fullmatch(value):
+        return True
+    surname = value.removesuffix("某").removesuffix("某")
+    if surname != value and (surname in lex.surnames_common or surname in lex.surnames_rare or surname in lex.compound):
+        return True
+    return _table_department(value, lex)
 
 
-def _table_without_notes(value: str, lex: Lexicon) -> str:
-    # 外层成对括号只在独立项上充当包装。紧贴其他汉字的括注不参与取名。
-    chars = list(value)
-    stack = []
-    for i, char in enumerate(value):
-        if char in _TABLE_NOTE_PAIRS:
-            stack.append((i, _TABLE_NOTE_PAIRS[char]))
-        elif stack and char == stack[-1][1]:
-            start, _ = stack.pop()
-            left, right = value[:start].rstrip(), value[i + 1:].lstrip()
-            attached = ((left[-1:] not in "和与及" and _TABLE_TOKEN_RE.fullmatch(left[-1:]))
-                        or (right[:1] not in "和与及" and _TABLE_TOKEN_RE.fullmatch(right[:1])))
-            inner = "".join(chars[start + 1:i]).strip()
-            if attached and not _shape(inner, lex, evidence=True, tail_ok=True):
-                chars[start:i + 1] = " " * (i + 1 - start)
-            else:
-                chars[start] = chars[i] = " "
-    return "".join(chars)
+def _table_department(value: str, lex: Lexicon) -> bool:
+    if not value.endswith(_TABLE_DEPT_END):
+        return False
+    # 交班、返班等动作也有部门尾字。内含姓氏起点时保留全段供登记，允许多遮。
+    suffix = max((s for s in _TABLE_DEPT_END if value.endswith(s)), key=len)
+    if any(has_surname_prefix(value[pos:pos + 4], lex) for pos in range(1, len(value) - len(suffix) - 1)):
+        return False
+    return len(value) >= 2 and (len(value) >= 5 or not has_surname_prefix(value, lex))
 
 
 def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexicon,
                       natural_column: bool) -> Tuple[List[NameHit], bool]:
-    def blank(m: "re.Match[str]") -> str:
-        return " " * len(m[0])
+    # 删除标记但保留可见文字与源坐标；<br> 保留为分隔，姓名中间的内联标记不切碎姓名。
+    def hide(match: "re.Match[str]") -> str:
+        return "\0" * len(match[0])
 
-    clean = _TABLE_LINK_RE.sub(lambda m: " " + m[1] + " " * (len(m[0]) - len(m[1]) - 1), value)
-    clean = re.sub(r"[*_~\x60]|<br\s*/?>", blank, clean, flags=re.I)
-    if _table_nonname(clean.strip(), lex):
+    marked = _TABLE_LINK_RE.sub(lambda m: "\0" + m[1] + "\0" * (len(m[0]) - len(m[1]) - 1), value)
+    marked = _TABLE_TAG_RE.sub(lambda m: " " * len(m[0]) if re.match(r"<br\b", m[0], re.I) else hide(m), marked)
+    marked = re.sub(r"(\*{1,3}|_{1,3}|~~|\x60+)([^\n]+?)\1",
+                    lambda m: "\0" * len(m[1]) + m[2] + "\0" * len(m[1]), marked)
+    offsets = [i for i, ch in enumerate(marked) if ch != "\0"]
+    clean = "".join(marked[i] for i in offsets)
+    cell = clean.strip()
+    if not cell or cell in lex.table_nonnames or _TABLE_PLACEHOLDER_RE.fullmatch(cell) or cell.isdecimal():
         return [], False
-    original = clean
-    clean = _TABLE_PLACEHOLDER_RE.sub(blank, clean)
-    clean = _table_without_notes(clean, lex)
-    clean = _TABLE_ORDINAL_RE.sub(blank, clean)
-    clean = _TABLE_SUFFIX_RE.sub(blank, clean)
+    if _TABLE_CLASS_RE.fullmatch(cell):
+        return [], False
+    clean, placeholders = _TABLE_PLACEHOLDER_RE.subn(lambda m: " " * len(m[0]), clean)
     tokens = list(_TABLE_TOKEN_RE.finditer(clean))
     if not tokens:
-        # 横线/已有占位符等已在前面排除。未知代号、问号等仍须人工核对。
-        separators_only = original != clean and not re.search(r"[^\s、，,；;/|]", clean)
-        return [], bool(not separators_only and clean.strip() and not _table_nonname(clean.strip(), lex))
-
+        return [], not (placeholders and not clean.strip(" \t、，,；;/|"))
     hits = []
-    backfill = []
-    unknown = bool(re.search(r"[a-zA-Z]", clean))
+    masks = {}
+    unknown = bool(re.search("[a-zA-Z]", clean))
     for index, token in enumerate(tokens):
         first, last = token.span()
-        # 前一项和本项只隔格式标记或括注时，连词可以位于格式边界。
-        if (index and clean[tokens[index - 1].end():first].isspace() and clean[first] in "和与及"
-                and _list_item_like_name(clean[first + 1:last], lex)):
+        word = token[0]
+        if word in ("和", "与", "及") and len(tokens) > 1:
+            continue
+        # 名单项被 Markdown 或括号隔开时，沿用跨格式连词识别。
+        if (index and word[0] in "和与及" and _list_item_like_name(word[1:], lex)
+                and clean[tokens[index - 1].end():first].strip(" \t）)]】〕》") == ""):
             first += 1
-        if (index + 1 < len(tokens) and clean[last:tokens[index + 1].start()].isspace()
-                and clean[last - 1] in "和与及" and _list_item_like_name(clean[first:last - 1], lex)
+        if (index + 1 < len(tokens) and word[-1] in "和与及" and _list_item_like_name(word[:-1], lex)
+                and not clean[last:tokens[index + 1].start()].strip(" \t（([【〔《")
                 and _list_item_like_name(tokens[index + 1][0], lex)):
             last -= 1
-        word = clean[first:last]
-        title = None
-        while word:
-            title = _TABLE_PREFIX_RE.match(word)
-            prefix = title or _TABLE_UNIT_PREFIX_RE.match(word)
-            if not prefix or len(word) - prefix.end() < 2:
+
+        # 修饰语可帮助找出原来能报出的姓名；登记范围始终取未经裁剪的片段。
+        name_start = first
+        while name_start < last and not clean[name_start:last].endswith(_TABLE_DEPT_END):
+            prefix = _TABLE_PREFIX_RE.match(clean[name_start:last]) or _TABLE_UNIT_PREFIX_RE.match(clean[name_start:last])
+            if not prefix or last - name_start - prefix.end() < 2:
                 break
-            first += prefix.end()
-            word = word[prefix.end():]
-            if title:
-                break
-        for pos, end in _split_connect(clean, first, last, lex, "和与及"):
-            word = _ITEM_TAIL_RE.sub("", clean[pos:end])
-            if word in ("和", "与", "及") and len(tokens) > 1:
+            if not _table_nonname(prefix[0], lex):
+                unknown = True
+            name_start += prefix.end()
+        pieces = _split_connect(clean, name_start, last, lex, "和与及")
+        for idx, (pos, end) in enumerate(pieces):
+            raw_start = token.start() if idx == 0 else pos
+            raw_end = token.end() if idx == len(pieces) - 1 else end
+            raw = clean[raw_start:raw_end]
+            if _table_nonname(raw, lex):
                 continue
-            if _table_nonname(word, lex) or _TABLE_PREFIX_RE.fullmatch(word):
-                continue
-            evidence = natural_column or bool(title and pos == first) or _personal_context(value[:pos], value[pos + len(word):])
+            word = _TABLE_SUFFIX_RE.sub("", clean[pos:end])
+            evidence = natural_column or _personal_context(clean[:pos], clean[pos + len(word):])
             shape = _shape(word, lex, evidence=evidence, tail_ok=True)
-            if shape and shape.pseudo:
-                continue
-            recognized = shape and (evidence or not (shape.ambiguous and len(word) == 2))
-            # 姓名列里的三字名可把连词当作用字，正文黑名单仍按原口径。
-            if (not recognized and natural_column and len(word) == 3 and _list_item_like_name(word, lex)
-                    and any(ch in "和与及" for ch in word[1:])):
+            recognized = bool(shape and not shape.pseudo and (evidence or not (shape.ambiguous and len(word) == 2)))
+            if natural_column and len(word) == 3 and any(ch in "和与及" for ch in word[1:]) and _list_item_like_name(word, lex):
                 recognized = True
             if recognized:
                 hits.append(NameHit(start + pos, start + pos + len(word), word, score, False, label, person_evidence=evidence))
-                continue
-            like_name = (shape is not None or word in lex.stopwords_exact or word in lex.stop_index.get(word[0], ())) and _list_item_like_name(word, lex)
-            if not like_name:
+            else:
                 unknown = True
-            # 残段只登记，P1 由整行统一报出。长段可能带未收录的单位前缀。
-            widths = [len(word)] if len(word) >= 2 else []
-            if len(word) > 4:
-                widths.extend(n for n in (3, 2) if has_surname_prefix(word[-n:], lex) and not word[-n:].endswith("某"))
-            for width in widths:
-                backfill.append(NameHit(start + pos + len(word) - width, start + pos + len(word),
-                                        word[-width:], SCORE_LOW, False, label, table_only=True))
-    return hits + backfill, unknown or (bool(backfill) and not hits)
+            # 剥过修饰语或未识别的原段整段登记。子串穷举只看二、三字及四字复姓名。
+            if len(raw) >= 2 and (not recognized or raw != word):
+                masks[raw_start, raw_end] = raw
+            if len(raw) >= 3:
+                for offset in range(raw_start, raw_end - 1):
+                    for width in ((4, 3, 2) if clean[offset:offset + 2] in lex.compound else (3, 2)):
+                        stop = offset + width
+                        if stop <= raw_end and has_surname_prefix(clean[offset:stop], lex):
+                            masks[offset, stop] = clean[offset:stop]
+    for h in hits:
+        masks.pop((h.start - start, h.end - start), None)
+    hits.extend(NameHit(start + lo, start + hi, name, SCORE_LOW, False, label, table_only=True)
+                for (lo, hi), name in masks.items())
+    formatted = []
+    for hit in hits:
+        lo, hi = offsets[hit.start - start], offsets[hit.end - start - 1] + 1
+        hit.start, hit.end = start + lo, start + hi
+        if value[lo:hi] != hit.name:
+            formatted.append(NameHit(hit.start, hit.end, value[lo:hi], SCORE_LOW, False, label, table_only=True))
+    return hits + formatted, unknown
 
 
 def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[int, TableNameRow]:
@@ -1284,6 +1294,10 @@ class NameTable:
         for h in hits:
             if not h.pseudo:
                 self.add(h.name)
+
+    def add_table_masks(self, rows: Iterable[TableNameRow]) -> None:
+        """正式姓名编号完成后，再登记表格残段和重叠子串。"""
+        self.add_hits(hit for row in rows for hit in row.hits if hit.table_only)
 
     def placeholder(self, name: str) -> str:
         return f"〔姓名{self.add(name)}〕"

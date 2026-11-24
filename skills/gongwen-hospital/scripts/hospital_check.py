@@ -100,7 +100,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
 
-VERSION = "1.3.3"
+VERSION = "1.3.4"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "hospital_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -609,7 +609,7 @@ def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = Non
         for idx, (_number, text) in enumerate(lines):
             for hit in kit.names.find_names(text, rule.anchors, kit.lexicon):
                 detections.append((idx, hit.start, order, rule, hit))
-    detections.sort(key=lambda d: (d[0], d[1], d[2]))
+    detections.sort(key=lambda d: (d[4].table_only and d[4].anchor_start < 0, d[0], d[1], d[2]))
     table = kit.names.NameTable()
     for _idx, _start, _order, _rule, hit in detections:
         if not hit.pseudo:

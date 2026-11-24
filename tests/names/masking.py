@@ -3,8 +3,9 @@ import json
 from unittest.mock import patch
 
 
-def check_masked_outputs(names_module, run, expected_names=()):
-    registered = set()
+def check_masked_outputs(names_module, run, expected_names=(), *, registered=None):
+    if registered is None:
+        registered = set()
     add = names_module.NameTable.add
 
     def record(table, name):

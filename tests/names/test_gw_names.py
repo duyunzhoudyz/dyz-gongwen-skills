@@ -162,7 +162,8 @@ class TableNameTest(unittest.TestCase):
         ]
         rows = gn.find_table_names(lines, LEX, "k12")
         self.assertEqual(list(rows), [2])
-        hit, = rows[2].hits
+        hit, = (h for h in rows[2].hits if not h.table_only)
+        self.assertTrue(all(lines[2][h.start:h.end] == h.name for h in rows[2].hits))
         self.assertEqual((hit.name, hit.score, lines[2][hit.start:hit.end]), ("欧阳明月", gn.SCORE_HIGH, "欧阳明月"))
 
     def test_sensitive_headers_are_industry_specific(self) -> None:
@@ -214,7 +215,7 @@ class LexiconStructureTest(unittest.TestCase):
 
     # ---- 1.1.0 新增字段 ----
     def test_version_and_new_fields(self) -> None:
-        self.assertEqual(LEX.version, "1.2.3")
+        self.assertEqual(LEX.version, "1.2.4")
         self.assertGreaterEqual(len(LEX.given), 400)
         self.assertGreaterEqual(len(LEX.word_bigrams), 2000)
         self.assertTrue(LEX.soft_given and LEX.stopwords_exact)
@@ -1195,8 +1196,8 @@ class AdversarialProbeTest(unittest.TestCase):
             engine = ROOT / "skills" / "gongwen-soe" / "scripts" / "soe_rules.json"
             rule = next(r for r in json.loads(engine.read_text(encoding="utf-8"))["rules"] if r["id"] == "SOE-022")
             hits = gn.find_names(text, gn.compile_anchors(rule["name_anchors"]), LEX, gn.organization_names([text], LEX))
-            self.assertEqual([(h.name, h.score, h.org_hint) for h in hits],
-                             [("唐钢", gn.SCORE_LOW, gn.DEFINED_ABBREVIATION_HINT)])
+            expected = [("唐钢", gn.SCORE_LOW, gn.DEFINED_ABBREVIATION_HINT)] if action == "警告处分" else []
+            self.assertEqual([(h.name, h.score, h.org_hint) for h in hits], expected)
 
     def test_task_sentences_exact(self) -> None:
         """方案给定的整组句子：应识别、不应识别各一遍。"""
