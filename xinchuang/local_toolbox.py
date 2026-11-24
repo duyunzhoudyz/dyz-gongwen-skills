@@ -618,7 +618,8 @@ def _load_industry_module(key: str, script: Path):
 
 
 def _op_k12_comments(script: Path, text: str, stage: str) -> dict:
-    if not all(K12_COMMENT_ROW_RE.fullmatch(line.strip()) for line in text.splitlines() if line.strip()):
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if not all(K12_COMMENT_ROW_RE.fullmatch(line.strip()) for line in text.split("\n") if line.strip()):
         return {"ok": False, "text": K12_COMMENT_LABEL_ERROR}
     failure = {"ok": False, "text": "评语检查失败，请核对编号格式和学段后重试。"}
     try:

@@ -211,7 +211,7 @@ class RelationAnchorTest(EngineCase):
             "被记过的学生王小明最近参加了班会。",
             "王小明同学属于资助对象。",
             "王小明学生系事实无人抚养儿童。",
-            "王小明同学为残疾学生。",
+            "王小明同学是残疾学生。",
             "王小明同学患有慢性肾病。",
             "王小明同学确诊为焦虑症。",
             "王小明同学被记过。",
@@ -231,6 +231,7 @@ class RelationAnchorTest(EngineCase):
             "经排查，王小明因肺炎住院，现已返校。",
             "王小明自身患病需长期随访。",
             "王小明同学为残疾学生提供帮助。",
+            "王小明同学为残疾学生。",
             "王小明同学是特殊教育教研项目的志愿者。",
             "王小明同学不属于资助对象。",
             "残疾学生：初一、初二各3人。",
@@ -247,6 +248,82 @@ class RelationAnchorTest(EngineCase):
         for sentence in negatives:
             with self.subTest(sentence=sentence):
                 self.assertEqual(self.g04(sentence), [])
+
+    def _assert_relation_levels(self, cases):
+        for body, level in cases:
+            with self.subTest(body=body):
+                self.assertEqual([issue["level"] for issue in self.g04(body)], [] if level == "SKIP" else [level])
+
+    def test_review_r1_b3_m2_student_identity_and_beneficiaries(self):
+        cases = (
+            ('学生王小明属于资助对象。', 'P0'),
+            ('学生王小明患有慢性肾病。', 'P0'),
+            ('学生王小明被记过。', 'P0'),
+            ('学生王小明享受助学金。', 'P0'),
+            ('王小明同学患有哮喘。', 'P0'),
+            ('王小明同学确诊为肺炎。', 'P0'),
+            ('五年级王小明同学属于资助对象。', 'P0'),
+            ('三班王小明同学患有慢性肾病。', 'P0'),
+            ('王小明、李华同学属于资助对象。', 'P0'),
+            ('免收贫困家庭学生王小明的课后服务费。', 'P0'),
+            ('残疾学生某同学需要特别照顾。', 'P0'),
+            ('残疾学生王某需要特别照顾。', 'P0'),
+            ('王小明同学为残疾学生、留守儿童送去文具。', 'SKIP'),
+            ('王小明同学为留守儿童，每周义务辅导功课。', 'SKIP'),
+            ('王小明同学系受助学生帮扶小组组长。', 'SKIP'),
+            ('王小明同学系特殊教育志愿服务队成员。', 'SKIP'),
+            ('王小明同学系留守儿童关爱社团负责人。', 'SKIP'),
+            ('王小明同学属于资助对象审核小组成员。', 'SKIP'),
+            ('王小明同学系单亲家庭关爱志愿者。', 'SKIP'),
+            ('特殊教育：陈副校长出席指导。', 'SKIP'),
+            ('受助学生：张班主任已核实。', 'SKIP'),
+            ('受助学生张班主任已核实。', 'SKIP'),
+            ('资助对象：李书记作了动员。', 'SKIP'),
+            ('特殊教育：周科长来校调研。', 'SKIP'),
+            ('特殊教育：李督学入校检查。', 'SKIP'),
+            ('留守儿童关爱活动圆满结束。', 'SKIP'),
+            ('残疾学生康复训练进展顺利。', 'SKIP'),
+            ('患病学生高烧不退应及时送医。', 'SKIP'),
+            ('受助学生马上面临毕业。', 'SKIP'),
+            ('特殊教育学生管理工作稳步推进。', 'SKIP'),
+            ('按照规定，残疾学生、随班就读学生依法享有受教育权。', 'SKIP'),
+            ('王小明、李华同学患有慢性肾病。', 'P0'),
+        )
+        self._assert_relation_levels(cases)
+
+    def test_r1_new_adversarial_identities(self):
+        cases = (
+            ('六年级三班学生欧阳晓晓患有癫痫。', 'P0'),
+            ('李文静同学是随班就读学生。', 'P0'),
+            ('学生陈明、王小明享受助学金。', 'P0'),
+            ('评估记录显示残障学生A同学已到校。', 'P0'),
+            ('陈明同学是孤独症儿童帮扶志愿者。', 'SKIP'),
+            ('李文静同学系特殊教育课程教研团队成员。', 'SKIP'),
+            ('学生陈明为贫困家庭子女筹集资料。', 'SKIP'),
+            ('林晨同学不是资助对象。', 'SKIP'),
+            ('随班就读学生各班汇总。', 'SKIP'),
+            ('不予免收残障学生李文静的活动费。', 'P0'),
+            ('王小明同学疑似属于资助对象。', 'P1'),
+            ('陈明同学可能属于单亲家庭。', 'P1'),
+        )
+        self._assert_relation_levels(cases)
+
+    def test_review_r1_b3_parallel_names_are_masked_in_all_entries(self):
+        for predicate in ("属于资助对象", "患有慢性肾病"):
+            relation = "王小明、李华同学" + predicate + "。"
+            for command, draft, rid in (
+                ("general", relation + "\n公布王小明与李华的考试成绩。", "K12-G01"),
+                ("parents", relation + "\n公布王小明与李华的考试成绩。", "JZ-003"),
+                ("comments", "S01：" + relation + "你说王小明和李华笨得像猪一样。", "PY-001"),
+            ):
+                with self.subTest(command=command, predicate=predicate):
+                    path = self.write("关系.txt", draft)
+                    _, output, _ = self.run_main(command, str(path), "--json")
+                    issue, = [item for item in json.loads(output)["issues"] if item["id"] == rid]
+                    for name in ("王小明", "李华"):
+                        self.assertNotIn(name, issue["excerpt"])
+                    for label in ("〔姓名1〕", "〔姓名2〕"):
+                        self.assertIn(label, issue["excerpt"])
 
     def test_new_relation_anchors_mask_in_all_three_entries(self):
         cases = (

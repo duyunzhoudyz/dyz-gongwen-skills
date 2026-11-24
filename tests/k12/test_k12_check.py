@@ -24,6 +24,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "skills" / "gongwen-k12" / "scripts"
@@ -46,6 +47,19 @@ except ImportError:
     HAS_DOCX = False
 
 NAMES = ("王小明", "李华", "欧阳晓晓", "小明", "晓晓")
+
+# eea12327e4533be39979b66dbc0f0d3630131563 已有的规范文档成绩类 P0。
+# 用原文片段标记，文档增删其他行不会使此基线失效。
+REFERENCE_RANK_BASELINE = {
+    "zhongxiaoxue.md": ("考试结果不排名、不公布", "额外检查：学生隐私和成绩排名"),
+    "quick-cards.md": ("写考试排名（红线二）", "公布成绩排名（红线二）", "不含成绩）发到家长群", "不写分数排名"),
+    "redlines.md": ("家庭住址；成绩和排名", "家长信不写学生和班级的考试排名"),
+    "review-addon.md": ("高中、中职材料：考试排名",),
+    "banzhuren-jihua-zongjie.md": ("习惯和方法的变化，不写分数和排名", "不写考试排名和分数", "用排名和分数说成效"),
+    "jiazhanghui-jianghua.md": ("只发事项，不发成绩", "不写考试分数、均分、名次"),
+    "xueqi-jihua-zongjie.md": ("不写学生、班级的考试排名", "写考试排名，或拿班级", "数学均分比邻校高出6分"),
+    "xuesheng-pingyu.md": ("不写：考试分数和排名", "写分数和排名。", "这次单元测验语文得了96分"),
+}
 
 
 class K12TestCase(unittest.TestCase):
@@ -682,6 +696,7 @@ class K12PolicyRulesTest(K12TestCase):
             ("conflict", "学校称家长可以自愿认购，可实际强制要求学生缴纳保险费。", p0, "第四十六条"),
             ("different", "课后服务自愿参加，但全体学生必须购买意外伤害保险。", p0, "第四十六条"),
             ("different", "本项免收费用，但要求全体学生缴费购买教辅。", p0, "中小学教辅材料管理办法"),
+            ("unbound", "家长自愿参加，学校统一购买校服。", ("P1",) * 3, "第五条"),
             ("quoted", "严禁统一订购教辅。", skip, ""),
             ("quoted", "学校不统一订购教辅资料。", skip, ""),
             ("quoted", "家委会不得以班费名义向家长收取材料费。", skip, ""),
@@ -702,6 +717,8 @@ class K12PolicyRulesTest(K12TestCase):
                             self.assertIn(basis, items[0]["basis"])
                             if key == "ambiguous":
                                 self.assertIn("请核对是否可以不参加", items[0]["message"])
+                            if key == "unbound":
+                                self.assertEqual(items[0]["message"], "自愿与统一或强制表述并存，请核对各项目是否可以不参加")
 
     def test_paid_tutoring_both_entries(self):
         cases = (
@@ -836,18 +853,260 @@ class K12PolicyRulesTest(K12TestCase):
             with self.subTest(args=args):
                 self.assertEqual(self.run_main(*args)[0], 2)
 
+    def _assert_review_hits(self, cases):
+        for command, rid, body, level in cases:
+            with self.subTest(command=command, body=body):
+                path = self.write("评审.txt", body)
+                actual = [issue["level"] for issue in self.run_json(command, str(path))["issues"] if issue["id"] == rid]
+                self.assertEqual(actual, [] if level == "SKIP" else [level])
+
+    def _assert_review_pair(self, cases, general_id, parents_id):
+        self._assert_review_hits((command, rid, body, level) for body, level in cases
+                                 for command, rid in (("general", general_id), ("parents", parents_id)))
+
+    def test_review_r1_b1_rank_negation_and_independent_score(self):
+        cases = (
+            ('parents', 'JZ-003', '考试成绩不排名是不可能的。', 'P0'),
+            ('parents', 'JZ-003', '不公布成绩是不可能的。', 'P0'),
+            ('parents', 'JZ-003', '不公布成绩排名是不行的。', 'P0'),
+            ('parents', 'JZ-003', '考试成绩不可能不公布。', 'P0'),
+            ('parents', 'JZ-003', '期末考试不可能不排名。', 'P0'),
+            ('parents', 'JZ-003', '学校不是不公布成绩，而是本周五公布。', 'P0'),
+            ('parents', 'JZ-003', '学校不会不公布成绩。', 'P0'),
+            ('parents', 'JZ-003', '成绩单不会不发到家长群。', 'P0'),
+            ('parents', 'JZ-003', '考试成绩没有不排名的。', 'P0'),
+            ('parents', 'JZ-003', '考试成绩学校不得不公布。', 'P0'),
+            ('general', 'K12-G01', '不公布考试成绩是不可能的。', 'P0'),
+            ('general', 'K12-G01', '考试成绩不可能不公布。', 'P0'),
+            ('parents', 'JZ-014', '学校不再公布排名且本次考试平均分为88.5分。', 'P0'),
+            ('parents', 'JZ-014', '学校不按成绩排名并宣布本次数学平均分91分。', 'P0'),
+            ('parents', 'JZ-014', '不排名且全班平均分89分。', 'P0'),
+            ('parents', 'JZ-003', '请不要把成绩发到家长群。', 'SKIP'),
+            ('parents', 'JZ-003', '不要在家长群发布成绩单。', 'SKIP'),
+            ('parents', 'JZ-003', '学校不再在家长群发布成绩单。', 'SKIP'),
+            ('parents', 'JZ-003', '学校不允许在家长群公布成绩。', 'SKIP'),
+            ('parents', 'JZ-003', '学校不搞成绩排名。', 'SKIP'),
+            ('parents', 'JZ-003', '学校不组织成绩排名。', 'SKIP'),
+            ('parents', 'JZ-003', '学校不进行成绩排名。', 'SKIP'),
+            ('parents', 'JZ-003', '学校拒绝公布成绩排名。', 'SKIP'),
+            ('parents', 'JZ-003', '学校未在家长群公布成绩。', 'SKIP'),
+            ('parents', 'JZ-003', '学校没有在家长群公布成绩。', 'SKIP'),
+            ('parents', 'JZ-003', '请家长不要将成绩发到家长群。', 'SKIP'),
+            ('parents', 'JZ-003', '成绩排名不得张贴在宣传栏。', 'SKIP'),
+            ('general', 'K12-G01', '学校未在家长群公布考试成绩。', 'SKIP'),
+            ('general', 'K12-G01', '不要在公告栏张贴考试成绩。', 'SKIP'),
+            ('general', 'K12-G01', '学校拒绝公布考试成绩。', 'SKIP'),
+            ('parents', 'JZ-014', '学校未在家长群公布平均分95分。', 'SKIP'),
+            ('parents', 'JZ-014', '学校没有在群里公布平均分95分。', 'SKIP'),
+            ('parents', 'JZ-003', '没有学生、班级的考试排名；面向家长的材料没有公布分数（义务教育）', 'SKIP'),
+            ('parents', 'JZ-003', '不要在家长群晒成绩。', 'SKIP'),
+            ('parents', 'JZ-003', '学校严禁在家长群发成绩单。', 'SKIP'),
+        )
+        self._assert_review_hits(cases)
+
+    def test_r1_new_adversarial_rank(self):
+        cases = (
+            ('parents', 'JZ-003', '班会上不通报全班考试成绩。', 'SKIP'),
+            ('parents', 'JZ-003', '不把阶段测验成绩传到群里。', 'SKIP'),
+            ('general', 'K12-G01', '按学校规定不在教室门口公示考试成绩。', 'SKIP'),
+            ('parents', 'JZ-014', '不在班群讨论名次且数学均分为87分。', 'P0'),
+            ('general', 'K12-G01', '班主任不能不通报考试成绩。', 'P0'),
+            ('parents', 'JZ-003', '成绩单不能不上传到班级群。', 'P0'),
+            ('parents', 'JZ-003', '班主任不公示名次怎么行？', 'P0'),
+            ('general', 'K12-G01', '不张贴考试成绩不可以。', 'P0'),
+            ('parents', 'JZ-014', '不会不公开本班平均分83分。', 'P0'),
+            ('parents', 'JZ-003', '排名不会不晒。', 'P0'),
+        )
+        self._assert_review_hits(cases)
+
+    def test_review_r1_b2_m2_fee_project_and_refusal(self):
+        cases = (
+            ('课后服务自愿参加，不参加不收费，学校统一购买安全手册。', 'P0'),
+            ('课后服务自愿参加，不参加不收费，全体学生必须购买运动鞋。', 'P0'),
+            ('学校不组织统一征订报刊，但全体学生必须缴纳研学费。', 'P0'),
+            ('报刊自愿订阅，全体学生必须购买安全手册。', 'P0'),
+            ('| 校服 | 统一购买 | 课后服务 | 自愿参加，不参加不收费 |', 'P0'),
+            ('校服统一购买、课后服务自愿参加且不参加不收费。', 'P0'),
+            ('本项目免收报名费并要求全体学生必须购买意外伤害保险。', 'P0'),
+            ('未购买过保险的学生必须统一购买意外伤害保险。', 'P0'),
+            ('没有购买校服的新生必须统一购买校服。', 'P0'),
+            ('学校取消减免后统一收取校服费180元。', 'P0'),
+            ('学校不得不统一购买教辅资料。', 'P0'),
+            ('未订购教辅者不得报名。', 'P0'),
+            ('未缴纳校服费者不发教材。', 'P0'),
+            ('不缴纳本学期意外伤害保险费的，不得参加研学活动。', 'P0'),
+            ('家长委员会决定，向每生收取班费100元。', 'P0'),
+            ('以家委会名义，向家长收取资料费。', 'P0'),
+            ('学校统一办理《意外伤害保险》。', 'P0'),
+            ('课后服务自愿参加，不参加不收费（全体学生必须购买意外伤害保险）。', 'P0'),
+            ('校服费180元（全体学生必须缴纳）。', 'P0'),
+            ('全体学生必须购买校服，课后服务自愿参加、不参加不收费。', 'P0'),
+            ('| 意外伤害保险 | 全体学生必须购买 | 50元 |', 'P0'),
+            ('本学期学校继续开展课后服务，家长可自愿为孩子报名参加，不参加不收费，同时开学第一周全体学生必须统一购买教辅资料。', 'P0'),
+            ('校服（自愿统一购买）。', 'P1'),
+            ('学校不统一订购教辅资料，全体学生必须购买校服。', 'P0'),
+            ('学校不统一订购教辅资料但全体学生必须购买校服。', 'P0'),
+            ('学校不统一订购教辅资料并要求全体学生购买校服。', 'P0'),
+            ('所有学生自愿购买校服，不强制。', 'SKIP'),
+            ('所有学生均可自愿购买校服，可自行购买。', 'SKIP'),
+            ('面向全体学生收费的项目均实行自愿原则，不参加不收费。', 'SKIP'),
+            ('向全体家长收取课后服务费坚持自愿原则，不参加不收费。', 'SKIP'),
+            ('全体义务教育阶段学生自愿购买校服，可自行购买。', 'SKIP'),
+            ('家长须知：自愿购买校服，可自行购买。', 'SKIP'),
+            ('校服由家长自愿统一购买（可自行购买）。', 'SKIP'),
+            ('不参加不收费，家长自愿统一办理意外伤害保险。', 'SKIP'),
+            ('学校严禁强制或变相强制全体学生统一购买教辅资料。', 'SKIP'),
+            ('不得要求全体学生必须购买意外伤害保险。', 'SKIP'),
+            ('严禁以家委会名义收取班费。', 'SKIP'),
+            ('课后服务不收费（不缴保险费不予报名）。', 'P0'),
+            ('家长自愿报名，不参加不收费，学校统一代收意外伤害保险费。', 'SKIP'),
+            ('不强制，自愿统一购买校服。', 'SKIP'),
+        )
+        self._assert_review_pair(cases, "K12-G05", "JZ-006")
+
+    def test_r1_new_adversarial_fee(self):
+        cases = (
+            ('周五报名完全自愿，所有学生必须购买运动器材。', 'P1'),
+            ('秋游自愿参加，不参加不收费；必须购买交通卡。', 'P0'),
+            ('报纸须统一征订，家长可自行购买运动鞋。', 'SKIP'),
+            ('学校禁止规定不缴校服费不得入学。', 'SKIP'),
+            ('选读材料自愿参加，未缴纳练习册费不得选课。', 'P0'),
+            ('统一代收费的项目必须列出明细。', 'SKIP'),
+            ('不订购礼仪手册便不发学习用品。', 'P0'),
+            ('家委会商议，向参加活动的学生收取活动费。', 'P0'),
+            ('校服自愿购买（必须购买研学纪念册）。', 'P0'),
+            ('面向所有监护人自愿征订校徽，也可自行购买。', 'SKIP'),
+            ('校外参观可不参加、学校统一订购《急救实用手册》。', 'P0'),
+            ('学校不会不统一收取学生交通费。', 'P0'),
+            ('户外研学自愿，不参加不收费，学校统一购买校服。', 'P0'),
+            ('| 意外伤害保险 | 家长自愿购买，不参加不收费 | 50元 |', 'SKIP'),
+        )
+        self._assert_review_pair(cases, "K12-G05", "JZ-006")
+
+    def test_review_r1_b4_tutoring_and_governance(self):
+        cases = (
+            ('班主任组织同学们参加校外有偿补课。', 'P0'),
+            ('现推荐成绩不理想的学生参加周末校外有偿补课。', 'P0'),
+            ('向校外培训机构提供学生联系方式。', 'P0'),
+            ('教师将学生名单提供给校外培训机构。', 'P0'),
+            ('班主任把学生联系方式发给校外培训机构。', 'P0'),
+            ('学校向校外培训机构提供家长联系方式。', 'P0'),
+            ('学校向校外培训机构提供学生和家长信息。', 'P0'),
+            ('教师向校外培训机构推荐生源。', 'P0'),
+            ('学校为校外培训机构输送生源。', 'P0'),
+            ('老师推荐学生参加校外有偿培训班。', 'SKIP'),
+            ('学校推荐学生参加校外培训机构的有偿辅导。', 'SKIP'),
+            ('年级组组织学生参加校外有偿补课。', 'P0'),
+            ('学校不组织校内免费辅导而组织学生参加校外有偿补课。', 'P0'),
+            ('班主任向“新星教育”培训机构介绍生源。', 'P0'),
+            ('学校开展教师组织学生参加校外有偿补课专项整治工作。', 'SKIP'),
+            ('学校严肃查处教师组织学生参加校外有偿补课行为。', 'SKIP'),
+            ('学校组织学生参加校外研学实践活动，每生收取实践费80元。', 'SKIP'),
+            ('部分家长自行给孩子报了校外有偿补课班，学校建议家长理性选择。', 'SKIP'),
+            ('学校组织校外培训机构为教师开展免费急救培训。', 'SKIP'),
+            ('学校组织学生在课后服务时间开展校内免费作业辅导。', 'SKIP'),
+            ('严禁中小学校和在职教师组织、推荐学生参加校外有偿补课。', 'SKIP'),
+            ('严禁教师为校外培训机构介绍生源、提供学生信息。', 'SKIP'),
+        )
+        self._assert_review_pair(cases, "K12-G09", "JZ-008")
+
+    def test_r1_new_adversarial_tutoring(self):
+        cases = (
+            ('教务处已安排学生周六参加校外付费学科辅导。', 'P0'),
+            ('请把本班监护人电话号码转交给青苗培训机构。', 'P0'),
+            ('学校批量提供学生通讯录给辅导机构。', 'P0'),
+            ('学校按上级要求公布有偿补课举报电话，请家长及时反馈。', 'SKIP'),
+            ('学校对教师推荐学生参加校外有偿补课展开排查。', 'SKIP'),
+            ('学校公布承诺书：本校教职工不参与有偿补课。', 'SKIP'),
+            ('学校继续治理有偿补课，但本周安排学生到校外付费补习。', 'P0'),
+            ('家长提醒学校不要安排学生参加校外有偿补课。', 'SKIP'),
+            ('家长委托教师把学生电话提供给校外培训机构。', 'SKIP'),
+            ('学校组织学生参加校外收费书法兴趣活动。', 'SKIP'),
+            ('班主任将家长电话发给“青苗培训机构”。', 'P0'),
+            ('学校发布承诺书，不组织校外有偿补课，向培训机构介绍生源。', 'SKIP'),
+        )
+        self._assert_review_pair(cases, "K12-G09", "JZ-008")
+
+    def test_review_r1_m1_basis_and_table_headers(self):
+        cases = (
+            ('按照惯例，每生收取资料费40元。', 'P1'),
+            ('经家委会同意，每生收取班费80元。', 'P1'),
+            ('经家委会批准的收费标准，每生收费80元。', 'P1'),
+            ('按学校核定的收费标准，每生收费120元。', 'P1'),
+            ('依据《2026年春季学期工作方案》，每生收费120元。', 'P1'),
+            ('根据报名人数统计，每生收费120元。', 'P1'),
+            ('课后服务每生每月收费120元（对困难学生减免）。', 'P1'),
+            ('课后服务每生每月收费120元（低保家庭学生免收）。', 'P1'),
+            ('| 收费项目 | 收费标准 | 收费依据 |\n| --- | --- | --- |\n| 校服费 | 每生180元 | 根据报名人数统计 |', 'P1'),
+            ('| 收费项目 | 收费标准 | 收费依据 |\n| --- | --- | --- |\n| 收取课后服务费 | 每生120元（困难生减免） | 无 |', 'P1'),
+            ('依据：《课后服务收费办法》（某教〔2026〕12号）。\n\n校服每生收取180元。', 'P1'),
+            ('依据《课后服务收费办法》，每生收取课后服务费120元。\n另收取研学费200元。', 'P1'),
+            ('课后服务每生收费120元，【待补：收费依据】。', 'SKIP'),
+            ('每生收取课后服务费120元（【待补：收费依据和标准】）。', 'SKIP'),
+            ('每生收取课后服务费120元。\n【待补：收费依据】', 'SKIP'),
+            ('学校向供电公司支付电费5000元。', 'SKIP'),
+            ('学校向参与课后服务的教师支付补助每课时50元。', 'SKIP'),
+            ('学校采购实验器材支付3200元。', 'SKIP'),
+            ('依据《课后服务及代收费管理办法》（某教〔2026〕8号），每生收取课后服务费120元，代收校服费180元。', 'SKIP'),
+            ('课后服务收费标准：每生每月120元。\n上述收费严格执行某发改〔2026〕18号文件规定。', 'SKIP'),
+            ('| 项目 | 标准 | 依据 |\n| --- | --- | --- |\n| 收取课后服务费 | 120元 | 某教〔2026〕12号 |', 'SKIP'),
+            ('财政预算安排课后服务经费50000元，免收学生费用。', 'SKIP'),
+            ('本学期统计累计收取课后服务费36000元。', 'SKIP'),
+            ('截至6月底，学校已收取课后服务费24000元。', 'SKIP'),
+        )
+        self._assert_review_hits(("general", "K12-G06", body, level) for body, level in cases)
+
+    def test_r1_new_adversarial_fee_basis(self):
+        cases = (
+            ('收取校车费90元。\n【待核实：收费依据文件】', 'SKIP'),
+            ('收取研学费260元。\n依据《义务教育学校服务性收费管理细则》。', 'SKIP'),
+            ('报名费每生70元（低收入学生免缴），由学校负责收取。', 'P1'),
+            ('学校向学生发放奖学金500元并支付手续费。', 'SKIP'),
+            ('家委会核定收费标准，向每生缴费窗口代收训练费30元。', 'P1'),
+            ('| 活动 | 参与条件 | 估算金额 |\n| --- | --- | --- |\n| 合唱 | 不参加不收费 | 60元 |', 'SKIP'),
+            ('学校经区教育局核定收费标准，每生收取校车费90元。', 'SKIP'),
+        )
+        self._assert_review_hits(("general", "K12-G06", body, level) for body, level in cases)
+
+    def test_catalog_g04_dynamic_and_py005_scope(self):
+        rid, _, _, *details = k12_check.G04_RULE
+        with patch.object(k12_check, "G04_RULE", (rid, "P2", "P2", *details)):
+            rules = {rule["id"]: rule for rule in k12_check.rule_catalog()["rules"]}
+        self.assertEqual(rules[rid]["levels"], ["P1", "P2"])
+        for command in ("general", "parents"):
+            self.assertEqual(rules[rid]["stage_levels"][command], {stage: ["P1", "P2"] for stage in k12_check.STAGES})
+        self.assertNotIn("住址", rules["PY-005"]["condition"])
+        path = self.write("评语.txt", "S01：你住在家庭住址：北京市海淀区中关村大街1号，学习认真。")
+        self.assertNotIn("PY-005", self.ids(self.run_json("comments", str(path))))
+
     def test_new_p0_guardrail_on_reference_and_example_docs(self):
         references = REPO_ROOT / "skills" / "gongwen-k12" / "references"
         examples = next((REPO_ROOT / "examples").glob("D-*"))
         paths = sorted(references.rglob("*.md")) + sorted(examples.glob("*.md")) + sorted(examples.glob("*.txt"))
         self.assertGreater(len(paths), 36)
         ids = {"K12-G04", "K12-G05", "K12-G06", "K12-G09", "JZ-006", "JZ-008"}
+        rank_ids = {"JZ-003", "JZ-014", "K12-G01"}
+        # 当前规范文档已有历史命中。固定允许的旧行，保护新增 P0 和既有测试的可移植性。
         for command in ("general", "parents"):
             for path in paths:
                 with self.subTest(command=command, path=path.name):
                     report = self.run_json(command, str(path))
                     self.assertEqual([i for i in report["issues"] if i["id"] in ids and i["level"] == "P0"
                                       and i["message"] != "表格姓名列出现真实姓名"], [])
+                    baseline = REFERENCE_RANK_BASELINE.get(path.name, ())
+                    source = k12_check.load_document(path).lines
+                    for issue in report["issues"]:
+                        if issue["level"] != "P0" or issue["id"] not in rank_ids:
+                            continue
+                        line = source[issue["line"] - 1]
+                        if issue["id"] == "K12-G01":
+                            self.assertEqual(path.name, "quick-cards.md")
+                            self.assertIn("公布成绩排名（红线二）", line)
+                        elif issue["id"] == "JZ-014":
+                            self.assertEqual(path.name, "xuesheng-pingyu.md")
+                            self.assertIn("这次单元测验语文得了96分", line)
+                        else:
+                            self.assertTrue(any(marker in line for marker in baseline), issue)
 
 
 class ParentsAndCommentsMaskTest(K12TestCase):

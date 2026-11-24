@@ -261,6 +261,21 @@ class LocalToolboxK12CommentsHTTPTest(unittest.TestCase):
         self.assertTrue(dirty["ok"])
         self.assertNotIn("PY-015", dirty["text"])
 
+    def test_comment_labels_and_issues_use_engine_physical_rows(self):
+        for separator in ("\u2028", "\v", "\f", "\n", "\r\n", "\r"):
+            with self.subTest(separator=repr(separator)):
+                body = "S01：你很笨。" + separator + "S02：王小明说你很懒。"
+                data = self.post({"b": body})
+                self.assertIn("PY-001 第 1 行", data["text"])
+                row = 2 if separator in ("\n", "\r\n", "\r") else 1
+                self.assertIn(f"PY-002 第 {row} 行", data["text"])
+                body = "S01：你很笨。" + separator + "王小明：你很懒。"
+                data = self.post({"b": body})
+                if row == 2:
+                    self.assertEqual(data, {"ok": False, "text": tb.K12_COMMENT_LABEL_ERROR})
+                else:
+                    self.assertIn("PY-002 第 1 行", data["text"])
+
     def test_empty_right_and_invalid_stage_use_fixed_errors(self):
         data = self.post({"b": " \n ", "a": "张小明：你很懒。"})
         self.assertEqual(data, {"ok": False, "text": "右框没有待检正文。"})
