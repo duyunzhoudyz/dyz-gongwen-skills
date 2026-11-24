@@ -53,8 +53,7 @@ P1 的说明文案按 find_inversions 给出的 reason_code 选用，不会出�
   2. 名字里用了黑名单字、或尾字是地名机构字的姓名会漏报（如“李山”“孙湖”“王会”）。
   3. 少见姓、歧义姓只给 P1，弱语境下漏报；与整词排除词同形的姓名（刘海、林海）没有强证据时漏报；处分对象与处分隔着分句
      （“李建华……已被开除党籍”）识别不了。
-  4. 形似姓名的企业简称在处分框架里可能误报 P0（如“对唐钢给予警告处分”“对马钢给予警告”），已列入排除词的除外，企业简称与人名
-     同形时无法穷尽。
+  4. “对唐钢给予警告处分”这类缺少人名证据的同形简称报 P1 待确认。文内有明确单位佐证时跳过，任免、称谓、身份括注和个人专属处分等人名证据优先。
   5. 名单类锚点按顿号、逗号读到句末，用分号或换行分开的后续名单项读不到；带“·”的姓名、外文名、昵称识别不了。
   6. 全文遮蔽是整串替换，会过度遮蔽（姓名“高明”会把“高明的做法”也遮成占位）。
   7. 文件名：报告头和 JSON 的 file 字段按全文姓名表遮蔽；文件名里写着、正文没有被锚点识别到的姓名遮不住。
@@ -62,7 +61,7 @@ P1 的说明文案按 find_inversions 给出的 reason_code 选用，不会出�
      不保证穷尽所有换说法，须人工复核。
   9. 否决、整改、出处写在后一分句的句子会被报出，后续分句里有针对该做法的处置词时 P0 降为 P1 并提示，需人工判断；SOE-008 的出处豁免是整句范围（exempt_context），
      与医院 HOS-003（只看命中分句与前一分句）口径不一致。
- 10. 表格行里的姓名识别不了；锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+ 10. Markdown 表格中姓名列默认报 P1、有处分或安置等敏感列时报 P0，无姓名类表头或非 Markdown 表格的姓名仍可能漏报。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
 
 用法：
     python scripts/soe_check.py <文件> [--type 文书] [--external] [--as-of YYYY-MM-DD] [--json] [--strict]
@@ -86,7 +85,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.1"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -583,21 +582,41 @@ def scan_names(lines: Lines, ruleset: RuleSet):
     姓名表覆盖所有姓名规则的命中（含因豁免、文书类型不适用而没有报出的），按全文首次出现的顺序编号；代称不进表。
     """
     gn, _gc, lex = _shared()
-    table = gn.NameTable()
+    texts = [text for _number, text in lines]
+    table_rows = gn.find_table_names(texts, lex, "soe")
     per_line: Dict[int, List[Tuple[Rule, Any]]] = {}
     rules = _name_rules(ruleset)
+    by_id = {rule.id: rule for rule in rules}
     for idx, (_number, text) in enumerate(lines):
-        entries = [(rule, hit) for rule in rules for hit in gn.find_names(text, rule.anchors, lex)]
-        if not entries:
-            continue
-        entries.sort(key=lambda e: (e[1].start, e[1].end))
-        table.add_hits(hit for _rule, hit in entries)
-        per_line[idx] = entries
+        entries = [(rule, hit) for rule in rules
+                   for hit in gn.find_names(text, rule.anchors, lex, collect_person_evidence=True)]
+        row = table_rows.get(idx)
+        if row:
+            discipline = any(re.search(r"处分|违纪|诫勉|问责", label) for label in row.headers)
+            rule = by_id.get("SOE-022" if discipline else "SOE-023")
+            if rule is not None:
+                entries.extend((rule, hit) for hit in row.hits)
+        if entries:
+            per_line[idx] = entries
+    # 同一写法既有单位证据也有明确的人名证据时，优先保护实名，包括它在别处的弱锚点。
+    people = {hit.name for entries in per_line.values() for _, hit in entries
+              if hit.person_evidence and not hit.pseudo}
+    organizations = gn.organization_names(texts, lex) - people
+    table = gn.NameTable(organizations)
+    for idx, entries in per_line.items():
+        kept = []
+        for rule, hit in entries:
+            hit.person_evidence = hit.name in people
+            if gn.keep_person_hit(hit, lex, organizations):
+                kept.append((rule, hit))
+        kept.sort(key=lambda e: (e[1].start, e[1].end))
+        per_line[idx] = kept
+        table.add_hits(hit for _, hit in kept)
     return table, per_line
 
 
 def check_names(lines: Lines, doc_type: Optional[str], external: bool,
-                per_line: Dict[int, List[Tuple[Rule, Any]]]) -> List[Dict[str, Any]]:
+                per_line: Dict[int, List[Tuple[Rule, Any]]], table: Any) -> List[Dict[str, Any]]:
     """姓名规则的报出：高置信（总分 >= 6）用规则级别，低置信（= 5）用 low_level；代称不报。"""
     gn, _gc, _lex = _shared()
     issues: List[Dict[str, Any]] = []
@@ -606,20 +625,36 @@ def check_names(lines: Lines, doc_type: Optional[str], external: bool,
         # 同一规则、同一锚点下的并列姓名（“名单：张三、李四”）共用一条摘录：从锚点读到最后一个姓名再加右侧上下文，
         # 这样各姓名的摘录完全相同，由 merge_issues 合并成一条并带 count
         group_end: Dict[Tuple[str, int], int] = {}
+        group_flags: Dict[Tuple[str, int], set] = {}
+        reportable = []
         for rule, hit in entries:
+            key = (rule.id, hit.anchor_start)
             if hit.anchor_start >= 0:
-                key = (rule.id, hit.anchor_start)
                 group_end[key] = max(group_end.get(key, 0), hit.end)
-        for rule, hit in entries:
             if hit.pseudo or hit.table_only or not _applicable(rule, doc_type, external):
-                continue    # 代称不报；并列后项（table_only）只进姓名表用于遮蔽，不单独报
-            if _is_exempt(rule, text, hit.start, hit.end):
+                continue
+            if hit.anchor_start >= 0 and _is_exempt(rule, text, hit.start, hit.end):
+                continue
+            reportable.append((rule, hit))
+            if hit.anchor_start >= 0:
+                group_flags.setdefault(key, set()).add(hit.maybe_org)
+        for rule, hit in reportable:
+            if hit.anchor_start < 0:
+                level = "P0" if hit.score >= gn.SCORE_HIGH else "P1"
+                issues.append(_issue(rule, level, number, table.placeholder(hit.name), message="表格姓名列出现真实姓名"))
                 continue
             high = _rule_level(rule, external)
             level = high if hit.score >= gn.SCORE_HIGH else (rule.low_level or high)
             a0 = hit.anchor_start if 0 <= hit.anchor_start <= hit.start else hit.start
-            end = group_end.get((rule.id, hit.anchor_start), hit.end) if a0 == hit.anchor_start else hit.end
-            issues.append(_issue(rule, level, number, text[a0:max(end, hit.end) + NAME_TAIL].strip()))
+            key = (rule.id, hit.anchor_start)
+            end = group_end[key]
+            flags = group_flags[key]
+            message, suggestion = None, None
+            if True in flags:
+                message = gn.ABBREVIATION_HINT if flags == {True} else f"{rule.message}；部分对象{gn.ABBREVIATION_HINT}"
+                suggestion = "核对处分对象或名单项是否为个人，确为实名时按规定遮蔽"
+            issues.append(_issue(rule, level, number, text[a0:max(end, hit.end) + NAME_TAIL].strip(),
+                                 message=message, suggestion=suggestion))
     return issues
 
 
@@ -1198,7 +1233,7 @@ def _check_lines_table(lines: Lines, doc_type: Optional[str], external: bool, ru
     gn, _gc, _lex = _shared()
     issues = check_regex(lines, doc_type, external, ruleset)
     table, per_line = scan_names(lines, ruleset)
-    issues += check_names(lines, doc_type, external, per_line)
+    issues += check_names(lines, doc_type, external, per_line, table)
     check_inversions(lines, doc_type, external, ruleset, issues)
     issues += check_procedural(lines, doc_type, ruleset, as_of)
     mask_issues(issues, lines, table)

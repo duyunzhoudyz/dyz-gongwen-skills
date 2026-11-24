@@ -192,6 +192,16 @@
     }
    ],
    "source": "heldout"
+  },
+  {
+   "mark": "K10",
+   "file": "V_k04_资助回访明细.txt",
+   "line": 7,
+   "desc": "学生姓名与家庭困难类型在同一表行披露",
+   "rules": [
+    {"id": "K12-G04", "level": "P0"}
+   ],
+   "source": "author"
   }
  ]
 }

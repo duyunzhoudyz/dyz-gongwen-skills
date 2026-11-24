@@ -156,6 +156,23 @@
     }
    ],
    "allow_extra_p0": []
+  },
+  {
+   "file": "A_k03_资助回访汇总.txt",
+   "mode": "general",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "V_k04_资助回访明细.txt",
+   "mode": "general",
+   "kind": "violation",
+   "names": ["韩思遥"],
+   "expect": [
+    {"mark": "K10", "id": "K12-G04", "level": "P0", "line": 7}
+   ],
+   "allow_extra_p0": []
   }
  ]
 }

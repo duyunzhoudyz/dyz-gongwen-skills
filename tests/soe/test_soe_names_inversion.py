@@ -12,11 +12,13 @@
 """
 from __future__ import annotations
 
+import io
 import json
 import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
@@ -197,7 +199,7 @@ class PunishMisfireTest(Base):
         self.assertNotIn("王建国", json.dumps(row, ensure_ascii=False))
 
     def test_known_limits_are_documented(self) -> None:
-        """“对唐钢给予警告处分”这类企业简称与人名同形的写法仍可能误报：保持登记为已知局限（脚本说明、README 都要写）。"""
+        """脚本说明和 README 都交代同形简称的处理口径及剩余边界。"""
         doc = sc.__doc__ or ""
         readme = (REPO_ROOT / "skills" / "gongwen-soe" / "README.md").read_text(encoding="utf-8")
         for text in (doc, readme):
@@ -400,6 +402,103 @@ class FileNameMaskTest(unittest.TestCase):
         """已知局限：文件名里有、正文没被识别的姓名遮不住（README 与脚本说明已写）。"""
         path = self.write("张伟的材料.txt", "给予王建国同志党内警告处分。")
         self.assertEqual(sc.check_file(path, "纪要", ruleset=self.ruleset)["file"], "张伟的材料.txt")
+
+    def run_table(self, name, body):
+        path = self.tmp / name
+        path.write_text(body, encoding="utf-8")
+        out, rendered, err = io.StringIO(), io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = sc.main([str(path), "--type", "纪要", "--json"])
+        text_err = io.StringIO()
+        with redirect_stdout(rendered), redirect_stderr(text_err):
+            text_code = sc.main([str(path), "--type", "纪要"])
+        out, rendered, err, text_err = out.getvalue(), rendered.getvalue(), err.getvalue(), text_err.getvalue()
+        self.assertEqual(code, text_code)
+        self.assertIn(code, (0, 1), err + text_err)
+        return json.loads(out), rendered
+
+    def test_sensitive_and_ordinary_rows_keep_document_numbering(self) -> None:
+        body = ("| 职工姓名 | 处分 |\n| --- | --- |\n| 王秀英 | 警告 |\n\n"
+                "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
+        report, screen = self.run_table("王秀英附表.md", body)
+        rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
+                if i["id"] in ("SOE-022", "SOE-023")]
+        self.assertEqual(rows, [("SOE-022", "P0", 3, "〔姓名1〕"),
+                                ("SOE-023", "P1", 7, "〔姓名1〕"),
+                                ("SOE-023", "P1", 8, "〔姓名2〕")])
+        self.assertEqual(report["file"], "〔姓名1〕附表.md")
+        for word in ("王秀英", "欧阳明月"):
+            self.assertNotIn(word, json.dumps(report, ensure_ascii=False))
+            self.assertNotIn(word, screen)
+        for _, _, _, excerpt in rows:
+            self.assertIn(excerpt, screen)
+        sys.stderr.write(f"\nsoe 表格姓名正例：命中 {len(rows)}/3。\n")
+
+    def test_absent_public_and_nonnames_are_not_registered(self) -> None:
+        controls = [
+            ("王秀英", "| 编号 | 违纪 |\n| --- | --- |\n| 王秀英 | 记录 |\n"),
+            ("王秀英", "| 联系人姓名 | 违纪 |\n| --- | --- |\n| 王秀英 | 记录 |\n"),
+        ]
+        controls.extend((cell, f"| 姓名 | 违纪 |\n| --- | --- |\n| {cell} | 记录 |\n")
+                        for cell in ("合计", "小计", "无", "/", "—", "高一", "五年级", "宣传科", "123"))
+        misfires = 0
+        for name, body in controls:
+            with self.subTest(name=name, body=body):
+                file_name = ("斜线" if name == "/" else name) + "附表.md"
+                report, screen = self.run_table(file_name, body)
+                rows = [i for i in report["issues"] if i["id"] in ("SOE-022", "SOE-023")]
+                misfires += len(rows)
+                self.assertEqual(rows, [])
+                self.assertEqual(report["file"], file_name)
+                self.assertNotIn("〔姓名", screen)
+        sys.stderr.write(f"\nsoe 表格姓名反例：误报 {misfires}/{len(controls)}。\n")
+
+    def test_abbreviations_follow_document_evidence(self) -> None:
+        examples = [
+            ("对唐钢给予警告处分。", "唐钢", "P1"),
+            ("对马钢给予警告。", "马钢", "P1"),
+            ("对曹宇航给予警告处分。", "曹宇航", "P1"),
+            ("拟安置人员：唐钢、王建国。", "唐钢", "P1"),
+            ("对唐钢同志给予警告处分。", "唐钢", "P0"),
+            ("给予副部长唐钢警告处分。", "唐钢", "P0"),
+            ("对唐钢（工号123）给予警告处分。", "唐钢", "P0"),
+            ("唐钢（男）受到警告处分。", "唐钢", "P0"),
+            ("唐钢被开除党籍。", "唐钢", "P0"),
+            ("对唐钢进行了诫勉谈话。", "唐钢", "P0"),
+        ]
+        detected = 0
+        for body, name, level in examples:
+            with self.subTest(body=body):
+                path = self.write(f"{name}核查.txt", body)
+                report = sc.check_file(path, "纪要", ruleset=self.ruleset)
+                rid = "SOE-023" if body.startswith("拟安置") else "SOE-022"
+                issues = [i for i in report["issues"] if i["id"] == rid and "〔姓名1〕" in i["excerpt"]]
+                self.assertIn(level, [i["level"] for i in issues])
+                if level == "P1":
+                    self.assertFalse(any(i["level"] == "P0" for i in issues))
+                    self.assertTrue(any("可能是单位简称，请人工确认" in i["message"] for i in issues))
+                self.assertNotIn(name, json.dumps(report, ensure_ascii=False))
+                detected += 1
+        controls = [
+            "东岭冶炼有限责任公司（以下简称“唐钢”）。\n对唐钢给予警告处分。",
+            "对唐钢给予警告处分。\n唐钢集团已回函。",
+            "唐钢股份有限公司回函。\n拟安置人员：王建国、唐钢。",
+            "唐钢公司回函。\n对唐钢给予警告处分。",
+            "东岭物资有限公司（以下简称“唐华”）。\n对唐华给予警告处分。",
+        ]
+        misfires = 0
+        for body in controls:
+            name = "唐华" if "唐华" in body else "唐钢"
+            with self.subTest(body=body):
+                path = self.write(f"{name}核查.txt", body)
+                report = sc.check_file(path, "纪要", ruleset=self.ruleset)
+                self.assertEqual(report["file"], path.name)
+                for row in report["issues"]:
+                    self.assertNotIn("可能是单位简称", row["message"])
+                    self.assertNotEqual(row["id"], "SOE-022")
+                    self.assertNotIn("〔姓名2〕", row["excerpt"])
+                misfires += int(report["file"] != path.name)
+        sys.stderr.write(f"\n企业简称回归：预期命中 {detected}/{len(examples)}，有单位证据误报 {misfires}/{len(controls)}。\n")
 
 
 if __name__ == "__main__":

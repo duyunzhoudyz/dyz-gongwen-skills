@@ -202,6 +202,153 @@ class NamedSentencesTest(EngineCase):
 # ---------------------------------------------------------------------------
 # 2. HEAD 对照（引擎层）
 # ---------------------------------------------------------------------------
+class RelationAnchorTest(EngineCase):
+    def test_new_relation_anchors_report_only_identified_pupils(self):
+        positives = (
+            "留守学生王小明由祖父母照料。",
+            "残疾学生王小明需要随访。",
+            "患病学生王小明已返校。",
+            "被记过的学生王小明最近参加了班会。",
+            "王小明同学属于资助对象。",
+            "王小明学生系事实无人抚养儿童。",
+            "王小明同学是残疾学生。",
+            "王小明同学患有慢性肾病。",
+            "王小明同学确诊为焦虑症。",
+            "王小明同学被记过。",
+            "王小明同学被处分。",
+            "王小明同学享受助学金。",
+            "受助：王小明、李文静。",
+            "随班就读学生名单：王小明、李文静。",
+        )
+        negatives = (
+            "王小明同学参与受助人数统计。",
+            "王小明同学参加特殊教育教研活动。",
+            "残疾学生共3人。受助人数合计12人。",
+            "残疾学生共3人。受助人数合计12人。全校留守学生有4人，患病学生2人。",
+            "本校设置特殊教育王老师负责。",
+            "受助学生王老师指导填报。",
+            "患病学生李老师已登记。",
+            "经排查，王小明因肺炎住院，现已返校。",
+            "王小明同学为残疾学生提供帮助。",
+            "王小明同学是特殊教育教研项目的志愿者。",
+            "王小明同学不属于资助对象。",
+            "残疾学生：初一、初二各3人。",
+        )
+        self._assert_relation_levels((("王小明同学为残疾学生。", "P1"), ("王小明自身患病需长期随访。", "P1")))
+        for sentence in positives:
+            with self.subTest(sentence=sentence):
+                issues = self.g04(sentence)
+                self.assertEqual([i["level"] for i in issues], ["P0"])
+                self.assertIn("〔姓名1〕", issues[0]["excerpt"])
+                self.assertNotIn("王小明", issues[0]["excerpt"])
+                if "李文静" in sentence:
+                    self.assertIn("〔姓名2〕", issues[0]["excerpt"])
+                    self.assertNotIn("李文静", issues[0]["excerpt"])
+        for sentence in negatives:
+            with self.subTest(sentence=sentence):
+                self.assertEqual(self.g04(sentence), [])
+
+    def _assert_relation_levels(self, cases):
+        for body, level in cases:
+            with self.subTest(body=body):
+                self.assertEqual([issue["level"] for issue in self.g04(body)], [] if level == "SKIP" else [level])
+
+    def test_review_r1_b3_m2_student_identity_and_beneficiaries(self):
+        cases = (
+            ('学生王小明属于资助对象。', 'P0'),
+            ('学生王小明患有慢性肾病。', 'P0'),
+            ('学生王小明被记过。', 'P0'),
+            ('学生王小明享受助学金。', 'P0'),
+            ('王小明同学患有哮喘。', 'P0'),
+            ('王小明同学确诊为肺炎。', 'P0'),
+            ('五年级王小明同学属于资助对象。', 'P0'),
+            ('三班王小明同学患有慢性肾病。', 'P0'),
+            ('王小明、李华同学属于资助对象。', 'P0'),
+            ('免收贫困家庭学生王小明的课后服务费。', 'P0'),
+            ('残疾学生某同学需要特别照顾。', 'P0'),
+            ('残疾学生王某需要特别照顾。', 'P0'),
+            ('王小明同学为残疾学生、留守儿童送去文具。', 'SKIP'),
+            ('王小明同学为留守儿童，每周义务辅导功课。', 'SKIP'),
+            ('王小明同学系受助学生帮扶小组组长。', 'SKIP'),
+            ('王小明同学系特殊教育志愿服务队成员。', 'SKIP'),
+            ('王小明同学系留守儿童关爱社团负责人。', 'SKIP'),
+            ('王小明同学属于资助对象审核小组成员。', 'SKIP'),
+            ('王小明同学系单亲家庭关爱志愿者。', 'SKIP'),
+            ('特殊教育：陈副校长出席指导。', 'SKIP'),
+            ('受助学生：张班主任已核实。', 'SKIP'),
+            ('受助学生张班主任已核实。', 'SKIP'),
+            ('资助对象：李书记作了动员。', 'SKIP'),
+            ('特殊教育：周科长来校调研。', 'SKIP'),
+            ('特殊教育：李督学入校检查。', 'SKIP'),
+            ('留守儿童关爱活动圆满结束。', 'SKIP'),
+            ('残疾学生康复训练进展顺利。', 'SKIP'),
+            ('患病学生高烧不退应及时送医。', 'SKIP'),
+            ('受助学生马上面临毕业。', 'SKIP'),
+            ('特殊教育学生管理工作稳步推进。', 'SKIP'),
+            ('按照规定，残疾学生、随班就读学生依法享有受教育权。', 'SKIP'),
+            ('王小明、李华同学患有慢性肾病。', 'P0'),
+        )
+        self._assert_relation_levels(cases)
+
+    def test_r1_new_adversarial_identities(self):
+        cases = (
+            ('六年级三班学生欧阳晓晓患有癫痫。', 'P0'),
+            ('李文静同学是随班就读学生。', 'P0'),
+            ('学生陈明、王小明享受助学金。', 'P0'),
+            ('评估记录显示残障学生A同学已到校。', 'P0'),
+            ('陈明同学是孤独症儿童帮扶志愿者。', 'SKIP'),
+            ('李文静同学系特殊教育课程教研团队成员。', 'SKIP'),
+            ('学生陈明为贫困家庭子女筹集资料。', 'SKIP'),
+            ('林晨同学不是资助对象。', 'SKIP'),
+            ('随班就读学生各班汇总。', 'SKIP'),
+            ('不予免收残障学生李文静的活动费。', 'P0'),
+            ('王小明同学疑似属于资助对象。', 'P1'),
+            ('陈明同学可能属于单亲家庭。', 'P1'),
+        )
+        self._assert_relation_levels(cases)
+
+    def test_review_r1_b3_parallel_names_are_masked_in_all_entries(self):
+        for predicate in ("属于资助对象", "患有慢性肾病"):
+            relation = "王小明、李华同学" + predicate + "。"
+            for command, draft, rid in (
+                ("general", relation + "\n公布王小明与李华的考试成绩。", "K12-G01"),
+                ("parents", relation + "\n公布王小明与李华的考试成绩。", "JZ-003"),
+                ("comments", "S01：" + relation + "你说王小明和李华笨得像猪一样。", "PY-001"),
+            ):
+                with self.subTest(command=command, predicate=predicate):
+                    path = self.write("关系.txt", draft)
+                    _, output, _ = self.run_main(command, str(path), "--json")
+                    issue, = [item for item in json.loads(output)["issues"] if item["id"] == rid]
+                    for name in ("王小明", "李华"):
+                        self.assertNotIn(name, issue["excerpt"])
+                    for label in ("〔姓名1〕", "〔姓名2〕"):
+                        self.assertIn(label, issue["excerpt"])
+
+    def test_new_relation_anchors_mask_in_all_three_entries(self):
+        cases = (
+            ("general", "王小明同学属于资助对象。\n学校拟公布王小明的考试成绩排名。\n", "K12-G01"),
+            ("parents", "王小明同学属于资助对象。\n学校将在家长群公布王小明考试成绩排名。\n", "JZ-003"),
+            ("comments", "S01：王小明同学患有慢性肾病。你还说王小明很笨。\n", "PY-001"),
+        )
+        for command, draft, rid in cases:
+            path = self.write("关系锚点.txt", draft)
+            with self.subTest(command=command):
+                code, stdout, err = self.run_main(command, str(path))
+                code_json, out, err_json = self.run_main(command, str(path), "--json")
+                self.assertEqual((code, code_json, err, err_json), (0, 0, "", ""))
+                self.assertNotIn("王小明", stdout)
+                self.assertNotIn("王小明", out)
+                items = [i for i in json.loads(out)["issues"] if i["id"] == rid]
+                self.assertEqual(len(items), 1)
+                self.assertIn("〔姓名1〕", items[0]["excerpt"])
+
+    def test_relation_and_existing_markdown_name_rule_on_same_row(self):
+        draft = "| 姓名 | 备注 |\n| --- | --- |\n| 王小明 | 王小明同学属于资助对象。 |\n"
+        issues = self.g04(draft)
+        self.assertEqual([(i["line"], i["level"]) for i in issues], [(3, "P0")])
+        self.assertNotIn("王小明", issues[0]["excerpt"])
+
+
 class HeadBaselineTest(EngineCase):
 
     def test_engine_not_below_head_on_fixture_names(self):
@@ -446,6 +593,64 @@ class ExampleDRegressionTest(EngineCase):
         self.assertEqual(code, 0, err)
         self.assertEqual(self.norm(self.tmp / "2-模型生成评语-编号版-姓名版.txt"), self.norm(src / "4-本机还原姓名版.txt"))
 
+
+
+
+
+class MarkdownNameTableTest(EngineCase):
+    def test_parent_document_reports_table_privacy(self) -> None:
+        path = self.write("王秀英回访单.md", "| 学生姓名 | 病史 |\n| --- | --- |\n| 王秀英 | 哮喘 |\n")
+        code, output, err = self.run_main("parents", str(path), "--json", "--strict")
+        self.assertEqual(code, 1, err)
+        report = json.loads(output)
+        rows = [(i["id"], i["level"], i["excerpt"]) for i in report["issues"]]
+        self.assertEqual(rows, [("K12-G04", "P0", "〔姓名1〕")])
+        self.assertEqual(report["file"], "〔姓名1〕回访单.md")
+
+    def run_table(self, name, body):
+        path = self.tmp / name
+        path.write_text(body, encoding="utf-8")
+        code, out, err = self.run_main("general", str(path), "--json")
+        text_code, rendered, text_err = self.run_main("general", str(path))
+        self.assertEqual(code, text_code)
+        self.assertIn(code, (0, 1), err + text_err)
+        return json.loads(out), rendered
+
+    def test_sensitive_and_ordinary_rows_keep_document_numbering(self) -> None:
+        body = ("| 学生姓名 | 困难类型 |\n| --- | --- |\n| 王秀英 | 低保 |\n\n"
+                "| 姓名 | 序号 |\n| --- | --- |\n| 王秀英 | 1 |\n| 欧阳明月 | 2 |\n")
+        report, screen = self.run_table("王秀英附表.md", body)
+        rows = [(i["id"], i["level"], i["line"], i["excerpt"]) for i in report["issues"]
+                if i["id"] == "K12-G04"]
+        self.assertEqual(rows, [("K12-G04", "P0", 3, "〔姓名1〕"),
+                                ("K12-G04", "P1", 7, "〔姓名1〕"),
+                                ("K12-G04", "P1", 8, "〔姓名2〕")])
+        self.assertEqual(report["file"], "〔姓名1〕附表.md")
+        for word in ("王秀英", "欧阳明月"):
+            self.assertNotIn(word, json.dumps(report, ensure_ascii=False))
+            self.assertNotIn(word, screen)
+        for _, _, _, excerpt in rows:
+            self.assertIn(excerpt, screen)
+        sys.stderr.write(f"\nk12 表格姓名正例：命中 {len(rows)}/3。\n")
+
+    def test_absent_public_and_nonnames_are_not_registered(self) -> None:
+        controls = [
+            ("王秀英", "| 编号 | 心理 |\n| --- | --- |\n| 王秀英 | 记录 |\n"),
+            ("王秀英", "| 联系人姓名 | 心理 |\n| --- | --- |\n| 王秀英 | 记录 |\n"),
+        ]
+        controls.extend((cell, f"| 姓名 | 心理 |\n| --- | --- |\n| {cell} | 记录 |\n")
+                        for cell in ("合计", "小计", "无", "/", "—", "高一", "五年级", "宣传科", "123"))
+        misfires = 0
+        for name, body in controls:
+            with self.subTest(name=name, body=body):
+                file_name = ("斜线" if name == "/" else name) + "附表.md"
+                report, screen = self.run_table(file_name, body)
+                rows = [i for i in report["issues"] if i["id"] == "K12-G04"]
+                misfires += len(rows)
+                self.assertEqual(rows, [])
+                self.assertEqual(report["file"], file_name)
+                self.assertNotIn("〔姓名", screen)
+        sys.stderr.write(f"\nk12 表格姓名反例：误报 {misfires}/{len(controls)}。\n")
 
 if __name__ == "__main__":
     unittest.main()

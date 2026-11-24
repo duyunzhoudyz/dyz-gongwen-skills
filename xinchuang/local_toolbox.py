@@ -17,6 +17,7 @@ import base64
 import importlib.util
 import io
 import json
+import re
 import sys
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
@@ -146,13 +147,22 @@ input,select{padding:.3em .45em;border:1px solid #ccc;border-radius:3px;font-siz
         <option value="soe">国企（三重一大/议案决议/经营/ESG/合规）</option>
         <option value="k12_parents">中小学·面向家长文书（家长信/家长会）</option>
         <option value="k12_general">中小学·校内综合文书（计划总结/自评/课后服务）</option>
+        <option value="k12_comments">中小学·学生评语</option>
         <option value="university">高校·专用文书（自评/学科/总结/签报/辅导员）</option>
         <option value="university_blind">高校·活页/申报书匿名审查（额外脱敏词作身份词）</option>
+      </select>
+    </label>
+    <label id="indStageLabel" hidden>学段
+      <select id="indStage">
+        <option value="义务教育">义务教育</option>
+        <option value="高中">高中</option>
+        <option value="中职">中职</option>
       </select>
     </label>
     <label><input type="checkbox" id="indExt"> 对外材料从严</label>
     <button data-op="industry_check">⑨ 行业专检（右框）</button>
   </div>
+  <p id="indCommentHint" class="muted" hidden>右框每行用编号开头，例如“S01：评语”。</p>
 </div>
 
 <div class="card">
@@ -172,8 +182,8 @@ function showResult(r){
   $('out').textContent=r.text||'';
   $('out').className=r.ok?'':'bad';
 }
-function postJson(url,payload){
-  payload.sid=SID;
+function postJson(url,payload,withSession){
+  if(withSession!==false){payload.sid=SID;}
   return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
     .then(function(r){return r.json();});
 }
@@ -223,15 +233,27 @@ $('cpPrompt').onclick=function(){
   }).catch(function(e){showResult({ok:false,text:'读取失败：'+e});});
 };
 
+function updateIndustryOptions(){
+  var industry=$('indPack').value;
+  $('indStageLabel').hidden=industry.indexOf('k12_')!==0;
+  $('indCommentHint').hidden=industry!=='k12_comments';
+}
+$('indPack').onchange=updateIndustryOptions;
+updateIndustryOptions();
+
 // 按钮操作
 document.querySelectorAll('button[data-op]').forEach(function(btn){
   btn.onclick=function(){
     var op=btn.dataset.op; LAST_OP=op;
-    postJson('/api/'+op,{
+    var industry=$('indPack').value;
+    var checkComments=op==='industry_check'&&industry==='k12_comments';
+    var payload=checkComments?{b:$('b').value,industry:industry,stage:$('indStage').value}:{
       a:$('a').value, b:$('b').value, hf_a:HF.a, hf_b:HF.b,
       terms:$('terms').value, doc_type:$('dt').value, unit_fonts:$('uf').value,
-      industry:$('indPack').value, ind_external:$('indExt').checked
-    }).then(function(r){
+      industry:industry, ind_external:$('indExt').checked
+    };
+    if(!checkComments&&op==='industry_check'&&industry.indexOf('k12_')===0){payload.stage=$('indStage').value;}
+    postJson('/api/'+op,payload,!checkComments).then(function(r){
       showResult(r);
       if(op==='restore'&&r.ok){$('b').value=r.text;}
       if(r.docx){
@@ -254,7 +276,7 @@ document.querySelectorAll('button[data-op]').forEach(function(btn){
         }
         setTimeout(function(){URL.revokeObjectURL(hurl);},60000);
       }
-    }).catch(function(e){showResult({ok:false,text:'请求失败：'+e});});
+    }).catch(function(e){showResult({ok:false,text:checkComments?'评语检查失败，请重试。':'请求失败：'+e});});
   };
 });
 
@@ -551,12 +573,33 @@ INDUSTRY_SCRIPTS: Dict[str, Tuple[str, Path]] = {
     "soe": ("国企行业专检", ROOT / "skills" / "gongwen-soe" / "scripts" / "soe_check.py"),
     "k12_parents": ("中小学家长文书专检", ROOT / "skills" / "gongwen-k12" / "scripts" / "k12_check.py"),
     "k12_general": ("中小学校内文书专检", ROOT / "skills" / "gongwen-k12" / "scripts" / "k12_check.py"),
+    "k12_comments": ("中小学学生评语专检", ROOT / "skills" / "gongwen-k12" / "scripts" / "k12_check.py"),
     "university": ("高校专用文书专检", ROOT / "skills" / "gongwen-university" / "scripts" / "university_check.py"),
     "university_blind": ("高校活页匿名审查", ROOT / "skills" / "gongwen-university" / "scripts" / "proposal_check.py"),
 }
 
 
 _INDUSTRY_MOD_CACHE: Dict[str, object] = {}
+K12_STAGES = ("义务教育", "高中", "中职")
+K12_COMMENT_LABEL = r"S[0-9]{2,4}"
+K12_COMMENT_ROW_RE = re.compile(K12_COMMENT_LABEL + r"\s*(?:[：:].*)?")
+K12_COMMENT_LABEL_ERROR = "请在右框逐行填写编号评语，例如“S01：评语”。标签须为 S 加 2–4 位数字。"
+K12_COMMENT_ADVICE = {
+    "PY-001": "删除贬损用语，改写为具体行为和可操作的建议",
+    "PY-002": "把标签改成可观察的具体行为",
+    "PY-003": "核对是否为考试排名，删除考试排名",
+    "PY-004": "删去考试分数，描述学习表现",
+    "PY-005": "删去或遮蔽个人身份信息",
+    "PY-006": "删去与公开评语无关的敏感信息",
+    "PY-007": "按各自的事实重写雷同评语",
+    "PY-008": "把共用套句替换成各自的具体期望",
+    "PY-009": "按学校要求调整篇幅",
+    "PY-010": "按学校要求统一人称",
+    "PY-011": "用可核实的具体表现替换套话",
+    "PY-012": "补写评语正文",
+    "PY-013": "补充具体事实后再写",
+    "PY-014": "删去升学承诺，写具体建议",
+}
 
 
 def _load_industry_module(key: str, script: Path):
@@ -574,6 +617,39 @@ def _load_industry_module(key: str, script: Path):
     return mod
 
 
+def _op_k12_comments(script: Path, text: str, stage: str) -> dict:
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if not all(K12_COMMENT_ROW_RE.fullmatch(line.strip()) for line in text.split("\n") if line.strip()):
+        return {"ok": False, "text": K12_COMMENT_LABEL_ERROR}
+    failure = {"ok": False, "text": "评语检查失败，请核对编号格式和学段后重试。"}
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "待检评语.txt"
+            target.write_text(text, encoding="utf-8")
+            mod = _load_industry_module("k12_comments", script)
+            out = io.StringIO()
+            with redirect_stdout(out), redirect_stderr(io.StringIO()):
+                code = mod.main(["comments", str(target), "--stage", stage, "--json", "--strict"])
+        if code not in (0, 1):
+            return failure
+        lines = []
+        for issue in json.loads(out.getvalue())["issues"]:
+            rid, level, index = issue["id"], issue["level"], issue["line"]
+            if rid not in K12_COMMENT_ADVICE or level not in ("P0", "P1", "P2") or type(index) is not int:
+                return failure
+            where = f"第 {index} 行"
+            if index == 0:
+                label = issue["label"]
+                if not re.fullmatch(K12_COMMENT_LABEL, label):
+                    return failure
+                where = label
+            lines.append(f"[{level}] {rid} {where} {K12_COMMENT_ADVICE[rid]}。")
+        return {"ok": code == 0, "text": "\n".join(lines) or "未发现问题。"}
+    except (Exception, SystemExit):
+        # 引擎错误和 JSON 中的动态字段可能带有学生原文，不进入 HTTP 响应。
+        return failure
+
+
 def op_industry_check(d: dict) -> dict:
     text = str(d.get("b") or "")
     if not text.strip():
@@ -585,6 +661,12 @@ def op_industry_check(d: dict) -> dict:
     if not script.is_file():
         return {"ok": False, "text": f"未找到 {label} 脚本（{script.name}），请确认已安装对应行业包。"}
 
+    stage = d.get("stage", K12_STAGES[0])
+    if key.startswith("k12_") and stage not in K12_STAGES:
+        return {"ok": False, "text": "学段须为义务教育、高中或中职。"}
+    if key == "k12_comments":
+        return _op_k12_comments(script, text, stage)
+
     doc_type = str(d.get("doc_type") or "").strip()
     if doc_type.startswith("-"):
         return {"ok": False, "text": "文书类型不能以“-”开头，请改填“通知”“报告”等文书名称，或留空。", "note": f"{label}参数有误"}
@@ -595,10 +677,8 @@ def op_industry_check(d: dict) -> dict:
         target = Path(tmp) / "待检成稿.txt"
         target.write_text(text, encoding="utf-8")
         argv: List[str] = []
-        if key == "k12_parents":
-            argv = ["parents", str(target), "--strict"]
-        elif key == "k12_general":
-            argv = ["general", str(target), "--strict"]
+        if key in ("k12_parents", "k12_general"):
+            argv = [key[4:], str(target), "--stage", stage, "--strict"]
         elif key == "university_blind":
             argv = [str(target), "--blind", "--strict"]
             if terms:

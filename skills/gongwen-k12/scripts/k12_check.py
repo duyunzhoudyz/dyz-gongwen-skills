@@ -2,6 +2,7 @@
 """中小学行业包（gongwen-k12）的本地脱敏与检查工具。
 
 用法：
+    python scripts/k12_check.py --list-rules [--json]
     python scripts/k12_check.py mask <学生事实表> [--name-col 列名] [--drop-sensitive] [--json]
     python scripts/k12_check.py unmask <评语文件> <对照表.csv> [--json]
     python scripts/k12_check.py comments <评语文件> [--facts 脱敏事实表] [--stage 学段]
@@ -22,7 +23,8 @@
               给家长布置作业、公布成绩分数和排名、一二年级书面作业、收费和统一购买、推荐校外培训、
               强制参加课后服务、课后服务讲新课、承诺升学、点名批评学生、要求转发点赞等。
     general   校内综合文书检查（学期计划总结、督导自评、课后服务方案、安全教育和教研记录）：
-              公布考试成绩排名、补造台账记录、课后服务讲新课和强制参加、学生隐私外露（K12-G04）。
+              公布考试成绩排名、补造台账记录、课后服务讲新课和强制参加、学生隐私外露、
+              强制收费购买、收费缺依据、组织或推荐校外有偿补课。
 
 姓名识别与遮蔽：
     K12-G04 由共享模块 scripts/gw_names.py 识别学生实名：先找“低保家庭学生”“建档立卡户”等敏感身份词作锚点，
@@ -44,12 +46,16 @@
        在词表外的后续动词下可能漏报；全文遮蔽是整串替换，可能多遮。
     5. 带“·”的姓名、外文名、昵称识别不了；“受到处分”的写法只覆盖后接“学生、同学”的情形，
        “该生因打架受到处分”这类写法不报。
-    6. 敏感身份词是固定清单：残疾、受助、留守学生、被记过的学生、患病学生、“学生 + 姓名 + 的 + 亲属 + 敏感事件”等不在内，不报。
-    7. 表格行里的姓名识别不了；锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+    6. 残疾、受助、留守、患病、被记过等新增身份词只在“身份＋学生称谓/冒号名单”或
+       “姓名和学生称谓＋明确归属谓词＋身份”下精确识别；同分句的具体学生和身份共现另给 P1。无学生称谓、归属标记或名单边界的裸姓名仍可能漏报；
+       通用的“学生 + 姓名 + 的 + 亲属 + 敏感事件”也可能漏报。
+    7. Markdown 表格中姓名列默认报 P1、有困难类型或心理等敏感列时报 P0，无姓名类表头或非 Markdown 表格的姓名仍可能漏报。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
     缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 输入：.txt、.md、.csv；.docx 需要 python-docx，.xlsx 需要 openpyxl，未安装时给出安装提示并返回 2。
-comments、parents 只检查【起草说明】之前的内容。
+comments、parents、general 只检查【起草说明】之前的内容。
+收费依据检查：general 按段落或表格行核对，parents 的 JZ-007 仍只查同一行，出现“根据”即放行。
+收费与补课按精确层和整句共现宽层检查。报刊强制征订在 general 提示 P1，parents 保留基线级别。
 
 退出码：0 正常；--strict 时存在 P0 返回 1；输入错误、缺少共享模块返回 2。
 只用标准库，不联网；文件一律按 UTF-8 读写；输出文件已存在时加 -v2、-v3，不覆盖。
@@ -68,7 +74,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.1.0"
+VERSION = "1.3.0"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -203,6 +209,7 @@ class Document:
     lines: List[str] = field(default_factory=list)          # 全部文本行（含 Markdown 表格行）
     tables: List[List[List[str]]] = field(default_factory=list)
     kind: str = "text"                                      # text / table / docx
+    table_after_paragraph: List[int] = field(default_factory=list)  # Word 表格前的正文段落数
 
 
 def load_document(path: Path) -> Document:
@@ -232,6 +239,12 @@ def load_document(path: Path) -> Document:
         except Exception as exc:  # 文件损坏或不是 docx
             raise InputError(f"无法读取 {path.name}：{exc}") from exc
         doc.lines = [p.text for p in d.paragraphs]
+        paragraphs = 0
+        for child in d.element.body.iterchildren():
+            if child.tag.endswith("}p"):
+                paragraphs += 1
+            elif child.tag.endswith("}tbl"):
+                doc.table_after_paragraph.append(paragraphs)
         for t in d.tables:
             rows = [[_cell(c.text) for c in r.cells] for r in t.rows]
             doc.tables.append([r for r in rows if any(r)])
@@ -1173,7 +1186,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         label = re.sub(r"\s", "", e.label)
         if 2 <= len(label) <= 4 and not CODE_LIKE_RE.fullmatch(label) and looks_like_name(label):
             table.add(label)
-        for name in _g04_analyze(e.body)[1]:
+        for _, name in _g04_analyze(e.body)[1]:
             table.add(name)
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
@@ -1209,6 +1222,57 @@ TEACHER_SUBJECT_END_RE = re.compile(r"(?:老师|教师|学校|班主任)[^，,]{
 COMPETITION_SKIP_RE = re.compile(r"比赛|竞赛|运动会|大赛|评比|艺术节|科技节|合唱|演讲|征文|联赛")
 # “年级第一次”“全区第一批”“七年级第一学期”之类不是名次
 RANK_TAIL_OK = r"(?![一二三四五六七八九十\d次天周日个期批届课节排行年月号季轮场项条学单章阶部段组])"
+# K1 点名豁免表。旧锚点的可能、疑似和帮扶对象继续沿用原判定。
+BASELINE_EXEMPTIONS = {
+    "JZ-003": "同分句直接否定公布或排名，明确表示不实施该行为。",
+    "K12-G01": "同分句直接否定公布、张贴或排名，明确表示不实施该行为。",
+    "JZ-008": "培训明确面向教师，描述的是师资培训。",
+    "K12-G04": "身份短语指志愿或组织角色，或学生为他人提供帮扶，身份属于服务对象。",
+}
+TEACHER_TRAINING_RE = re.compile(r"(?:为|面向|针对|给)(?:本校|全体|在职|一线)?(?:教师|老师|教职工)(?:开展|进行|举办|提供|组织|参加|接受)[^，,。；;！？]*?培训")
+RANK_ACTION = (
+    r"(?:公布|发布|公示|公开|晒|通报|张贴|上传|发[到在至进]?|贴[到在至]|排名|排行|排座|分班|报分|"
+    r"给[^，。；]{0,5}排(?:名|名次)|考了|得了|拿了|给出(?:分数|成绩))"
+)
+RANK_DOUBLE_NEGATION = r"(?:不得不|不能不|没有不|并非不|绝非不|不可能不|不会不|不是不|无不)"
+RANK_OBJECT_FIRST_ASSERTED = (r"(?:考试成绩|成绩排名|成绩单|成绩|分数|排名|名次)\s*[，,]?\s*"
+                              r"(?:学校|教师|老师)?" + RANK_DOUBLE_NEGATION + RANK_ACTION)
+RANK_BREAK_RE = re.compile(r"[。！？；!?;，,]|但是?|然而|而是|随后|然后|同时|接着|却|仍然?|并(?!非|没有|未|不)|且|还|另行")
+RANK_ASSERTION_RE = re.compile(RANK_DOUBLE_NEGATION + r"|不(?:仅|只|但|光|单|止)|难道|岂能|怎么(?:能|可以|行)"
+                               r"|(?:是|根本|绝对|显然|当然|实在)*(?:不可能|不行|不可以|做不到)(?:的|呢)?$")
+RANK_DIRECT_NEG_RE = re.compile(
+    r"(?:严禁|禁止|拒绝|勿|没有|未|不(?:再|曾|会|要|得|允许|准|予|能|应|可|须|需|将)?)"
+    r"(?:\s*(?:在|按|向|通过|以|让|把|将|进行|搞|组织|拍照)[^，,。！？；;!?]*?)?\s*" + RANK_ACTION
+)
+
+
+def _rank_negated(rule_id: str, line: str, match: re.Match, baseline_negative: bool) -> bool:
+    # 对原始命中做并集：JZ-014 从不因新增的直接否定豁免而减少。
+    start = match.start()
+    # 原模式可从否定分句的“成绩”跨到后一个分句的分值。以实际分值定位 JZ-014。
+    if rule_id == "JZ-014":
+        number = re.search(r"\d", match[0])
+        if number:
+            start += number.start()
+    left = 0
+    for sep in RANK_BREAK_RE.finditer(line, 0, start):
+        left = sep.end()
+    right = RANK_BREAK_RE.search(line, start)
+    clause = line[left:right.start() if right else len(line)]
+    # 旧模式偶尔横跨逗号，把前面的“发到家长群”和后面的“不发成绩”拼成一次命中。
+    if (rule_id == "JZ-003" and right and right.start() < match.end()
+            and not RANK_ASSERTION_RE.search(match[0]) and RANK_DIRECT_NEG_RE.search(line[right.end():match.end()])):
+        return True
+    if RANK_ASSERTION_RE.search(clause):
+        return False
+    if rule_id != "JZ-014":
+        for negative in RANK_DIRECT_NEG_RE.finditer(clause):
+            if left + negative.start() < match.end() and left + negative.end() >= match.start():
+                return True
+    if not baseline_negative:
+        return False
+    # 基线中否定词跨过连词压住的后一分句，按该分句补回。
+    return bool(NEG_RE.search(clause[max(0, match.start() - left - 12):max(0, match.end() - left)]))
 
 
 @dataclass
@@ -1265,6 +1329,16 @@ PARENT_RULES: Tuple[ParentRule, ...] = (
                           r"|(?:班级|年级|全班|全年级|全区|全校|全市|全县|班里|班上)"
                           r"(?:第[一二三四五六七八九十\d]{1,3}名?|前[一二三四五六七八九十\d]{1,3}名?|倒数第?[一二三四五六七八九十\d]{1,3}名?)"
                           + RANK_TAIL_OK),
+               "公布或传播考试成绩、排名", "删去；考试结果以适当方式单独告知学生和家长",
+               B_EXAM, sentence_skip=COMPETITION_SKIP_RE),
+    ParentRule("JZ-003", "P0", "P1", "公布成绩排名",
+               re.compile(r"(?:公布|发布|公示|晒|通报|张贴|发到家长群|发在家长群|在家长群)[^。；！？\n，,]{0,12}?(?:成绩|分数|排名|名次)"
+                          r"|(?:成绩|分数|排名|名次|成绩单)[^。；！？\n，,]{0,8}?(?:发到|发在|发至|发进|公布在|公布到|晒到|晒在|贴在|上传到|上传至)"
+                          r"[^。；！？\n，,]{0,3}?(?:家长群|班级群|班群|微信群|QQ群|群里|群内|公告栏|宣传栏)"
+                          r"|(?:成绩|分数|考试)[^。；！？\n，,]{0,6}?(?:排名|排行|名次)"
+                          r"|(?:班级|年级|全班|全年级|全区|全校|全市|全县|班里|班上)"
+                          r"(?:第[一二三四五六七八九十\d]{1,3}名?|前[一二三四五六七八九十\d]{1,3}名?|倒数第?[一二三四五六七八九十\d]{1,3}名?)"
+                          + RANK_TAIL_OK + "|" + RANK_OBJECT_FIRST_ASSERTED),
                "公布或传播考试成绩、排名", "删去；考试结果以适当方式单独告知学生和家长",
                B_EXAM, sentence_skip=COMPETITION_SKIP_RE),
     ParentRule("JZ-003", "P0", "P1", "公布成绩排名",
@@ -1346,6 +1420,442 @@ def _sentence_of(text: str, start: int, end: int) -> str:
     return left + text[start:end] + right
 
 
+# R1 判定表。表内级别顺序与 STAGES 一致。
+FEE_MATRIX = {
+    "force": ("明确要求缴费购买（含家委会违规收费）或拒缴有后果", ("P0", "P1", "P1")),
+    "uniform": ("无自愿说明的统一购买、订购、办理或缴纳", ("P0", "P1", "P1")),
+    "optout": ("同项目明确自愿且可不参加的代办", ("skip", "skip", "skip")),
+    "ambiguous": ("只写自愿统一购买，未说明可以不参加", ("P1", "P1", "P1")),
+    "conflict": ("同项目自愿与明确强制并存", ("P0", "P1", "P1")),
+    "different": ("不同项目分别判断，其他项目自愿不抵消本项目强制", ("P0", "P1", "P1")),
+    "unbound": ("自愿与统一或强制并存，无法确定是否属于同一项目", ("P1", "P1", "P1")),
+    "quoted": ("引述禁止或明确否定强制要求", ("skip", "skip", "skip")),
+    "broad": ("宽层：项目与强制、拒缴后果或家委会收费在整句共现；仅 JZ-006 基线触发时 general 给 P1、parents 保留基线级别", ("P1", "P1", "P1")),
+    "periodical": ("报刊强制或统一征订：general 宽层 P1；parents 命中基线时依次 P0、P1、P1", ("P1", "P1", "P1")),
+}
+
+FEE_PROJECT_RE = re.compile(r"课后服务|保险|教辅(?:材料|资料)?|校服|班费|资料费|教材|伙食费|餐费|报刊|报纸|杂志|期刊")
+FEE_PROJECT_KIND = {"伙食费": "餐费", "教辅材料": "教辅", "教辅资料": "教辅", "报纸": "报刊", "杂志": "报刊", "期刊": "报刊"}
+FEE_BASES = {
+    "课后服务": B_SHUANGJIAN_9.replace("第9条", "第9段") + "、第20段",
+    "保险": B_SAFETY_46,
+    "教辅": B_JIAOFU,
+}
+FEE_AMOUNT = r"(?:\d[\d,，]*(?:[.．]\d+)?|[零〇一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+)\s*(?:元|块钱)"
+SHORT_FEE_ACTION = r"[收缴交](?=\s*" + FEE_AMOUNT + ")"
+FEE_ACTION = r"(?:购买|订购|征订|订阅|缴纳|交纳|缴费|交费|收费|收取|代收|" + SHORT_FEE_ACTION + ")"
+FEE_REFUSAL_OUTCOME = (r"(?:(?:不予|不准|不能|不得|无法)(?:报名|登记|领取|参加|入学|选课|发放)"
+                       r"|不发(?:放)?(?:教材|材料|资料|校服|学习用品))")
+FEE_REFUSAL_OUTCOME_RE = re.compile(FEE_REFUSAL_OUTCOME)
+FEE_REFUSAL_RE = re.compile(
+    r"(?:未|不|拒)(?:缴纳?|交(?:纳|付)?|订购|购买|征订)[^。；!?！？]{0,22}?" + FEE_REFUSAL_OUTCOME
+)
+FEE_REQUIREMENT = r"必须|一律|务必|强制|强迫|均须|均需|(?<!无)(?<!不)须(?!知|求|要)"
+FEE_AUDIENCE = r"全体|所有"
+FEE_FORCE_RE = re.compile(
+    r"(?P<force>" + FEE_REQUIREMENT + r")|(?P<audience>" + FEE_AUDIENCE + r")"
+)
+FEE_UNIFORM_RE = re.compile(r"统一|集体")
+FEE_VERB_RE = re.compile(FEE_ACTION + r"|办理|收缴|摊派")
+FEE_ACTION_NOUN_RE = re.compile(r"(?:费)?(?:的)?(?:项目|事项|清单|原则|流程|标准|依据|目录|范围)")
+FEE_OBJECT_RE = re.compile(
+    r"《(?P<title>[^》]+)》|(?P<object>[\u4e00-\u9fa5]{2,16}?)(?=\s*(?:"
+    + FEE_AMOUNT + r"|的学生|的家长|(?:方可|才可|否则|即可|共计)|\d|\W|$))"
+)
+FEE_UNNAMED_RE = re.compile(r"^(?:本次|本项(?:目)?|本学期|该项(?:目)?|相关|上述|此项)?(?:费用|费款|款项|款|费|报名费)?$")
+FEE_NAME_SUFFIX_RE = re.compile(r"(?:的|可自行|坚持自愿|实行自愿|遵循自愿|不强制|自愿原则|家长自愿).*$")
+FEE_CHOICE_PROJECT_RE = re.compile(
+    r"\s*(?:本次|本学期|此次)?([\u4e00-\u9fa5]{2,16}?)\s*(?:报名)?(?:自愿|可不参加|可以不参加)"
+)
+FEE_CHOICE_SUBJECT_RE = re.compile(r"家长|监护人|学生|学校|全体|所有|规定|坚持|真正|纯属|完全")
+FEE_VOLUNTARY_RE = re.compile(r"(?<!非)(?<!不)(?<!未)自愿")
+FEE_OPTOUT_RE = re.compile(
+    r"不(?:参加|报名|购买|办理|订购|选购)(?:的|者)?(?:不收(?:费|取)|不[缴交]费|不影响)"
+    r"|可(?:以)?(?:自行|自主)(?:购买|订购|办理|选择(?:是否参加)?)"
+    r"|(?:可以|可)不(?:参加|报名|购买|办理|订购|缴费)|不强制|不作强制要求"
+)
+FEE_COMMITTEE_RE = re.compile(
+    r"(?:家委会|家长委员会)(?:名义)?[^，,。；!?！？]{0,15}?"
+    r"(?:收费|收取|收缴|代收|摊派|收(?:班费|资料费|材料费|活动费)|" + SHORT_FEE_ACTION + ")"
+)
+FEE_COMMITTEE_SUBJECT_RE = re.compile(r"(?:家委会|家长委员会)(?:负责|决定|商议|名义|研究|代办)?\s*$")
+FEE_COMMITTEE_ACTION_RE = re.compile(r"\s*(?:向[^，,]{0,12}?)?(?:收费|收取|代收|收缴|摊派|" + SHORT_FEE_ACTION + ")")
+POLICY_EXAMPLE_RE = re.compile(r"^\s*(?:(?:[-*]|\d+[.、])\s*)?(?:\*\*)?(?:误|反例)[：:]")
+ACTION_NEGATION_RE = re.compile(
+    r"严禁|禁止|查处|整治|杜绝|承诺不|抵制|(?:不|未)(?:得|允许|应|要|能|必|须|需|曾|会|用|可|予|安排|组织|推荐|要求|统一|强制|收费|收取|购买|办理|提供)"
+    r"|无需|无须|没有|不写|删去|取消|避免|拒绝|免收"
+)
+SENTENCE_RE = re.compile(r"[^。！？；!?;\n]+")
+# 连词只在后面开启新收费动作时切分，避免拆开“购买教辅和保险”的项目清单。
+FEE_CLAUSE_RE = re.compile(
+    r"(?<!\d),(?!\s*(?:则|将|即)?" + FEE_REFUSAL_OUTCOME + r")"
+    r"|[，](?!\s*(?:则|将|即)?" + FEE_REFUSAL_OUTCOME + r")"
+    r"|[；;|（）()]|、(?=(?:全体|所有|学校|必须|一律|[^、，,()（）|]{1,22}(?:自愿|统一|必须|收费|收取|缴纳|代收)))"
+    r"|(?:但(?:是)?|然而)|(?:并且?|同时|另(?:外)?|而(?:且)?)(?=(?:学校|家委会|所有|全体|必须|务必|强制|"
+    r"一律|自愿|统一|不[缴交]|拒[缴交]|须|收取|代收|购买|缴纳|办理|要求|组织|安排|通知))"
+)
+SPEECH_QUOTE_RE = re.compile(r"“[^”]*”|‘[^’]*’|\"[^\"]*\"|「[^」]*」|『[^』]*』")
+QUOTE_RE = re.compile(r"《[^》]*》|" + SPEECH_QUOTE_RE.pattern)
+ACTION_ASSERTIVE_RE = re.compile(r"(?:不得不|不能不|不会不|不可能不|没有不|不是不|并非不|不(?:仅|但|只))")
+FEE_SCOPE_BREAK_RE = re.compile(r"的(?:学生|新生|家长|家庭|同学)|取消(?:费用)?减免(?:后)?|停止免收(?:后)?")
+
+
+def _live_action(clause: str, match: re.Match) -> bool:
+    """检查当前动作前的否定，分开定语、撤销减免和双重否定。"""
+    head = FEE_SCOPE_BREAK_RE.split(clause[:match.start()])[-1]
+    head = ACTION_ASSERTIVE_RE.sub("", head)
+    return not (head.rstrip().endswith("不") or ACTION_NEGATION_RE.search(head))
+
+
+def _fee_projects(clause: str, action: Optional[re.Match]) -> List[str]:
+    # 优先找动作指向的项目，避免取到前置定语、未缴后果或同句内的说明文字。
+    start = action.end() if action else 0
+    target = re.split(r"方可|才可|否则|[，,]|" + FEE_REFUSAL_OUTCOME, clause[start:], 1)[0]
+    known = [FEE_PROJECT_KIND.get(m[0], m[0]) for m in FEE_PROJECT_RE.finditer(target)]
+    if known:
+        return list(dict.fromkeys(known))
+    if action:
+        obj = FEE_OBJECT_RE.match(target.lstrip())
+        if obj:
+            name = FEE_NAME_SUFFIX_RE.sub("", obj["title"] or obj["object"])
+            name = re.sub(r"^(?:本学期|本学年|本次|该项|相关的?)", "", name)
+            if name and not FEE_UNNAMED_RE.fullmatch(name):
+                return [name]
+    known = [FEE_PROJECT_KIND.get(m[0], m[0]) for m in FEE_PROJECT_RE.finditer(clause[:start])]
+    if known:
+        return list(dict.fromkeys(known))
+    choice_project = FEE_CHOICE_PROJECT_RE.match(clause)
+    if choice_project and not (FEE_CHOICE_SUBJECT_RE.search(choice_project[1])
+                               or FEE_UNNAMED_RE.fullmatch(choice_project[1])):
+        return [choice_project[1]]
+    return []
+
+
+def _fee_clauses(value: str):
+    # 书名号可以标记收费项目，内文不作为动作或结构分隔符。
+    separators = FEE_CLAUSE_RE.finditer(re.sub(r"《[^》]*》", lambda m: " " * len(m[0]), value))
+    start = 0
+    for separator in separators:
+        if value[start:separator.start()].strip():
+            yield start, value[start:separator.start()]
+        start = separator.end()
+    if value[start:].strip():
+        yield start, value[start:]
+
+
+def _fee_precise(line: str):
+    if POLICY_EXAMPLE_RE.match(line):
+        return
+    for sentence in SENTENCE_RE.finditer(line):
+        # 去掉引述仍保留位置，避免标题、政策举例里的措辞被当作执行动作。
+        value = SPEECH_QUOTE_RE.sub(lambda m: " " * len(m[0]), sentence[0])
+        clauses = []
+        subject_is_committee = False
+        for offset, clause in _fee_clauses(value):
+            action_text = re.sub(r"《[^》]*》", lambda m: " " * len(m[0]), clause)
+            refusal = next((m for m in FEE_REFUSAL_RE.finditer(action_text) if _live_action(action_text, m)), None)
+            actions = [m for m in FEE_VERB_RE.finditer(action_text)
+                       if _live_action(action_text, m) and not FEE_ACTION_NOUN_RE.match(action_text, m.end())]
+            scope_start = max((m.end() for m in FEE_SCOPE_BREAK_RE.finditer(action_text)), default=0)
+            action = next((a for a in actions if a.start() >= scope_start and
+                           not (a[0] == "办理" and re.search(r"减免|免收|补贴|退费", clause))), None)
+            keys = _fee_projects(clause, action or (FEE_VERB_RE.search(action_text) if refusal else None))
+            voluntary = bool(FEE_VOLUNTARY_RE.search(action_text))
+            optout = bool(FEE_OPTOUT_RE.search(clause))
+            committee = FEE_COMMITTEE_RE.search(action_text)
+            if not committee and subject_is_committee:
+                committee = FEE_COMMITTEE_ACTION_RE.match(action_text)
+            if committee:
+                collection = FEE_COLLECTION_RE.search(action_text, committee.start(), committee.end())
+                if not collection or not _live_action(action_text, collection):
+                    committee = None
+            subject_is_committee = bool(FEE_COMMITTEE_SUBJECT_RE.search(action_text))
+            force = uniform = None
+            if action:
+                force = next((m for m in FEE_FORCE_RE.finditer(action_text, max(0, action.start() - 18), action.start())
+                              if _live_action(action_text, m) and (m["force"] or not (voluntary or optout))), None)
+                uniform = next((m for m in FEE_UNIFORM_RE.finditer(action_text, max(0, action.start() - 8), action.start())
+                                if _live_action(action_text, m)), None)
+            # “家委会代收”且明确自愿、可退出时按代办处理。
+            match = refusal or force or uniform or committee
+            hit = None if not match else (sentence.start() + offset + match.start(),
+                                          sentence.start() + offset + max(match.end(), action.end() if action else 0))
+            strong = bool(refusal or force or (committee and "违规" in clause))
+            clauses.append((keys, voluntary, optout, strong, bool(refusal), hit, committee, clause))
+
+        explicit = {key for keys, *_ in clauses for key in keys}
+        unnamed_consent = [(v, o) for keys, v, o, *_ in clauses if not keys and (v or o)]
+        first_named = next((i for i, (keys, *_) in enumerate(clauses) if keys), len(clauses))
+        # 有明确的报名和退出说明、且全文只有一个可指向的项目时，允许后置项目名。
+        bind_preamble = (len(explicit) == 1 and any(o for _, o in unnamed_consent))
+        projects = {}
+        last_keys = []
+        unresolved = False
+        for i, (keys, voluntary, optout, strong, refusal, hit, committee, clause) in enumerate(clauses):
+            if keys:
+                if len(keys) > 1 and (voluntary or optout) and hit:
+                    unresolved = True
+                last_keys = keys
+            elif last_keys and (len(last_keys) == 1 or not (voluntary or optout)):
+                keys = last_keys
+            elif bind_preamble or (len(explicit) == 1 and i < first_named
+                                   and clauses[first_named][7].lstrip().startswith(("可实际", "实际"))):
+                keys = list(explicit)
+            elif voluntary or optout:
+                unresolved = bool(explicit)
+            for key in keys or [""]:
+                item = projects.setdefault(key, {"voluntary": False, "optout": False, "hits": []})
+                if keys or not explicit:
+                    item["voluntary"] |= voluntary
+                    item["optout"] |= optout
+                if hit:
+                    item["hits"].append((hit, strong, refusal, committee, voluntary or optout, len(keys) > 1))
+
+        for key, item in projects.items():
+            if key == "报刊":
+                continue
+            for (left, right), strong, refusal, committee, local_choice, multiple in item["hits"]:
+                if not refusal and ((unresolved and not item["voluntary"]) or (not key and explicit and unnamed_consent)
+                                    or (multiple and local_choice)):
+                    kind = "unbound"
+                elif strong:
+                    kind = ("ambiguous" if local_choice and not refusal else
+                            "conflict" if item["voluntary"] else "force")
+                elif item["voluntary"]:
+                    kind = "optout" if item["optout"] else "ambiguous"
+                elif item["optout"]:
+                    kind = "unbound"
+                else:
+                    kind = "uniform"
+                basis = B_XIETONG + "（不得以家长委员会名义违规收费）" if committee else FEE_BASES.get(key)
+                yield left, right, kind, basis or "references/redlines.md 第五条"
+
+
+# 宽层在整句合并仍有效的分句。距离与语序均不参与判定。
+BROAD_SENTENCE_RE = re.compile(r"[^。！？!?\n]+")
+FEE_NOUN_RE = re.compile(r"课后服务(?=费)|保险|教辅|校服|教材(?!分析)|报刊|报纸|杂志|期刊|(?<!免)(?<!经)费|资料|手册|练习册")
+FEE_MANDATE_RE = re.compile(FEE_FORCE_RE.pattern + r"|统一|集体|不得不")
+FEE_NONPAY_RE = re.compile(r"(?:未|不|拒)(?:购买|订购|[缴交](?:纳|付)?)")
+FEE_PENALTY_RE = re.compile(r"不予|不准|不能|不得|不发|无法")
+FEE_COLLECTION_RE = re.compile(r"收取|代收|收缴|摊派|收(?=[^，。]*(?:费|元))")
+GOVERNANCE_RE = re.compile(r"严禁|禁止|查处|整治|杜绝|抵制|不写|删去|(?:不得|不准)(?!不)")
+FEE_GUIDANCE_RE = re.compile(r"收费的通知|(?:实行|遵循|坚持)自愿原则|(?:的项目|项目清单|收费须知|收费原则|收费依据|收费标准).*(?:列出|公示|说明)|(?:不参加|不报名)不收费")
+
+
+def _fee_matches(line: str):
+    if POLICY_EXAMPLE_RE.match(line):
+        return
+    for sentence in BROAD_SENTENCE_RE.finditer(line):
+        value = SPEECH_QUOTE_RE.sub(lambda m: " " * len(m[0]), sentence[0])
+        precise = list(_fee_precise(value))
+        for left, right, kind, basis in precise:
+            if kind != "optout":
+                yield sentence.start() + left, sentence.start() + right, kind, basis
+        if any(kind != "optout" for _, _, kind, _ in precise):
+            continue
+        live = []
+        for offset, clause in _fee_clauses(value):
+            governance = GOVERNANCE_RE.search(ACTION_ASSERTIVE_RE.sub("", clause))
+            consequence = governance and governance[0] == "不得" and FEE_NONPAY_RE.search(value) and FEE_REFUSAL_OUTCOME_RE.search(clause)
+            if (governance and not consequence) or FEE_GUIDANCE_RE.search(clause):
+                continue
+            mandate = FEE_MANDATE_RE.search(clause)
+            if mandate and not _live_action(clause, mandate):
+                continue
+            if any(kind == "optout" and offset <= left < offset + len(clause)
+                   for left, _, kind, _ in precise):
+                continue
+            live.append(clause)
+        active = "，".join(live)
+        # 统一办理减免只描述发放资助；若同时要求购买或缴纳，仍须检查。
+        if "办理" in active and re.search(r"减免|补贴|退费", active) and not FEE_VERB_RE.search(active.replace("办理", "")):
+            continue
+        noun = FEE_NOUN_RE.search(active)
+        nonpay = FEE_NONPAY_RE.search(active)
+        penalty = nonpay and FEE_PENALTY_RE.search(active)
+        committee = re.search(r"家委会|家长委员会", active) and FEE_COLLECTION_RE.search(active)
+        if not noun or not (penalty or committee or FEE_MANDATE_RE.search(active)):
+            continue
+        if not penalty and not committee and FEE_VOLUNTARY_RE.search(active) and FEE_OPTOUT_RE.search(value):
+            # 单项目的自愿代办；不同项目或绑定不确定时仍进入宽层。
+            projects = {key for _, clause in _fee_clauses(value) for key in _fee_projects(clause, FEE_VERB_RE.search(clause))}
+            if len(projects) == 1 and all(
+                    FEE_VOLUNTARY_RE.search(part) or set(_fee_projects(part, FEE_VERB_RE.search(part))) == projects
+                    for part in live if FEE_MANDATE_RE.search(part)):
+                continue
+        if precise and all(kind == "optout" for _, _, kind, _ in precise) and not FEE_MANDATE_RE.search(active) and not penalty:
+            continue
+        kind = "periodical" if FEE_PROJECT_KIND.get(noun[0], noun[0]) == "报刊" else "broad"
+        yield sentence.start(), sentence.end(), kind, "references/redlines.md 第五条"
+
+
+TUTORING_ACTOR = r"(?:中小学(?:校)?|各学校|各校|学校|校方|本校|我校|校领导|教师|老师|班主任|教职工|年级组|教研组|教务处|政教处|德育处)"
+TUTORING_STUDENT = r"(?:学生|孩子|同学们?|学员)"
+TUTORING_INSTITUTION = r"\s*(?:校外\s*)?(?:[\u4e00-\u9fa5]{0,8}?\s*)?(?:培训|辅导|补习)机构"
+TUTORING_INSTITUTION_RE = re.compile(TUTORING_INSTITUTION)
+TUTORING_PAID = r"(?:有偿|收费|付费)"
+TUTORING_KIND = r"(?:补课|补习|(?:学科)?辅导|培训班)"
+TUTORING_CHARGE = r"(?:参加者|报名者|每人|每生|费用|收费)"
+TUTORING_PRICE = (r"(?:(?:参加者|报名者)\s*)?(?:(?:每人|每生)\s*)?"
+                  r"(?:收费|收取|缴纳|缴费|交费|支付|费用(?:为|是)?)\s*")
+TUTORING_ACTIVITY = (r"(?:校外[^。！？；，,]{0,14}?" + TUTORING_PAID + r"[^。！？；，,]{0,6}?" + TUTORING_KIND
+                     + r"|" + TUTORING_PAID + r"\s*校外\s*" + TUTORING_KIND
+                     + r"|校外(?:机构)?" + TUTORING_KIND + r"[，,]?\s*" + TUTORING_PRICE + FEE_AMOUNT
+                     + r")")
+TUTORING_GOVERNANCE_RE = re.compile(
+    r"专项(?:治理|整治|排查|检查|行动)|治理|整治|查处|清查|监管|督查|排查|举报|"
+    r"通报|告诫|风险防范|专题检查|承诺书|政策(?:解读|宣讲|宣传)|专题研讨|监督|抵制|禁止|严禁|不得(?!不)|不(?:参与|参加|组织|推荐)"
+)
+TUTORING_DIRECTIVE = r"推荐|组织|安排|要求|动员|建议|引导|带领"
+TUTORING_HEAD_RE = re.compile(
+    r"\s*(?:[-*]\s*|[一二三四五六七八九十\d]+[、.．]\s*)?"
+    r"(?:(?:但是?|然而|现|拟|将|请|可|继续|继续由|已|由|委托|下一步|本周|会上|随后)\s*)*$"
+)
+TUTORING_ACTOR_RE = re.compile(TUTORING_ACTOR)
+TUTORING_EXTERNAL_RE = re.compile(r"家长|监护人|父母|学生|校外[^，。]{0,8}机构|培训机构|社会人员")
+PAID_TUTORING_RE = re.compile(
+    r"(?:" + TUTORING_DIRECTIVE + r")[^。！？；，,]{0,20}?" + TUTORING_STUDENT
+    + r"[^。！？；，,]{0,18}?" + TUTORING_ACTIVITY
+)
+TUTORING_PERSON_DATA = (
+    r"(?:本校|在校|本班)?(?:学生(?:及|和|与)家长|学生|学员|家长|监护人)(?:的|个人)?"
+    r"(?:信息|名单|联系方式|通讯录|电话(?:号码)?|资料|数据)"
+)
+TUTORING_DISCLOSURE = r"(?:(?:介绍|推荐|输送)(?:学生)?生源|(?:提供|发送|转交|发|交)\s*" + TUTORING_PERSON_DATA + r")"
+TUTORING_DISCLOSURE_RE = re.compile(
+    r"(?:为|给|向)" + TUTORING_INSTITUTION + r"\s*(?:统一|批量|直接)?\s*" + TUTORING_DISCLOSURE
+    + "|" + TUTORING_DISCLOSURE + r"\s*(?:给|至|予)" + TUTORING_INSTITUTION
+    + r"|(?:把|将)" + TUTORING_PERSON_DATA + r"\s*(?:统一|批量|直接)?(?:提供|发送|转交|发|交|共享)(?:给|至|予)"
+    + TUTORING_INSTITUTION
+)
+TUTORING_CLAUSE_RE = re.compile(r"[^，,。！？；!?;\n]+(?:[，,](?=\s*" + TUTORING_CHARGE + r")[^，,。！？；!?;\n]+)?")
+TUTORING_ACTION_BREAK_RE = re.compile(
+    r"(?:但是?|然而|而|随后|并且?|另行|另|同时)(?=\s*(?:" + TUTORING_ACTOR + r"|" + TUTORING_DIRECTIVE + r"|向|把|将))"
+)
+TUTORING_PART_RE = re.compile(r"(?:(?!" + TUTORING_ACTION_BREAK_RE.pattern + r").)+")
+TUTORING_CORE_RE = re.compile(r"有偿补课|校外培训(?:机构|班)?")
+TUTORING_SIDE_RE = re.compile(TUTORING_DIRECTIVE + r"|宣传|介绍|输送|提供|发给")
+TUTORING_DATA_RE = re.compile(r"生源|学生名单|学生信息|联系方式")
+
+
+def _tutoring_school_action(head: str) -> bool:
+    if TUTORING_HEAD_RE.fullmatch(head):
+        return True
+    actor = TUTORING_ACTOR_RE.search(head)
+    if not actor or TUTORING_EXTERNAL_RE.search(head[:actor.start()]):
+        return False
+    return not re.search(r"(?:根据|按照|依据|向|给|告诉|转告|提醒)\s*$", head[:actor.start()])
+
+
+def _tutoring_matches(line: str):
+    if POLICY_EXAMPLE_RE.match(line):
+        return
+
+    def quoted(m):
+        title = m[0][1:-1]
+        return " " + title + " " if TUTORING_INSTITUTION_RE.fullmatch(title) else " " * len(m[0])
+
+    for sentence in BROAD_SENTENCE_RE.finditer(line):
+        value = QUOTE_RE.sub(quoted, sentence[0])
+        live = []
+        for clause in TUTORING_CLAUSE_RE.finditer(value):
+            for part_match in TUTORING_PART_RE.finditer(clause[0]):
+                part = part_match[0]
+                governance_text = ACTION_ASSERTIVE_RE.sub("", part)
+                if (TUTORING_GOVERNANCE_RE.search(governance_text) or TEACHER_TRAINING_RE.search(part)
+                        or ACTION_NEGATION_RE.search(governance_text)):
+                    continue
+                if re.match(r"(?:部分|有的|少数|个别)?(?:学生家长|家长|监护人|父母|学生)(?:自行|提醒|委托|向|给|参加|报名)", part):
+                    continue
+                live.append(part)
+                for pattern in (PAID_TUTORING_RE, TUTORING_DISCLOSURE_RE):
+                    for match in pattern.finditer(part):
+                        if _tutoring_school_action(part[:match.start()]) and _live_action(part, match):
+                            offset = sentence.start() + clause.start() + part_match.start()
+                            yield offset + match.start(), offset + match.end(), "", B_BUKE
+        active = "，".join(live)
+        if (TUTORING_CORE_RE.search(active) and (TUTORING_ACTOR_RE.search(active) or TUTORING_SIDE_RE.search(active))
+                or ("校外培训机构" in active and TUTORING_DATA_RE.search(active))):
+            yield sentence.start(), sentence.end(), "broad", B_BUKE
+
+
+@dataclass(frozen=True)
+class CrossEntryRule:
+    parents_id: str
+    general_id: str
+    levels: Tuple[str, ...]
+    condition: str
+    category: str
+    suggestion: str
+    matches: Any
+
+
+CROSS_ENTRY_RULES = (
+    CrossEntryRule("JZ-006", "K12-G05", FEE_MATRIX["force"][1],
+                   "同一收费项目内强制或变相强制收费、购买；精确层按学段定级，宽层在项目与强制、拒缴后果或家委会收费共现时给 P1；仅 JZ-006 基线触发时 general 给 P1，parents 保留基线级别",
+                   "强制收费购买", "改为自愿并写明收费依据，确认家长可不参加", _fee_matches),
+    CrossEntryRule("JZ-008", "K12-G09", ("P0",) * len(STAGES),
+                   "学校或教师组织、推荐学生参加校外有偿补课，或向培训机构介绍生源、提供学生信息；精确层 P0，宽层按补课与学校主体、动作或机构与学生信息共现给 P1；仅 JZ-008 基线触发时 general 给 P1，parents 保留基线 P0",
+                   "校外有偿补课", "删去组织、推荐、介绍生源或提供学生信息的安排", _tutoring_matches),
+)
+
+
+CROSS_ENTRY_BASELINE = {r.id: r for r in PARENT_RULES if r.id in {pair.parents_id for pair in CROSS_ENTRY_RULES}}
+
+
+def _baseline_cross_match(rule: ParentRule, line: str):
+    # 两入口共用 eea1232 的 pattern、12 字否定窗口和 sentence_skip。
+    for m in rule.pattern.finditer(line):
+        before = re.split(r"[。！？；!?;，,]", line[:m.start()])[-1][-12:]
+        if rule.negation and NEG_RE.search(before + m.group(0)):
+            continue
+        if rule.sentence_skip and rule.sentence_skip.search(_sentence_of(line, m.start(), m.end())):
+            continue
+        if rule.id == "JZ-008" and TEACHER_TRAINING_RE.search(_clause_of(line, m.start(), m.end())):
+            continue
+        return m
+    return None
+
+
+def _cross_entry_issues(line: str, index: int, stage: str, command: str):
+    stage_index = STAGES.index(stage)
+    for rule in CROSS_ENTRY_RULES:
+        baseline = CROSS_ENTRY_BASELINE[rule.parents_id]
+        match = _baseline_cross_match(baseline, line)
+        best = None
+        if match:
+            level = (baseline.level if stage_index == 0 else baseline.level_other) if command == "parents" else "P1"
+            best = ((LEVELS.index(level), 1, match.start()), match.start(), match.end(), "baseline", baseline.basis, level)
+        for start, end, kind, basis in rule.matches(line):
+            if kind in ("broad", "periodical"):
+                level = "P1"
+            else:
+                level = FEE_MATRIX[kind][1][stage_index] if kind else rule.levels[stage_index]
+            priority = (LEVELS.index(level), 2 if kind in ("broad", "periodical") else 0, start)
+            if best is None or priority < best[0]:
+                best = (priority, start, end, kind, basis, level)
+        if best is not None:
+            _, start, end, kind, basis, level = best
+            if kind == "baseline":
+                if command == "parents":
+                    msg = baseline.message
+                elif rule.parents_id == "JZ-008":
+                    msg = "疑似推荐校外培训，请人工核对是否为校外、有偿"
+                else:
+                    msg = "疑似强制收费或购买，请人工核对"
+            elif kind in ("broad", "periodical"):
+                msg = "疑似" + rule.category + "，请人工核对"
+            elif kind == "unbound":
+                msg = "自愿与统一或强制表述并存，请核对各项目是否可以不参加"
+            elif kind == "ambiguous":
+                msg = "自愿与统一并用，请核对是否可以不参加"
+            else:
+                msg = rule.condition.split("；")[0]
+            rid = rule.parents_id if command == "parents" else rule.general_id
+            yield Issue(rid, level, rule.category, msg, rule.suggestion, basis,
+                        line=index, excerpt=excerpt_of(line, start, end, 12))
+
+
 def check_parents(path: Path, stage: str = "义务教育") -> dict:
     """面向家长文书检查。识别出的学生姓名（敏感身份锚点、JZ-012 点名批评）进全文姓名表，excerpt 统一遮蔽。"""
     gw, lex = shared_names()
@@ -1357,20 +1867,31 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
         lines, _ = cut_at_boundary(doc.lines)
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
+    table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
     for index, line in enumerate(lines, start=1):
         if not line.strip():
             continue
-        for name in _g04_analyze(line)[1]:
-            table.add(name)
+        names = _g04_analyze(line)[1]
+        row = table_rows.get(index - 1)
+        if row:
+            issues.append(_table_name_issue(row, table, index, names, gw.SCORE_HIGH))
+        else:
+            for _, name in names:
+                table.add(name)
         for rule in PARENT_RULES:
+            if rule.id in CROSS_ENTRY_BASELINE:
+                continue
             level = rule.level if compulsory else rule.level_other
             if level == "skip":
                 continue
             for m in rule.pattern.finditer(line):
                 sentence = _sentence_of(line, m.start(), m.end())
                 before = re.split(r"[。！？；!?;，,]", line[:m.start()])[-1][-12:]
-                if rule.negation and NEG_RE.search(before + m.group(0)):
+                negated = NEG_RE.search(before + m.group(0))
+                if rule.id in ("JZ-003", "JZ-014"):
+                    negated = _rank_negated(rule.id, line, m, bool(negated))
+                if rule.negation and negated:
                     continue
                 if rule.need_subject or rule.exclude_teacher:
                     head = re.split(r"[。！？；!?;]", line[:m.start()])[-1][-14:]
@@ -1401,6 +1922,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=rule.suggestion, basis=rule.basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+        issues.extend(_cross_entry_issues(line, index, stage, "parents"))
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
@@ -1413,10 +1935,19 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     }
 
 
+G04_RULE = (
+    "K12-G04", "P0", "P0", "学生隐私",
+    None,  # 由 _g04_analyze 按“锚点 + 候选姓名 + 打分”判定
+    "校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私",
+    "删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数",
+    "《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条",
+)
+
 GENERAL_RULES = (
     (
         "K12-G01", "P0", "P1", "考试排名",
-        re.compile(r"(?:公布|张贴|通报|公示)[^。；，,\n]{0,8}?(?:考试成绩|成绩排名|名次|分数)|按(?:考试)?成绩(?:分班|排座|排名)"),
+        re.compile(r"(?:公布|张贴|通报|公示)[^。；，,\n]{0,8}?(?:考试成绩|成绩排名|名次|分数)|按(?:考试)?成绩(?:分班|排座|排名)"
+                   + "|" + RANK_OBJECT_FIRST_ASSERTED),
         "义务教育阶段不得公布学生考试成绩或按成绩排名、分班",
         "改为陈述整体教学改进措施与学习习惯变化，删去分数与排名表述",
         "教基厅函〔2021〕34号；gongwen-k12 references/redlines.md 第二条",
@@ -1435,14 +1966,153 @@ GENERAL_RULES = (
         "写明自愿报名原则，课后服务用于作业辅导、阅读、体育、艺术等素质拓展活动",
         "中办发〔2021〕40号；gongwen-k12 references/redlines.md 第六条",
     ),
-    (
-        "K12-G04", "P0", "P0", "学生隐私",
-        None,  # 不再用单条正则：由 _g04_analyze 按“锚点 + 候选姓名 + 打分”判定，见下方 K12 学生隐私识别
-        "校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私",
-        "删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数",
-        "《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条",
-    ),
+    G04_RULE,
 )
+
+FEE_BASIS_RULE = (
+    "K12-G06", "P1", "P1", "收费依据",
+    "有具体金额和执行动作，同段或同一表格行未见可信收费依据",
+    "核查全文和附件，补充收费文件、文号或批准标准",
+    "references/redlines.md 第五条",
+)
+FEE_AMOUNT_RE = re.compile(FEE_AMOUNT)
+FEE_EXECUTION_RE = re.compile(r"收费(?:标准)?|收取|代收|缴纳|交纳|缴费|交费|收缴|收款|" + SHORT_FEE_ACTION)
+FEE_NON_CHARGE_RE = re.compile(
+    r"退还|退回|退费|免(?:收|缴|交|费)|减免|零收费|(?:无须|无需|不[用必需须])(?:再)?(?:缴|交|付)|不" + SHORT_FEE_ACTION +
+    r"|已(?:经)?(?:收取|收缴|缴纳|代收|收费)|实(?:际)?收(?:取)?|实缴|截至[^。；]{0,12}(?:收取|缴纳)"
+    r"|(?:统计|累计|合计|汇总)[^。；]{0,8}(?:收费金额|收取|缴纳|实收|总额)"
+    r"|财政(?:预算|拨付|拨款|补贴)|预算(?:安排|拨付)|拨付[^。；]{0,8}(?:经费|补贴)"
+)
+FEE_PLACEHOLDER_RE = re.compile(r"【待(?:补|核实)(?:[：:][^】]*)?】")
+FEE_BASIS_PLACEHOLDER_RE = re.compile(
+    r"(?:收费)?依据\s*[：:]\s*【待(?:补|核实)|【待(?:补|核实)\s*[：:][^】]*依据[^】]*】"
+)
+FEE_BASIS_RE = re.compile(
+    r"《[^》\n]*(?:收费|经费保障|代收费|服务性收费)[^》\n]*(?:文件|通知|办法|规定|意见|标准|批复|细则|方案|目录)》"
+    r"|(?:依据|根据|按照|执行|详见)\s*[：:]?\s*(?:[\u4e00-\u9fa5]+?(?:局|厅|部|委|政府|委员会|办公室)\s*)?《[^》\n]*(?:文件|通知|办法|规定|意见|标准|批复|细则|方案|目录)》"
+    r"|[\u4e00-\u9fa5]{1,16}(?:〔|\[|【|［)\s*\d{4}\s*(?:〕|\]|】|］)\s*\d+\s*号"
+    r"|(?:经[^，。；\n]{0,18}(?:批准|核定|批复)|(?:批准|核定|批复)的)[^，。；\n]{0,10}(?:收费标准|收费价格|收费限额|标准执行)"
+    r"|(?:按(?:照)?|依据|执行)\s*(?:批准|核定|批复)(?:的)?(?:收费)?标准"
+)
+MD_COLUMNS_RE = re.compile(r"\s*\|?\s*:?-{2,}:?\s*(?:\|\s*:?-{2,}:?\s*)+\|?\s*")
+TABLE_PIPE_RE = re.compile(r"(?<!\\)\|")
+FEE_BASIS_CLAUSE_RE = re.compile(r"(?:[^，,。；！？;!?\n]|(?<=\d)[，,](?=\d))+")
+FEE_TABLE_HEADER_RE = re.compile(r"(?:收费|代收|缴费|交费)(?:标准|金额|项目|依据|价格|款项)")
+FEE_PARTIAL_EXEMPTION_RE = re.compile(r"[（(][^（）()]*?(?:减免|免收|免缴|免交)[^（）()]*[）)]")
+FEE_LOCAL_ISSUER = r"(?:家委会|家长委员会|学校|本校|我校|校长办公会|年级组|班主任|教研组|班级)"
+FEE_LOCAL_APPROVAL_RE = re.compile(FEE_LOCAL_ISSUER + r"(?:会议|自行|内部|研究|集体)*\s*(?:批准|核定|批复)")
+FEE_LOCAL_TITLE_RE = re.compile(FEE_LOCAL_ISSUER + r"(?:会议|自行|内部|研究|集体)*(?:印发|编发|制定|发出|发布)?的?\s*《")
+FEE_GENERIC_WORK_RE = re.compile(r"(?:学期|年度|日常|常规|教学|教研)[^》]{0,12}(?:工作)?(?:计划|安排|方案)》")
+
+
+def _fee_blocks(doc: Document, lines: Sequence[str]):
+    """按审稿行号产出收费核对块。表格依据只在同一行有效。"""
+    def table_rows(rows, start):
+        charging = False
+        for index, row in enumerate(rows, start):
+            line = " | ".join(row)
+            if FEE_TABLE_HEADER_RE.search(line) and not FEE_AMOUNT_RE.search(line):
+                charging = True
+            yield [(index, line)], True, charging
+
+    if doc.kind == "docx":
+        for index, line in enumerate(lines, 1):
+            if line.strip():
+                yield [(index, line)], False, False
+        # Word 段落沿用旧行号，表格行从段落号之后顺序编号。
+        index = len(doc.lines)
+        for after, rows in zip(doc.table_after_paragraph, doc.tables):
+            if after <= len(lines):
+                yield from table_rows(rows, index + 1)
+            index += len(rows)
+        return
+    if doc.kind == "table":
+        index = 0
+        for rows in doc.tables:
+            yield from table_rows(rows, index + 1)
+            index += len(rows)
+        return
+    paragraph = []
+    in_table = False
+    charging = False
+    for index, line in enumerate(lines, 1):
+        is_separator = MD_COLUMNS_RE.fullmatch(line)
+        if in_table:
+            in_table = bool(TABLE_PIPE_RE.search(line))
+        elif index < len(lines):
+            in_table = bool(TABLE_PIPE_RE.search(line) and MD_COLUMNS_RE.fullmatch(lines[index]))
+            charging = in_table and bool(FEE_TABLE_HEADER_RE.search(line))
+        if in_table or not line.strip():
+            if paragraph:
+                yield paragraph, False, False
+                paragraph = []
+            if in_table and not is_separator:
+                yield [(index, line)], True, charging
+        else:
+            paragraph.append((index, line))
+    if paragraph:
+        yield paragraph, False, False
+
+
+def _fee_basis_issues(doc: Document, lines: Sequence[str]):
+    rid, level, _other, category, msg, suggestion, basis = FEE_BASIS_RULE
+    for block, is_table, charging_table in _fee_blocks(doc, lines):
+        joined = "\n".join(line for _, line in block)
+        # 书名号里的项目名可以限定同段依据的适用项目。
+        clean = FEE_PLACEHOLDER_RE.sub(lambda m: " " * len(m[0]), joined)
+        basis_projects = set()
+        any_basis = False
+        umbrella_basis = False
+        for match in FEE_BASIS_RE.finditer(clean):
+            before = re.split(r"[，,。；;\n]", clean[:match.start()])[-1]
+            if re.search(r"未(?:见|按|经|找到|取得|提供)|没有|尚缺|缺少|无相关", before):
+                continue
+            if (FEE_GENERIC_WORK_RE.search(match[0]) and not FEE_TABLE_HEADER_RE.search(match[0])
+                    and not re.search(r"收费|代收", match[0])):
+                continue
+            if FEE_LOCAL_TITLE_RE.search(before + match[0]):
+                continue
+            if "《" not in match[0] and not re.search(r"\d+\s*号", match[0]) and FEE_LOCAL_APPROVAL_RE.search(before + match[0]):
+                continue
+            any_basis = True
+            projects = {FEE_PROJECT_KIND.get(m[0], m[0]) for m in FEE_PROJECT_RE.finditer(match[0])}
+            umbrella_basis |= bool(re.search(r"代收费|服务性收费", match[0]))
+            basis_projects.update(projects)
+        pending_basis = {index for index, line in block if FEE_BASIS_PLACEHOLDER_RE.search(line)}
+        pending_basis.update(index - 1 for index, line in block if FEE_BASIS_PLACEHOLDER_RE.match(line.strip()))
+        pending = ""
+        for index, line in block:
+            if POLICY_EXAMPLE_RE.match(line) or index in pending_basis:
+                continue
+            value = FEE_PLACEHOLDER_RE.sub(lambda m: " " * len(m[0]), line)
+            value = QUOTE_RE.sub(lambda m: " " * len(m[0]), value)
+            value = FEE_PARTIAL_EXEMPTION_RE.sub(lambda m: " " * len(m[0]), value)
+            # 同行价格、动作可以分列。正文用分句区分实际收费与相邻的统计、免收说明。
+            clauses = (re.finditer(r".+", value) if is_table else FEE_BASIS_CLAUSE_RE.finditer(value))
+            left_amount = None
+            for segment in clauses:
+                amount = FEE_AMOUNT_RE.search(segment[0])
+                execution = FEE_EXECUTION_RE.search(segment[0])
+                if FEE_NON_CHARGE_RE.search(segment[0]) or (execution and not _live_action(segment[0], execution)):
+                    pending = ""
+                    left_amount = None
+                    continue
+                if (amount and (execution or pending or charging_table)) or (execution and left_amount):
+                    if amount:
+                        start, end = segment.start() + amount.start(), segment.start() + amount.end()
+                        context = pending + segment[0]
+                    else:
+                        start, end, clause_start = left_amount
+                        context = value[clause_start:segment.end()]
+                    projects = set(_fee_projects(context, FEE_EXECUTION_RE.search(context)))
+                    if not any_basis or (projects and basis_projects and not umbrella_basis and not projects <= basis_projects):
+                        yield Issue(rid, level, category, msg, suggestion, basis, line=index,
+                                    excerpt=excerpt_of(line, start, end, 12))
+                        break
+                left_amount = (segment.start() + amount.start(), segment.start() + amount.end(), segment.start()) if (
+                    amount and not execution and value[segment.end():segment.end() + 1] in ("，", ",")
+                ) else None
+                pending = segment[0] if execution and re.search(r"[：:]\s*$", segment[0]) else ""
 
 
 # ---------------------------------------------------------------------------
@@ -1466,6 +2136,97 @@ _K12_SENT_END_RE = re.compile(r"[。！？；!?;]")
 # “张某”“王某某”“某同学”“A同学”这类代称：敏感身份词后面 10 字内出现即报 P0（沿用旧口径）
 _K12_PSEUDO_CACHE: Dict[str, "re.Pattern[str]"] = {}
 _K12_ANCHOR_CACHE: Dict[str, list] = {}
+
+# 新词只有前置身份关系或明确归属谓词才可用，不能进入旧后锚点的同分句判断。
+K12_RELATION_ROLE = r"(?:学生|同学(?!们)|儿童|子女)"
+K12_DISEASE = r"(?:哮喘|肺炎|癫痫|抑郁|自闭|多动|心肌炎|骨折|糖尿病|[^，。；、：:\n]{0,10}?(?:病|症))"
+K12_RELATION_IDENTITY = (
+    r"(?:残疾|残障|助学金受助(?:对象)?|受助(?:对象)?|资助对象|留守|患病|患有" + K12_DISEASE + r"|"
+    r"确诊(?:为)?" + K12_DISEASE + r"|焦虑症|孤独症|随班就读|特殊教育|"
+    r"被记过|被警告|被留校察看|被处分|单亲(?:家庭)?|离异(?:家庭)?|事实无人抚养|贫困户|贫困家庭)"
+)
+K12_RELATION_ROLE_SUFFIX = (
+    r"帮扶(?!对象)|志愿|关爱(?!对象)|社团|小组|服务队|审核|负责人|成员|组长|宣传|宣讲|基金|活动|"
+    r"教研|项目|岗位|课程|老师|教师|指导教师|经费|金额|政策|标准|工作|团队|人数|统计"
+)
+K12_RELATION_IDENTITY_END = (
+    r"(?!(?:" + K12_RELATION_ROLE + r"|对象|家庭)?\s*(?:" + K12_RELATION_ROLE_SUFFIX + r"))"
+    r"(?=\s*(?:" + K12_RELATION_ROLE + r"|[，。！？；、,\n）)]|$|之一|类别|一类|家庭))"
+)
+K12_RELATION_PREDICATE = (
+    r"(?:属于|系|是)\s*" + K12_RELATION_IDENTITY + K12_RELATION_IDENTITY_END
+    + r"|享受\s*(?:资助|助学金|特殊教育服务)"
+    + r"|(?:患有|确诊(?:为)?)" + K12_DISEASE + r"(?!治疗|防控|专题|培训|知识)"
+    + r"|被(?:记过|警告|留校察看|处分)(?:处分)?"
+)
+K12_RELATION_OTHER_ROLE_RE = re.compile(r"(?:老师|教师|主任|校长|组长|委员|教研|项目|岗位|工作者)")
+K12_RELATION_CLASS = r"(?:[一二三四五六七八九十高初0-9]+年级|(?:[（(]?[一二三四五六七八九十0-9]+[）)]?)班)"
+K12_RELATION_PSEUDO_RE = re.compile(
+    K12_RELATION_IDENTITY + r"(?:的)?" + K12_RELATION_ROLE + r"\s*[：:]?\s*(?:某同学|[A-Za-z]同学)"
+)
+K12_RELATION_NEGATION_RE = re.compile(
+    r"(?:不曾|不再|并非|不是|不|没有|未(?:曾)?)(?:被|是|系|属于|患有|享受|确诊|认定|列入)|禁止|严禁|不得|勿"
+)
+K12_IDENTITY_RE = re.compile(K12_RELATION_IDENTITY + r"|助学金")
+K12_ROLE_END_RE = re.compile(r"(?:志愿者|负责人|成员|组长|委员|助理|队员|服务队|小组|社团|中心|之家|团队)$")
+K12_PHRASE_END_RE = re.compile(r"[，,。；;！？!?、：:\n]|并|同时|另|但|却|也是|属于|现任|担任|参加|参与|获得|享受|被|需|接受")
+K12_PREDICATE_BREAK_RE = re.compile(r"但是?|然而|却|同时|并(?!非|未|不)且?|另行")
+K12_PROJECT_RE = re.compile(r"^(?:人数|统计|教研|课程|活动|政策|标准|经费|项目|工作)")
+K12_HELP_ACTION_RE = re.compile(r"(?:义务|专门)?(?:辅导|送去|服务|捐赠|筹集|募集|帮扶|提供|送上)")
+
+
+def _helper_role(line: str, identity: re.Match, before: str) -> bool:
+    tail = line[identity.end():]
+    phrase = K12_PHRASE_END_RE.split(tail, maxsplit=1)[0]
+    if K12_ROLE_END_RE.search(phrase) and not re.match(r"(?:学生|儿童|家庭)?(?:帮扶|资助|关爱)对象", phrase):
+        return True
+    if re.search(r"(?:为|向|给)[^，。；;]*$", before):
+        # “为留守儿童，每周义务辅导”允许帮扶动作在紧接的分句中出现。
+        phrase = re.match(r"[^。；;！？，,]*(?:[，,][^。；;！？，,]*)?", tail)[0]
+        return bool(K12_HELP_ACTION_RE.search(phrase))
+    return False
+
+
+K12_RELATION_UNCERTAIN = r"疑似|可能|据称"
+K12_RELATION_UNCERTAIN_RE = re.compile(K12_RELATION_UNCERTAIN)
+
+
+def _k12_relation_anchors(gw: Any) -> list:
+    if "relations" not in _K12_ANCHOR_CACHE:
+        prefix = K12_RELATION_IDENTITY + r"(?:的)?" + K12_RELATION_ROLE + r"\s*"
+        listing = K12_RELATION_IDENTITY + r"(?:的)?(?:" + K12_RELATION_ROLE + ")?"
+        listing += r"(?:名单(?:如下|为)?|\s*\d+\s*[名人位])?\s*[：:]\s*"
+        names = r"(?P<n>[一-龥]{2,4}(?:(?:、|和|及|与|同)[一-龥]{2,4})*)"
+        role_first = r"(?:学生|同学)(?!们)\s*" + names
+        name_first = names + K12_RELATION_ROLE
+        predicate = r"\s*(?:" + K12_RELATION_UNCERTAIN + r"|曾)?\s*(?:" + K12_RELATION_PREDICATE + r")"
+        left = r"(?:" + K12_RELATION_CLASS + r"|学生|同学)\s*$"
+        _K12_ANCHOR_CACHE["relations"] = gw.compile_anchors({
+            "prefix": [{"re": prefix, "strength": 4}],
+            "list": [{"re": listing, "strength": 4}],
+            "frame": [{"re": pattern + predicate, "strength": 4, "suffix": True, "left_ok": left}
+                      for pattern in (role_first, name_first)],
+        })
+    return _K12_ANCHOR_CACHE["relations"]
+
+
+def _g04_relation_hits(line: str, gw: Any, lex: Any):
+    anchors = _k12_relation_anchors(gw)
+    # frame 的姓名区间不含谓词，用归属起点到谓词结尾作为摘录范围。
+    relation_ends = {m.start(): m.end() for anchor in anchors if anchor.kind == "frame"
+                     for m in anchor.regex.finditer(line)}
+    spans: Dict[int, int] = {}
+    hits = gw.find_names(line, anchors, lex)
+    kept = []
+    for hit in hits:
+        # 姓名候选有时会截在“王老师”中间，不能把教职称谓当作学生。
+        role = line[hit.end - 1:hit.end + 3] if hit.end - hit.start >= 2 else ""
+        if K12_RELATION_OTHER_ROLE_RE.search(hit.name) or K12_RELATION_OTHER_ROLE_RE.match(line, hit.end) or role.startswith("老师"):
+            continue
+        kept.append(hit)
+        spans[hit.anchor_start] = max(spans.get(hit.anchor_start, 0), hit.end,
+                                      relation_ends.get(hit.anchor_start, 0))
+    return [(hit, spans[hit.anchor_start]) for hit in kept]
 
 
 def _k12_pseudo_re(lex: Any) -> "re.Pattern[str]":
@@ -1500,7 +2261,7 @@ def _clause_bounds(line: str, pos: int) -> Tuple[int, int]:
     return left, (m.start() if m else len(line))
 
 
-def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
+def _g04_analyze(line: str) -> Tuple[List[dict], List[Tuple[int, str]]]:
     """K12-G04 单行识别。返回 (候选问题, 要登记进全文姓名表的姓名)。
 
     候选问题字段：start、end（摘录起止，含锚点）、score（代称记 9）、pseudo。
@@ -1508,7 +2269,7 @@ def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
     gw, lex = shared_names()
     front, post = _k12_anchors(gw)
     cands: List[dict] = []
-    names: List[str] = []
+    names: List[Tuple[int, str]] = []
 
     front_hits = gw.find_names(line, front, lex)
     spans: Dict[int, int] = {}
@@ -1519,7 +2280,7 @@ def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
         if h.pseudo:
             cands.append({"start": h.anchor_start, "end": h.end, "score": 9, "pseudo": True})
             continue
-        names.append(h.name)
+        names.append((h.start, h.name))
         if h.table_only:    # 并列后项：只进姓名表（遮蔽用），摘录由首个姓名的 spans 一并延伸到它
             continue
         cands.append({"start": h.anchor_start, "end": spans[h.anchor_start], "score": h.score, "pseudo": False})
@@ -1529,16 +2290,56 @@ def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
         sens = K12_SENS_RE.search(line, lo, hi)
         if sens is None:
             continue
+        if _helper_role(line, sens, line[h.end:sens.start()]):
+            continue
         end = min(h.end + 2, len(line))
         if h.pseudo:
             cands.append({"start": min(sens.start(), h.start), "end": max(sens.end(), end), "score": 9, "pseudo": True})
             continue
-        names.append(h.name)
+        names.append((h.start, h.name))
         cands.append({"start": min(sens.start(), h.start), "end": max(sens.end(), end), "score": h.score,
                       "pseudo": False})
 
     for m in _k12_pseudo_re(lex).finditer(line):
         cands.append({"start": m.start(), "end": m.end(), "score": 9, "pseudo": True})
+    for m in K12_RELATION_PSEUDO_RE.finditer(line):
+        cands.append({"start": m.start(), "end": m.end(), "score": 9, "pseudo": True, "relation": True})
+    for hit, end in _g04_relation_hits(line, gw, lex):
+        identity = K12_IDENTITY_RE.search(line, hit.anchor_start, end)
+        if identity and _helper_role(line, identity, line[hit.start:identity.start()]):
+            continue
+        if not hit.pseudo:
+            names.append((hit.start, hit.name))
+        if not hit.table_only:
+            cands.append({"start": hit.anchor_start, "end": end, "score": hit.score, "pseudo": hit.pseudo,
+                          "relation": True})
+    # 宽层独立寻找具体学生；仅共现不足以推定身份，保留为 P1。
+    for clause in re.finditer(r"[^。！？；!?;，,、：:\n]+", line):
+        identities = list(K12_IDENTITY_RE.finditer(line, clause.start(), clause.end()))
+        if not identities:
+            continue
+        if "student" not in _K12_ANCHOR_CACHE:
+            _K12_ANCHOR_CACHE["student"] = gw.compile_anchors({
+                "postfix": [{"re": K12_POST, "strength": 3}],
+                "prefix": [{"re": r"(?:学生|同学)(?!们)", "strength": 4}],
+                "frame": [{"re": r"^(?P<n>[一-龥]{2,4})(?=本人|自身|个人|其家庭)", "strength": 3, "suffix": True}],
+            })
+        for hit in gw.find_names(clause[0], _K12_ANCHOR_CACHE["student"], lex):
+            start, end = clause.start() + hit.start, clause.start() + hit.end
+            if K12_RELATION_OTHER_ROLE_RE.search(line[start:end + 2]):
+                continue
+            for identity in identities:
+                if (identity.start() < end and start < identity.end()
+                        or _helper_role(line, identity, line[start:identity.start()])
+                        or K12_PROJECT_RE.match(line[identity.end():])
+                        or K12_RELATION_NEGATION_RE.search(
+                            K12_PREDICATE_BREAK_RE.split(line[clause.start():identity.start()])[-1] + identity[0])):
+                    continue
+                if not hit.pseudo and (start, hit.name) not in names:
+                    names.append((start, hit.name))
+                cands.append({"start": min(start, identity.start()), "end": max(end, identity.end()),
+                              "score": 5, "pseudo": hit.pseudo, "relation": True, "broad": True})
+                break
     return cands, names
 
 
@@ -1549,9 +2350,11 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
         if not c["pseudo"] and c["score"] < 5:
             continue
         before = re.split(r"[。！？；!?;，,]", line[:c["start"]])[-1][-12:]
-        if NEG_RE.search(before + line[c["start"]:c["end"]]):
+        negation = K12_RELATION_NEGATION_RE if c.get("relation") else NEG_RE
+        if not c.get("broad") and negation.search(before + line[c["start"]:c["end"]]):
             continue
-        level = rule_level if (c["pseudo"] or c["score"] >= 6) else "P1"
+        uncertain = c.get("broad") or (c.get("relation") and K12_RELATION_UNCERTAIN_RE.search(before + line[c["start"]:c["end"]]))
+        level = rule_level if not uncertain and (c["pseudo"] or c["score"] >= 6) else "P1"
         key = (LEVELS.index(level), c["start"])
         if best is None or key < (best[0], best[1]):
             best = (key[0], key[1], level, c)
@@ -1565,11 +2368,21 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
     return best[2], mask_digits((line[c["start"]:c["end"]] + tail).strip())
 
 
+def _table_name_issue(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], high_score: int) -> Issue:
+    rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
+    positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits]
+    names = dict.fromkeys(name for _, name in sorted(positions))
+    level = "P0" if row.hits[0].score >= high_score else "P1"
+    excerpt = "、".join(table.placeholder(name) for name in names)
+    return Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
+                 suggestion=suggest, basis=basis, line=line, excerpt=excerpt)
+
+
 def check_general(path: Path, stage: str = "义务教育") -> dict:
     """校内综合文书检查（学期计划总结、督导自评、课后服务方案、安全教育/教研记录）。
 
     K12-G04 由 _g04_analyze 识别学生实名（锚点 + 打分）；识别出的姓名进全文姓名表，所有 excerpt 在输出前统一遮蔽。"""
-    gw, _lex = shared_names()
+    gw, lex = shared_names()
     doc = load_document(path)
     if doc.kind == "table":
         lines = [" ".join(row) for table in doc.tables for row in table]
@@ -1578,6 +2391,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
     table = gw.NameTable()
+    table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
     for index, line in enumerate(lines, start=1):
         if not line.strip():
@@ -1586,17 +2400,28 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
             level = lv_c if compulsory else lv_o
             if pat is None:  # K12-G04：锚点 + 候选姓名 + 打分
                 cands, names = _g04_analyze(line)
-                for name in names:
-                    table.add(name)
+                row = table_rows.get(index - 1)
                 picked = _g04_pick(line, cands, level)
+                if row:
+                    issue = _table_name_issue(row, table, index, names, gw.SCORE_HIGH)
+                    if picked is not None and LEVELS.index(picked[0]) < LEVELS.index(issue.level):
+                        issue.level = picked[0]
+                    issues.append(issue)
+                    continue
+                for _, name in names:
+                    table.add(name)
                 if picked is not None and (rid, index) not in seen:
                     seen.add((rid, index))
-                    issues.append(Issue(id=rid, level=picked[0], category=cat, message=msg,
+                    issues.append(Issue(id=rid, level=picked[0], category=cat,
+                                        message=msg + "，请人工核对" if picked[0] == "P1" else msg,
                                         suggestion=sug, basis=basis, line=index, excerpt=picked[1]))
                 continue
             for m in pat.finditer(line):
                 before = re.split(r"[。！？；!?;，,]", line[:m.start()])[-1][-12:]
-                if NEG_RE.search(before + m.group(0)):
+                negated = NEG_RE.search(before + m.group(0))
+                if rid == "K12-G01":
+                    negated = _rank_negated(rid, line, m, bool(negated))
+                if negated:
                     continue
                 key = (rid, index)
                 if key in seen:
@@ -1606,6 +2431,8 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=sug, basis=basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+        issues.extend(_cross_entry_issues(line, index, stage, "general"))
+    issues.extend(_fee_basis_issues(doc, lines))
     for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
         it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
@@ -1621,6 +2448,93 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
 # ---------------------------------------------------------------------------
 # 输出
 # ---------------------------------------------------------------------------
+
+COMMENT_RULES = (
+    ("PY-001", ("P0",), "评语用语贬损学生"),
+    ("PY-002", ("P1",), "评语用标签代替对具体行为的描述"),
+    ("PY-003", ("P0", "P1", "P2"), "评语写出考试排名或疑似考试名次"),
+    ("PY-004", ("P1", "P2"), "评语写出考试分数"),
+    ("PY-005", ("P0",), "评语含身份证号、手机号或学号"),
+    ("PY-006", ("P0",), "评语提及家庭、健康或处分敏感信息"),
+    ("PY-007", ("P1",), "两条评语相似度达到指定阈值"),
+    ("PY-008", ("P2",), "同一句套话在多条评语中出现"),
+    ("PY-009", ("P2",), "评语篇幅超出指定字数范围"),
+    ("PY-010", ("P2",), "评语人称不合要求或混用人称"),
+    ("PY-011", ("P2",), "评语套话占比过高"),
+    ("PY-012", ("P1",), "只有标签，缺评语正文"),
+    ("PY-013", ("P2",), "评语只有或主要是待补、待核实占位"),
+    ("PY-014", ("P1",), "评语承诺或预测升学结果"),
+    ("PY-015", ("P1",), "对账时标签不对应，或事实表无具体表现"),
+    ("PY-016", ("P1",), "评语数字在事实表中找不到"),
+    ("PY-017", ("P1", "P2"), "评语奖项、名次或引号内名称在事实表中找不到"),
+)
+COMMENT_STAGE_LEVELS = {
+    "PY-003": (("P0", "P2"), ("P1", "P2"), ("P1", "P2")),
+    "PY-004": (("P1",), ("P2",), ("P2",)),
+}
+
+
+def rule_catalog() -> dict:
+    order = (*LEVELS, "skip")
+    rules: Dict[str, dict] = {}
+
+    def add(rid: str, command: str, stage_levels: Sequence[Sequence[str]], condition: str) -> None:
+        rule = rules.setdefault(rid, {"id": rid, "commands": [], "levels": set(), "stage_levels": {}, "condition": []})
+        if command not in rule["commands"]:
+            rule["commands"].append(command)
+        stages = rule["stage_levels"].setdefault(command, {})
+        for stage, levels in zip(STAGES, stage_levels):
+            stages.setdefault(stage, set()).update(levels)
+            rule["levels"].update(levels)
+        if condition not in rule["condition"]:
+            rule["condition"].append(condition)
+
+    for rid, levels, condition in COMMENT_RULES:
+        add(rid, "comments", COMMENT_STAGE_LEVELS.get(rid, (levels,) * len(STAGES)), condition)
+    for rule in PARENT_RULES:
+        add(rule.id, "parents", ((rule.level,), (rule.level_other,), (rule.level_other,)), rule.message)
+    for rid, lv_c, lv_o, _cat, _pat, msg, _sug, _basis in GENERAL_RULES:
+        if rid == G04_RULE[0]:
+            continue
+        add(rid, "general", ((lv_c,), (lv_o,), (lv_o,)), msg)
+    name_id, lv_c, lv_o, _cat, _pat, msg, _sug, _basis = G04_RULE
+    name_stage_levels = ((lv_c, "P1"), (lv_o, "P1"), (lv_o, "P1"))
+    add(name_id, "general", name_stage_levels, msg + "；精确层确认学生与敏感身份的关系，宽层同分句共现或归属不确定时给 P1")
+    for command in ("parents", "general"):
+        add(name_id, command, name_stage_levels, "表格姓名列出现实名；置信度较低时给 P1")
+        for rule in CROSS_ENTRY_RULES:
+            rid = rule.parents_id if command == "parents" else rule.general_id
+            stages = ((level, "P1") for level in rule.levels)
+            if rule.matches is _fee_matches:
+                stages = zip(*(levels for _, levels in FEE_MATRIX.values()))
+            add(rid, command, tuple(stages), rule.condition)
+    rid, lv_c, lv_o, _cat, msg, _sug, _basis = FEE_BASIS_RULE
+    add(rid, "general", ((lv_c,), (lv_o,), (lv_o,)), msg)
+    for rule in rules.values():
+        rule["levels"] = sorted(rule["levels"], key=order.index)
+        rule["condition"] = "；".join(rule["condition"])
+        for stages in rule["stage_levels"].values():
+            for stage, levels in stages.items():
+                stages[stage] = sorted(levels, key=order.index)
+    matrix = [{"condition": condition, "stage_levels": dict(zip(STAGES, levels))}
+              for condition, levels in FEE_MATRIX.values()]
+    return {"rules": [rules[rid] for rid in sorted(rules)], "fee_matrix": matrix}
+
+
+def render_rule_catalog(catalog: dict) -> str:
+    lines = [f"中小学专检规则（{len(catalog['rules'])} 条）"]
+    for rule in catalog["rules"]:
+        stages = []
+        for command, levels in rule["stage_levels"].items():
+            stages.append(command + " " + " ".join(f"{stage}={'/'.join(levels[stage])}" for stage in STAGES))
+        lines.append(f"{rule['id']} | {', '.join(rule['commands'])} | {'/'.join(rule['levels'])} | "
+                     + "；".join(stages) + " | " + rule["condition"])
+    lines.extend(("", "收费判定表（JZ-006 / K12-G05，skip 表示跳过）", "写法 | " + " | ".join(STAGES)))
+    for row in catalog["fee_matrix"]:
+        lines.append(row["condition"] + " | " + " | ".join(row["stage_levels"][stage] for stage in STAGES))
+    lines.extend(("", "来源：课后服务自愿参加 S04 第9段、经费方式第20段；教辅 S07；家委会收费 S15；保险 S18 第四十六条。"))
+    return "\n".join(lines)
+
 
 def render_check_text(report: dict) -> str:
     s = report["summary"]
@@ -1686,12 +2600,14 @@ def make_parser() -> argparse.ArgumentParser:
         prog="k12_check.py",
         description="中小学行业包的本地脱敏与检查工具：学生事实表脱敏和还原、学生评语检查、面向家长文书检查、校内综合文书检查。",
         epilog="退出码：0 正常；1 使用 --strict 且存在 P0；2 输入错误或缺少共享模块。",
-        formatter_class=_ChineseHelpFormatter, add_help=False,
+        formatter_class=_ChineseHelpFormatter, add_help=False, allow_abbrev=False,
     )
     parser._optionals.title = "选项"
     parser._positionals.title = "参数"
     parser.add_argument("-h", "--help", action="help", help="显示本帮助信息并退出")
     parser.add_argument("--version", action="version", version=f"k12_check.py {VERSION}", help="显示版本号")
+    parser.add_argument("--list-rules", action="store_true", help="列出专检规则与学段级别")
+    parser.add_argument("--json", dest="list_json", action="store_true", help="配合 --list-rules 输出 JSON")
     sub = parser.add_subparsers(dest="command", title="子命令", metavar="子命令")
 
     p = _sub(sub, "mask", "学生名单或事实表本地脱敏：姓名换成 S01 等编号，另存脱敏稿和对照表")
@@ -1739,6 +2655,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         args = parser.parse_args(argv)
     except SystemExit as exc:
         return 0 if exc.code == 0 else 2
+    if args.list_rules and not args.command:
+        report = rule_catalog()
+        print(json.dumps(report, ensure_ascii=False, indent=2) if args.list_json else render_rule_catalog(report))
+        return 0
+    if args.list_rules or args.list_json:
+        print("错误：顶层 --list-rules [--json] 须单独运行", file=sys.stderr)
+        return 2
     if not args.command:
         parser.print_help()
         return 2

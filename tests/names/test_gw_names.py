@@ -88,8 +88,10 @@ K12_POST = r"(?=同学(?!们))"
 # 第 2 步中小学线将采用的新锚点：身份词加角色名词 4 分；只有身份词（去掉逗号分隔）3 分
 K12_ROLE = K12_SENS + r"(?:的)?(?:学生|同学|子女|儿童|家庭学生)[：:，,\s]{0,2}"
 K12_BARE = K12_SENS + r"(?:的)?[：:\s]{0,2}"
-# 第 2 步国企线将采用的新处分框架：suffix 型，组长度上限 16 字，左边界用职务称谓表
-SOE_FRAME_1_NEW = (r"(?:给予|对)(?P<n>[一-鿿]{2,16}?)(?:同志)?(?:给予|进行(?:了)?|予以|作出)?(?:党内|政务)?" + PUN)
+# 与 SOE-022 的 suffix 型处分框架一致，允许组内顿号、身份括注和“分别”。
+SOE_FRAME_1_NEW = (r"(?:给予|对)(?P<n>[\u4e00-\u9fff、]{2,20}?)\s*(?:同志)?(?:[（(][^）)]{1,16}[）)])?"
+                   r"(?:分别)?(?:给予|进行(?:了)?|予以|作出)?(?:党内|政务)?"
+                   r"(?:严重警告|警告|记过|记大过|降级|撤职|撤销党内职务|留党察看|开除党籍|开除公职|开除|诫勉|免职)")
 SOE_TITLES = (r"(?:总经理助理|副总经理|总经理|董事长|副董事长|党委书记|党委副书记|副书记|书记|副主任|主任|副经理|经理|副部长|部长|副处长"
               r"|处长|副科长|科长|局长|总监|总工程师|总会计师|总经济师|厂长|院长|所长|队长|站长|组长|班长|主管|专员|员工|职工|干部"
               r"|会计|出纳|工程师|技术员|业务员|采购员|原|时任|现任|该)$")
@@ -137,6 +139,44 @@ def read_list(path: Path) -> List[str]:
     return out
 
 
+class TableNameTest(unittest.TestCase):
+    def test_markdown_boundaries_and_original_offsets(self) -> None:
+        lines = [
+            "学生姓名 | **困难类型** | 备注",
+            ":--- | ---: | :---:",
+            "`欧阳明月` | 低保 | 左\\|右",
+            "| 高一 | 低保 | 无 |",
+            "| 宣传科 | 低保 | 无 |",
+            "| 合计 | 1 | |",
+            "",
+            "| 联系人姓名 | 困难类型 |",
+            "| --- | --- |",
+            "| 王秀英 | 低保 |",
+            "",
+            "```md",
+            "| 姓名 | 困难类型 |",
+            "| --- | --- |",
+            "| 王秀英 | 低保 |",
+            "```",
+            "| 姓名 | 困难类型 |",
+            "| 王秀英 | 低保 |",
+            "",
+            "| 姓名 | 困难类型 |",
+            "| **---** | --- |",
+            "| 王秀英 | 低保 |",
+        ]
+        rows = gn.find_table_names(lines, LEX, "k12")
+        self.assertEqual(list(rows), [2])
+        hit, = rows[2].hits
+        self.assertEqual((hit.name, hit.score, lines[2][hit.start:hit.end]), ("欧阳明月", gn.SCORE_HIGH, "欧阳明月"))
+
+    def test_sensitive_headers_are_industry_specific(self) -> None:
+        lines = ["| 姓名 | 诊断 |", "| --- | --- |", "| 张丽丽 | 观察 |"]
+        for domain, score in (("hospital", gn.SCORE_HIGH), ("soe", gn.SCORE_LOW), ("k12", gn.SCORE_HIGH)):
+            with self.subTest(domain=domain):
+                self.assertEqual(gn.find_table_names(lines, LEX, domain)[2].hits[0].score, score)
+
+
 # ---------------------------------------------------------------------------
 # 1. 结构
 # ---------------------------------------------------------------------------
@@ -179,7 +219,7 @@ class LexiconStructureTest(unittest.TestCase):
 
     # ---- 1.1.0 新增字段 ----
     def test_version_and_new_fields(self) -> None:
-        self.assertEqual(LEX.version, "1.1.0")
+        self.assertEqual(LEX.version, "1.2.1")
         self.assertGreaterEqual(len(LEX.given), 400)
         self.assertGreaterEqual(len(LEX.word_bigrams), 2000)
         self.assertTrue(LEX.soft_given and LEX.stopwords_exact)
@@ -216,7 +256,10 @@ class LexiconStructureTest(unittest.TestCase):
                  "soft_given_chars": len(LEX.soft_given), "given_chars": len(LEX.given), "place_end": len(LEX.place_end),
                  "place_end_2char": len(LEX.place_end_2char), "stopwords": len(LEX.stopwords),
                  "stopwords_exact": len(LEX.stopwords_exact), "right_strong": len(LEX.right_strong),
-                 "right_weak": len(LEX.right_weak), "left_words": len(LEX.left_words), "word_bigrams": len(LEX.word_bigrams)}
+                 "right_weak": len(LEX.right_weak), "left_words": len(LEX.left_words), "word_bigrams": len(LEX.word_bigrams),
+                 "table_names": len(LEX.table_names), "table_public": len(LEX.table_public),
+                 "table_nonnames": len(LEX.table_nonnames), "org_abbr_end": len(LEX.org_abbr_end),
+                 **{"table_sensitive_" + d: len(words) for d, words in LEX.table_sensitive.items()}}
         for key, floor in gn.MIN_SIZES.items():
             self.assertGreaterEqual(sizes[key], floor, key)
         # 方案 7 给的下限不得被悄悄调低
@@ -1040,7 +1083,7 @@ HOSPITAL_FLAG = [
     ("患者李秀英在病房跌倒。", "李秀英"), ("患者黄晓明病情加重。", "黄晓明"), ("患者孙浩然跌倒致骨折。", "孙浩然"),
 ]
 SOE_CLEAN = [
-    "对林业局给予警告。", "对孙公司给予警告。", "对项目经理给予警告处分。", "对唐钢给予警告处分", "对时任总经理给予警告。",
+    "对林业局给予警告。", "对孙公司给予警告。", "对项目经理给予警告处分。", "唐钢集团（以下简称唐钢）。对唐钢给予警告处分。", "对时任总经理给予警告。",
     "对贺州分公司给予通报批评。", "对董事会办公室给予警告。", "对集团公司给予警告处分。",
     "对李渡镇项目部给予警告。", "对王府井店给予警告处分。", "对工程部给予警告。", "对黄岛项目给予警告处分。",
     "对郑州分公司给予记过。", "对林业公司给予警告。", "对和平路店给予警告处分。", "严禁对违规人员不予处分。",
@@ -1097,19 +1140,16 @@ K12_FLAG = [
     ("低保家庭学生周梓涵（三年级）、吴雨桐（五年级）获得资助。", "吴雨桐"),
     ("三年级（2）班单亲家庭学生陈子豪近期情绪波动较大。", "陈子豪"), ("班主任对患有抑郁症的学生刘一诺进行了心理疏导。", "刘一诺"),
 ]
-# 已知局限：这些“应不报”的句子按设计仍会识别。登记在这里是为了在日志里如实列出，不影响通过；
-# 若某条后来被修好，日志会写“已不报”，可以从这里移出。
-KNOWN_LIMITS: Dict[str, str] = {
-    "对唐钢给予警告处分": "企业简称与姓名同形（唐 + 钢），处分框架里按姓名识别，P0 误报；需要靠排除词逐个补",
-}
-
-
 class AdversarialProbeTest(unittest.TestCase):
     maxDiff = None
 
     @staticmethod
     def _run_clean(domain: str, sentences: Sequence[str]) -> List[str]:
-        return [s for s in sentences if detect(s, domain) and s not in KNOWN_LIMITS]
+        if domain.startswith("soe"):
+            return [s for s in sentences
+                    if any(not h.pseudo and h.score >= gn.SCORE_LOW for h in
+                           gn.find_names(s, ANCHORS[domain], LEX, gn.organization_names([s], LEX)))]
+        return [s for s in sentences if detect(s, domain)]
 
     @staticmethod
     def _run_flag(domain: str, cases: Sequence[Tuple[str, str]]) -> List[str]:
@@ -1149,13 +1189,10 @@ class AdversarialProbeTest(unittest.TestCase):
         old_ok = [c for c in K12_FLAG if "吴雨桐" not in c[0] and "陈子豪" not in c[0] and "刘一诺" not in c[0]]
         self.assertEqual(self._run_flag("k12", old_ok), [])
 
-    def test_known_limits_are_reported(self) -> None:
-        rows = []
-        for s, why in KNOWN_LIMITS.items():
-            hit = bool(detect(s, "all"))
-            rows.append(f"  {'仍误报' if hit else '已不报'}：{s}  {why}")
-        if rows:
-            sys.stderr.write("\n已知局限句子：\n" + "\n".join(rows) + "\n")
+    def test_undefined_abbreviation_reports_p1(self) -> None:
+        text = "对唐钢给予警告处分。"
+        hits = gn.find_names(text, ANCHORS["soe_new"], LEX, frozenset())
+        self.assertEqual([(h.name, h.score, h.maybe_org) for h in hits], [("唐钢", gn.SCORE_LOW, True)])
 
     def test_task_sentences_exact(self) -> None:
         """方案给定的整组句子：应识别、不应识别各一遍。"""

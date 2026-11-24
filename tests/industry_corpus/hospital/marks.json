@@ -448,6 +448,16 @@
     }
    ],
    "source": "heldout"
+  },
+  {
+   "mark": "N11",
+   "file": "V_h08_投诉回访明细.txt",
+   "line": 7,
+   "desc": "回访表把患者姓名和诊断对应公开",
+   "rules": [
+    {"id": "HOS-031", "level": "P0"}
+   ],
+   "source": "author"
   }
  ]
 }

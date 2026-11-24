@@ -82,7 +82,7 @@
      出处、处置类豁免只看词面的让步词、例外词和否定，不理解语义。
  11. 常见名用字表和常见二字词表来自本仓库的规范文档，在其他领域可能漂移；references、SKILL.md 的文字有改动后，
      常见二字词表须用 tools/build_name_lexicon.py --update 重新生成并人工过目。
- 12. 表格行里的姓名（没有表头锚点）、“患者家属 + 姓名”（“患者家属王淑芬”）识别不了。
+ 12. Markdown 表格中，姓名列按同表敏感列分为 P0 和 P1。无姓名类表头、非 Markdown 表格、“患者家属 + 姓名”（“患者家属王淑芬”）仍可能漏报。
  13. 锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
  14. HOS-033 只认“为指标调整编码”的写法，“目的在前”的写法（“为提升病例组合指数，建议……填写为主要诊断”）不报。
  15. 否决、整改、出处写在后一分句的句子会被报出（见上“收缩”），后续分句里有针对该做法的处置、出处词时 P0 降为 P1 并提示，需人工判断；
@@ -100,7 +100,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
 
-VERSION = "1.2.0"
+VERSION = "1.3.1"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "hospital_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -591,11 +591,15 @@ def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = Non
     kit = ruleset.kit
     external = external or doc_type == EXTERNAL_TYPE
     applicable = [r for r in ruleset.rules if r.applies(doc_type)]
+    texts = [text for _n, text in lines]
 
     # 第一遍：识别全文姓名（含因豁免不报的），按首次出现顺序编号。代称（张某）不进表，低于 5 分的不进表
     # 姓名表覆盖全部隐私（姓名类）规则，不分文书类型（与国企一致）：不适用于当前文书类型的规则识别出的姓名也要遮蔽，是否报出仍按类型
     detections: List[Tuple[int, int, int, Rule, Any]] = []
     for order, rule in enumerate(ruleset.rules):
+        if rule.id == "HOS-031":
+            for idx, row in kit.names.find_table_names(texts, kit.lexicon, "hospital").items():
+                detections.extend((idx, hit.start, order, rule, hit) for hit in row.hits)
         if not rule.anchors:
             continue
         for idx, (_number, text) in enumerate(lines):
@@ -611,7 +615,6 @@ def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = Non
     issues: List[Dict[str, Any]] = []
     inv = ruleset.inversion
     inv_active = inv is not None and (not inv.types or doc_type in inv.types)
-    texts = [text for _n, text in lines]
     decl = kit.clause.Declaration(texts, dict(inv.cfg, rule_id=inv.rule_id)) if inv_active and inv is not None else None
 
     # 姓名类命中：高置信（总分 >= 6）用规则级别，低置信（== 5）用 low_level。
@@ -629,14 +632,18 @@ def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = Non
         if hit.pseudo or hit.table_only or not rule.applies(doc_type):    # 代称不报；并列后项（table_only）只进姓名表用于遮蔽；不适用于当前文书类型的规则只登记不报
             continue
         number, text = lines[idx]
-        if _is_exempt(rule, kit, text, hit.start, hit.end):
+        from_table = hit.anchor_start < 0
+        if not from_table and _is_exempt(rule, kit, text, hit.start, hit.end):
             continue
         level = rule.level if hit.score >= kit.names.SCORE_HIGH else (rule.low_level or rule.level)
         anchor_start = hit.anchor_start if 0 <= hit.anchor_start <= hit.start else hit.start
         ex_end = hit.end
         if anchor_start == hit.anchor_start:
             ex_end = max(hit.end, group_end.get((idx, rule.id, hit.anchor_start), hit.end))
-        issue = _issue(rule, level, number, masker.privacy_excerpt(text, anchor_start, ex_end))
+        if from_table:
+            issue = _issue(rule, level, number, table.placeholder(hit.name), message="表格姓名列出现真实姓名")
+        else:
+            issue = _issue(rule, level, number, masker.privacy_excerpt(text, anchor_start, ex_end))
         key = (idx, hit.start, hit.end)
         rank = (LEVELS.index(level), NAME_RULE_PRIORITY.get(rule.id, len(NAME_RULE_PRIORITY)))
         old = picked.get(key)

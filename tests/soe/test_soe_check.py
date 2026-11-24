@@ -567,7 +567,7 @@ class PersonNameMisfireTest(SoeCheckBase):
     """SOE-022：姓氏开头的地名、单位名、普通词不当作处分对象的姓名。
 
     这是回归测试，不能证明识别精度：下面的清单是人工挑出来的反例，通过只说明这些词不再误报，
-    不说明没列出的企业简称、地名不会误报（已知局限：“对唐钢给予警告处分”仍报 P0，见 KnownLimitTest）。
+    未列出的简称仍可能需要人工确认（“对唐钢给予警告处分”报 P1，见 KnownLimitTest）。
     识别精度由 tests/names 的召回、精度和对抗探针另行验证。
     """
 
@@ -733,10 +733,11 @@ class NameDetectionTest(SoeCheckBase):
 class KnownLimitTest(SoeCheckBase):
     """已知局限：记录目前识别不了或会误报的写法，防止文档与行为脱节。改进后应更新这里并同步文档。"""
 
-    def test_enterprise_abbreviation_in_discipline_frame_misfires(self) -> None:
+    def test_enterprise_abbreviation_in_discipline_frame_needs_review(self) -> None:
         for text in ("对唐钢给予警告处分", "对马钢给予警告"):
             with self.subTest(text=text):
-                self.assertIn("SOE-022", ids_of(self.check(text)))
+                rows = [i for i in self.check(text)["issues"] if i["id"] == "SOE-022"]
+                self.assertEqual([(i["level"], i["message"]) for i in rows], [("P1", "可能是单位简称，请人工确认")])
 
     def test_name_without_anchor_not_detected(self) -> None:
         result = self.check("马建国分管的项目中标价为3.2亿元。", "对外材料")
