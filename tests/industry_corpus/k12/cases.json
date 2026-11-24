@@ -1,0 +1,161 @@
+{
+ "engine": "k12",
+ "docs": [
+  {
+   "file": "A_k01_资助工作总结.txt",
+   "mode": "general",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "names": [
+    "马小明",
+    "孙小红",
+    "郭晓东",
+    "郑磊",
+    "孙婷",
+    "何静"
+   ]
+  },
+  {
+   "file": "V_k01_资助工作总结初稿.txt",
+   "mode": "general",
+   "kind": "violation",
+   "names": [
+    "马小明",
+    "孙小红",
+    "郭晓东",
+    "郑磊",
+    "孙婷",
+    "何静"
+   ],
+   "expect": [
+    {
+     "mark": "K1",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "K2",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 8
+    },
+    {
+     "mark": "K3",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 9
+    },
+    {
+     "mark": "K4",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 13
+    },
+    {
+     "mark": "K5",
+     "id": "K12-G01",
+     "level": "P0",
+     "line": 17
+    },
+    {
+     "mark": "K6",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 18
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "A_k02_致家长的一封信.txt",
+   "mode": "parents",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "names": [
+    "张浩然",
+    "陆思琪"
+   ]
+  },
+  {
+   "file": "V_k02_家长会通知.txt",
+   "mode": "parents",
+   "kind": "violation",
+   "names": [
+    "张浩然",
+    "陆思琪"
+   ],
+   "expect": [
+    {
+     "mark": "K7",
+     "id": "JZ-012",
+     "level": "P1",
+     "line": 7
+    },
+    {
+     "mark": "K8",
+     "id": "JZ-012",
+     "level": "P1",
+     "line": 8
+    },
+    {
+     "mark": "K9",
+     "id": "JZ-001",
+     "level": "P0",
+     "line": 9
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_k03_德育总结_复审人自写.txt",
+   "mode": "general",
+   "kind": "violation",
+   "names": [
+    "陈子豪",
+    "周梓涵",
+    "吴雨桐",
+    "刘一诺",
+    "孙浩宇"
+   ],
+   "expect": [
+    {
+     "mark": "C1",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 4
+    },
+    {
+     "mark": "C2",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 4,
+     "note": "行级命中：第 4 行 K12-G04 只出一条，输出不区分 C1～C4；单句单独运行已确认周梓涵、吴雨桐、刘一诺均被识别并遮蔽，全文里孙浩宇显示为〔姓名5〕，说明前四人都进了姓名表"
+    },
+    {
+     "mark": "C3",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 4,
+     "note": "同 C2"
+    },
+    {
+     "mark": "C4",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 4,
+     "note": "同 C2"
+    },
+    {
+     "mark": "C5",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 8
+    }
+   ],
+   "allow_extra_p0": []
+  }
+ ]
+}

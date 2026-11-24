@@ -89,6 +89,49 @@ class LocalToolboxIndustryCheckTests(unittest.TestCase):
         self.assertIn("[P0] 匿名", res_b["text"])
         self.assertIn("〔身份词〕", res_b["text"])
 
+    def test_three_industry_engines_in_one_process_do_not_cross(self):
+        """同一进程里依次运行医院、国企、中小学（general）三个行业专检：都能加载共享模块 gw_names，
+        结果各报各的规则号，姓名占位互不串用（每个包自己的全文姓名表，各自从〔姓名1〕编起）。"""
+        hos = tb.op_industry_check({
+            "b": "患者王建国术后发热。\n当班护士孙丽未执行双人核对。\n患者王建国对处置表示理解。",
+            "industry": "hospital", "doc_type": "RCA",
+        })
+        soe = tb.op_industry_check({
+            "b": "会议研究决定：对马建国给予记过处分，周杰同志受到警告处分。",
+            "industry": "soe", "doc_type": "纪要",
+        })
+        k12 = tb.op_industry_check({
+            "b": "低保家庭学生郭晓东，需重点关怀。\n特困学生：陈美玲，杨海涛",
+            "industry": "k12_general",
+        })
+        for res in (hos, soe, k12):
+            self.assertFalse(res["ok"])
+        # 各报各的规则号，不串用
+        self.assertIn("HOS-031", hos["text"])
+        self.assertIn("HOS-032", hos["text"])
+        self.assertNotIn("SOE-022", hos["text"] + k12["text"])
+        self.assertIn("SOE-022", soe["text"])
+        self.assertNotIn("HOS-03", soe["text"] + k12["text"])
+        self.assertIn("K12-G04", k12["text"])
+        self.assertNotIn("K12-G04", hos["text"] + soe["text"])
+        # 姓名全部遮蔽，占位互不影响：每份结果各自从〔姓名1〕编起
+        for name in ("王建国", "孙丽", "马建国", "周杰", "郭晓东", "陈美玲", "杨海涛"):
+            for res in (hos, soe, k12):
+                self.assertNotIn(name, res["text"], name)
+        for res in (hos, soe, k12):
+            self.assertIn("〔姓名1〕", res["text"])
+        self.assertIn("〔姓名2〕", hos["text"])   # 王建国、孙丽
+        self.assertIn("〔姓名2〕", soe["text"])   # 马建国、周杰
+        self.assertIn("〔姓名3〕", k12["text"])   # 郭晓东、陈美玲、杨海涛
+        # 三个包各自加载自己目录里的共享模块，模块对象互不相同
+        mods = [sys.modules.get(f"_gw_gongwen-{pkg}_gw_names") for pkg in ("hospital", "soe", "k12")]
+        self.assertTrue(all(m is not None for m in mods))
+        self.assertEqual(len({id(m) for m in mods}), 3)
+        # 再各跑一遍（缓存已建立），结果不变
+        self.assertEqual(hos["text"], tb.op_industry_check({
+            "b": "患者王建国术后发热。\n当班护士孙丽未执行双人核对。\n患者王建国对处置表示理解。",
+            "industry": "hospital", "doc_type": "RCA"})["text"])
+
     def test_page_contains_industry_ui(self):
         self.assertIn('id="indPack"', tb.PAGE)
         self.assertIn('data-op="industry_check"', tb.PAGE)

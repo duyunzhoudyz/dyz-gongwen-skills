@@ -1,0 +1,453 @@
+{
+ "engine": "hospital",
+ "note": "医院行业专检语料埋点清单。以本文件为准；tests/industry_corpus/README.md 里的表只是人读版。",
+ "source_values": {
+  "author": "语料作者自拟",
+  "review": "取自或近似取自独立复审人的探针原句，不能作为独立检出率依据",
+  "heldout": "取自独立复审人自写的整篇文书（曾为留出集，入库后不再是留出集）"
+ },
+ "marks": [
+  {
+   "mark": "E1",
+   "file": "V_h01_议题_购置设备.txt",
+   "line": 11,
+   "desc": "先执行后补程序：“已于2026年9月先行签约并支付首付款，现提请追认”",
+   "rules": [
+    {
+     "id": "HOS-034",
+     "level": "P0"
+    },
+    {
+     "id": "HOS-035",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E2",
+   "file": "V_h01_议题_购置设备.txt",
+   "line": 14,
+   "desc": "党政联席会议作决策：“本议题由院长办公会（党政联席会议）研究决定”",
+   "rules": [
+    {
+     "id": "HOS-004",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E3",
+   "file": "V_h01_议题_购置设备.txt",
+   "line": 7,
+   "desc": "三重一大无党委会研究：全文无党委会研究字样，设备预算420万元",
+   "rules": [
+    {
+     "id": "HOS-005",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E4",
+   "file": "V_h01_议题_购置设备.txt",
+   "line": 8,
+   "desc": "廉洁表述开单量：“科室绩效以开单量和收入提成为主要依据”",
+   "rules": [
+    {
+     "id": "HOS-036",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E5",
+   "file": "V_h02_RCA_输液外渗.txt",
+   "line": 4,
+   "desc": "床号加姓名：“17床赵敏华”",
+   "rules": [
+    {
+     "id": "HOS-030",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E6",
+   "file": "V_h02_RCA_输液外渗.txt",
+   "line": 4,
+   "desc": "患者实名：同行另处单独出现“患者赵敏华”",
+   "rules": [
+    {
+     "id": "HOS-031",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E7",
+   "file": "V_h02_RCA_输液外渗.txt",
+   "line": 7,
+   "desc": "当事护士实名：“当班护士孙丽”",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E8",
+   "file": "V_h02_RCA_输液外渗.txt",
+   "line": 11,
+   "desc": "根因落在个人品质：“责任护士孙丽责任心不强”",
+   "rules": [
+    {
+     "id": "HOS-018",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E9",
+   "file": "V_h02_RCA_输液外渗.txt",
+   "line": 14,
+   "desc": "处理内容写入RCA：“拟对孙丽给予通报批评并扣减当月绩效”",
+   "rules": [
+    {
+     "id": "HOS-020",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E10",
+   "file": "V_h03_等级评审_自评.txt",
+   "line": 4,
+   "desc": "替评审机构下结论：“各项指标均达标”“已达到三级甲等医院标准”",
+   "rules": [
+    {
+     "id": "HOS-037",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E11",
+   "file": "V_h03_等级评审_自评.txt",
+   "line": 8,
+   "desc": "指数用百分号：“CMI由1.01提高至1.06，增长5.0%”",
+   "rules": [
+    {
+     "id": "HOS-007",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E12",
+   "file": "V_h03_等级评审_自评.txt",
+   "line": 9,
+   "desc": "俗称“国考”：“国考指标排名较上年前进12位”",
+   "rules": [
+    {
+     "id": "HOS-015",
+     "level": "P2"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E13",
+   "file": "V_h03_等级评审_自评.txt",
+   "line": 12,
+   "desc": "建议调整编码提指标：“通过优化主要诊断编码，提高四级手术比例，以改善CMI和医保结余”",
+   "rules": [
+    {
+     "id": "HOS-033",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E14",
+   "file": "V_h03_等级评审_自评.txt",
+   "line": 16,
+   "desc": "前置要求未经逐条确认直接写未发生：“评审周期内未发生前置要求所列的任何情形”",
+   "rules": [
+    {
+     "id": "HOS-039",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "E15",
+   "file": "V_h03_等级评审_自评.txt",
+   "line": 19,
+   "desc": "附录宣传口径写“治愈率达100%，国内领先”（内部 P2；--external 升为 P0）",
+   "rules": [
+    {
+     "id": "HOS-002",
+     "level": "P2"
+    },
+    {
+     "id": "HOS-003",
+     "level": "P2"
+    }
+   ],
+   "source": "author",
+   "note": "--external 运行时两条均为 P0"
+  },
+  {
+   "mark": "N1",
+   "file": "V_h04_整改报告_编码建议.txt",
+   "line": 8,
+   "desc": "建议部分科室调整主要诊断编码以提高CMI",
+   "rules": [
+    {
+     "id": "HOS-033",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "N2",
+   "file": "V_h04_整改报告_编码建议.txt",
+   "line": 9,
+   "desc": "可采取分解住院的办法拆分结算",
+   "rules": [
+    {
+     "id": "HOS-033",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "N3",
+   "file": "V_h04_整改报告_编码建议.txt",
+   "line": 10,
+   "desc": "拟通过优化编码提高DRG入组率",
+   "rules": [
+    {
+     "id": "HOS-033",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "N4",
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "line": 5,
+   "desc": "“患者王建国术后发热”：患者实名",
+   "rules": [
+    {
+     "id": "HOS-031",
+     "level": "P0"
+    }
+   ],
+   "source": "review",
+   "note": "与评审探针原句“患者王建国术后发热。”相同"
+  },
+  {
+   "mark": "N5",
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "line": 6,
+   "desc": "“王建国（住院号……）于10月11日入院”：患者实名加住院号",
+   "rules": [
+    {
+     "id": "HOS-031",
+     "level": "P0"
+    }
+   ],
+   "source": "review",
+   "note": "与评审探针原句“王建国（住院号20231234）于3月5日入院。”仅差日期"
+  },
+  {
+   "mark": "N6",
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "line": 9,
+   "desc": "“护士张丽丽未执行双人核对”：当班护士实名",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "review",
+   "note": "评审探针原句为“当事护士张丽丽未执行双人核对。”，本句去掉“当事”"
+  },
+  {
+   "mark": "N7",
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "line": 10,
+   "desc": "“由护士张丽丽负责”：护士实名",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "N8",
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "line": 11,
+   "desc": "“当班护士为张丽丽”：护士实名",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "N9",
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "line": 12,
+   "desc": "“张丽丽当晚独自值守病区，责任心不强”：本行无姓名锚点，靠全文姓名表遮蔽；归咎个人",
+   "rules": [
+    {
+     "id": "HOS-018",
+     "level": "P1"
+    }
+   ],
+   "source": "author"
+  },
+  {
+   "mark": "N10",
+   "file": "V_h06_议题_换说法倒置.txt",
+   "line": 12,
+   "desc": "“设备已于9月采购到位并投入使用，现提请院长办公会审议”：换说法的程序倒置（收缩后：组合判定只给 P1）",
+   "rules": [
+    {
+     "id": "HOS-034",
+     "level": "P1"
+    }
+   ],
+   "source": "review",
+   "note": "与评审给出的换说法句式（设备于9月采购到位并投入使用，现提请院长办公会审议）基本相同"
+  },
+  {
+   "mark": "R1",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 4,
+   "desc": "患者实名：“18床患者刘海（男，78岁）”（刘海与整词排除词同形，靠括注放行）",
+   "rules": [
+    {
+     "id": "HOS-031",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R2",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 4,
+   "desc": "当班护士实名：“值班护士周晓梅”",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R3",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 4,
+   "desc": "患者实名（同行第二处）：“患者刘海家属反映”",
+   "rules": [
+    {
+     "id": "HOS-031",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R4",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 5,
+   "desc": "当班医师实名：“值班医师李明”",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R5",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 5,
+   "desc": "会诊医师实名：“骨科医师王和平”（带科室修饰的角色词，名字含软字“和”）",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R6",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 8,
+   "desc": "责任护士实名：“责任护士周晓梅”",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R7",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 13,
+   "desc": "护士长实名：“由护士长马会芳牵头”（名字含软字“会”）",
+   "rules": [
+    {
+     "id": "HOS-032",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  },
+  {
+   "mark": "R8",
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "line": 18,
+   "desc": "患者实名：“患者刘海出院后电话随访”",
+   "rules": [
+    {
+     "id": "HOS-031",
+     "level": "P0"
+    }
+   ],
+   "source": "heldout"
+  }
+ ]
+}

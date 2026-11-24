@@ -157,8 +157,17 @@ class TrmRefinementTest(unittest.TestCase):
         self.assertTrue(self.trm("帮助企业度过难关。", "TRM-005"))
 
     def test_trm007_reaction_misuse(self):
-        self.assertTrue(self.trm("近期群众反应强烈，要求尽快整改。", "TRM-007"))
-        self.assertTrue(self.trm("居民反应较大。", "TRM-007"))
+        # 口径调整：“群众反应强烈。”作谓语结句、“居民反应较大”指对事物作出的反应，两可，不再报；
+        # 只有“反应”后接被反映的对象（问题、情况、意见等）才是误用
+        self.assertEqual(self.trm("近期群众反应强烈，要求尽快整改。", "TRM-007"), [])
+        self.assertEqual(self.trm("居民反应较大。", "TRM-007"), [])
+        self.assertEqual(self.trm("惠民消费券活动推出后，市民反应热烈。", "TRM-007"), [])
+        self.assertEqual(self.trm("课后服务调整方案公布后，家长反应不一。", "TRM-007"), [])
+        self.assertEqual(self.trm("新规公布后，职工反应激烈，企业反应平淡。", "TRM-007"), [])
+        self.assertTrue(self.trm("群众反应的问题，要逐条核实。", "TRM-007"))
+        self.assertTrue(self.trm("群众反应强烈的问题，要优先解决。", "TRM-007"))
+        self.assertTrue(self.trm("向上级反应情况，请求支持。", "TRM-007"))
+        self.assertTrue(self.trm("向县委反应了问题。", "TRM-007"))
         self.assertEqual(self.trm("实验中化学反应迅速完成。", "TRM-007"), [])
         self.assertEqual(self.trm("各部门应急反应迅速。", "TRM-007"), [])
 

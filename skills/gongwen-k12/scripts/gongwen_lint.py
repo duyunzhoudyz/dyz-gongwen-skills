@@ -2505,11 +2505,26 @@ BANNED_SEPARATOR_RE = re.compile(r"^\s*:?-{2,}:?\s*$")
 BANNED_WILDCARDS = ("……", "…", "×××", "XXX")
 
 
-def _banned_level(text: str) -> Optional[bool]:
-    """“慎用”返回 False，“禁用”“不用”“停用”“规范”“统一”返回 True，看不出返回 None。"""
-    if "慎用" in text or "少用" in text:
+_BAN_CAUTION = ("慎用", "少用", "酌情", "结合语境", "视情况")
+_BAN_STRICT = ("禁用", "严禁", "不得使用", "必改", "停用")
+# 只在“级别”单元格或列表项说明里认的弱信号：整格就是“不用/规范/统一”，或固定搭配“规范用词”“统一表述”等；“不规范”不算
+_BAN_WEAK_CELL = re.compile(r"^\s*(?:不用|规范|统一)\s*$")
+_BAN_WEAK_PHRASE = re.compile(r"(?<!不)(?:规范|统一)(?:用词|用语|表述|写法|提法)")
+
+
+def _banned_level(text: str, heading: bool = False) -> Optional[bool]:
+    """“慎用”返回 False，“禁用”返回 True，看不出返回 None。
+
+    级别只看明确的级别词：慎用|少用|酌情|结合语境|视情况 -> 慎用；禁用|严禁|不得使用|必改|停用 -> 禁用。
+    标题（heading=True）只认这两组明确词：小标题常有“（不规范，需结合语境）”“规范表述见附录”之类说明，
+    “规范”“统一”“不用”不是级别信号，更不能把上级的“慎用”升级为禁用。
+    级别单元格、列表项说明里，另认整格“不用/规范/统一”和固定搭配“规范用词”“统一表述”“规范写法”。
+    """
+    if any(k in text for k in _BAN_CAUTION):
         return False
-    if any(k in text for k in ("禁用", "不用", "停用", "不得使用", "规范", "统一", "必改")):
+    if any(k in text for k in _BAN_STRICT):
+        return True
+    if not heading and (_BAN_WEAK_CELL.match(text) or _BAN_WEAK_PHRASE.search(text)):
         return True
     return None
 
@@ -2526,7 +2541,7 @@ def _term_regex(term: str) -> Pattern[str]:
         if not token:
             continue
         if token in BANNED_WILDCARDS:
-            parts.append(r"[^。；！？，,、：:\n]{0,20}?")  # 通配不跨子句：逗号、顿号、冒号也截断
+            parts.append(r"[^。；！？，,：:\n]{0,20}?")  # 通配不跨子句：逗号、分号、冒号、句末标点截断；顿号连接并列成分，允许跨过
         elif token.isspace():
             parts.append(r"\s*")
         else:
@@ -2564,6 +2579,7 @@ def load_banned(path: Path) -> List[BannedTerm]:
     table_terms: List[BannedTerm] = []
     list_terms: List[BannedTerm] = []
     section_level: Optional[bool] = None
+    level_stack: List[Tuple[int, Optional[bool]]] = []
     skip_section = False
     cols: Optional[Dict[str, Optional[int]]] = None
 
@@ -2581,8 +2597,14 @@ def load_banned(path: Path) -> List[BannedTerm]:
         if heading:
             title = heading.group(1).strip()
             skip_section = bool(BANNED_SKIP_SECTION_RE.search(title))
-            # 遇到新标题即重置级别，再按该标题关键词判定，避免上一小节的级别泄漏
-            section_level = _banned_level(title)
+            # 按标题层级维护级别栈：同级或更高级的新标题弹出旧级别；下级标题自身看不出级别时继承最近上级的级别
+            depth = len(re.match(r"^#+", s).group(0))
+            while level_stack and level_stack[-1][0] >= depth:
+                level_stack.pop()
+            own = _banned_level(title, heading=True)
+            inherited = level_stack[-1][1] if level_stack else None
+            section_level = own if own is not None else inherited
+            level_stack.append((depth, section_level))
             cols = None
             continue
         if skip_section or not s:

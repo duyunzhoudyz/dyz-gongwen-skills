@@ -1,0 +1,347 @@
+{
+ "engine": "soe",
+ "docs": [
+  {
+   "file": "A_s01_议题投资.txt",
+   "type": "议题材料",
+   "kind": "clean",
+   "max_p1": 1,
+   "max_p2": 1
+  },
+  {
+   "file": "A_s02_议题薪酬办法.txt",
+   "type": "议题材料",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 2
+  },
+  {
+   "file": "A_s03_董事会议案.txt",
+   "type": "议案",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_s04_党委会纪要.txt",
+   "type": "纪要",
+   "kind": "clean",
+   "max_p1": 1,
+   "max_p2": 1
+  },
+  {
+   "file": "A_s05_总经理办公会纪要.txt",
+   "type": "纪要",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 2
+  },
+  {
+   "file": "A_s06_合规报告.txt",
+   "type": "合规报告",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_s07_ESG报告.txt",
+   "type": "ESG报告",
+   "kind": "clean",
+   "max_p1": 2,
+   "max_p2": 0
+  },
+  {
+   "file": "A_s08_社会责任报告.txt",
+   "type": "ESG报告",
+   "kind": "clean",
+   "max_p1": 2,
+   "max_p2": 0
+  },
+  {
+   "file": "A_s09_经营分析.txt",
+   "type": "经营分析",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_s10_对外新闻稿.txt",
+   "type": "对外材料",
+   "external": true,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 2
+  },
+  {
+   "file": "A_s11_议题_如实报告程序倒置.txt",
+   "type": "议题材料",
+   "kind": "clean",
+   "max_p1": 1,
+   "max_p2": 0
+  },
+  {
+   "file": "V_s01_纪要_总经理办公会.txt",
+   "type": "纪要",
+   "kind": "violation",
+   "names": [
+    "张伟"
+   ],
+   "expect": [
+    {
+     "mark": "E16",
+     "id": "SOE-021",
+     "level": "P0",
+     "line": 3
+    },
+    {
+     "mark": "E17",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 8
+    },
+    {
+     "mark": "E18",
+     "id": "SOE-007",
+     "level": "P1",
+     "line": 10
+    },
+    {
+     "mark": "E19",
+     "id": "SOE-109",
+     "level": "P1",
+     "line": 10
+    },
+    {
+     "mark": "E20实际",
+     "id": "SOE-024",
+     "level": "P1",
+     "line": 12
+    }
+   ],
+   "known_miss": [
+    {
+     "mark": "E20",
+     "id": "SOE-028",
+     "level": "P1",
+     "reason": "埋点预期 SOE-028，但 SOE-028 针对“尚未听取意见”，文书写的是“已听取职工意见，拟直接提交董事会审议”，规则语义不符，不是引擎缺陷；同一句实际由 SOE-024（只听取意见）和 SOE-004（直接提交）覆盖，见 E20实际"
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_s02_议题材料_组织调整.txt",
+   "type": "议题材料",
+   "kind": "violation",
+   "names": [
+    "李国强",
+    "王敏"
+   ],
+   "expect": [
+    {
+     "mark": "E21",
+     "id": "SOE-001",
+     "level": "P0",
+     "line": 14
+    },
+    {
+     "mark": "E21b",
+     "id": "SOE-002",
+     "level": "P1",
+     "line": 14
+    },
+    {
+     "mark": "E22",
+     "id": "SOE-023",
+     "level": "P1",
+     "line": 11
+    },
+    {
+     "mark": "E23",
+     "id": "SOE-024",
+     "level": "P1",
+     "line": 14
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_s03_对外材料_签约新闻稿.txt",
+   "type": "对外材料",
+   "external": true,
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "E24",
+     "id": "SOE-012",
+     "level": "P0",
+     "line": 5
+    },
+    {
+     "mark": "E25",
+     "id": "SOE-009",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "E26",
+     "id": "SOE-010",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "E27",
+     "id": "SOE-011",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "E28",
+     "id": "SOE-008",
+     "level": "P0",
+     "line": 9
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_s11_党委会纪要_多人处分.txt",
+   "type": "纪要",
+   "kind": "violation",
+   "names": [
+    "马建国",
+    "周杰",
+    "欧阳明",
+    "王强"
+   ],
+   "expect": [
+    {
+     "mark": "S1",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 10
+    },
+    {
+     "mark": "S2",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 12
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_s11_党委会纪要_多人处分.txt",
+   "type": "对外材料",
+   "external": true,
+   "kind": "violation",
+   "names": [
+    "马建国",
+    "周杰",
+    "欧阳明",
+    "王强"
+   ],
+   "expect": [
+    {
+     "mark": "S1",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 10
+    },
+    {
+     "mark": "S2",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 12
+    },
+    {
+     "mark": "S3",
+     "id": "SOE-027",
+     "level": "P1",
+     "line": 16
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_s12_议题_拆分与先行实施.txt",
+   "type": "议题材料",
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "S4",
+     "id": "SOE-029",
+     "level": "P0",
+     "line": 8
+    },
+    {
+     "mark": "S5",
+     "id": "SOE-006",
+     "level": "P1",
+     "line": 8
+    },
+    {
+     "mark": "S6",
+     "id": "SOE-001",
+     "level": "P1",
+     "line": 12
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_s13_党委会纪要_复审人自写.txt",
+   "type": "纪要",
+   "kind": "violation",
+   "names": [
+    "张国强",
+    "刘海",
+    "王和平",
+    "李建华",
+    "孙浩",
+    "赵立新",
+    "钱敏",
+    "孙磊",
+    "周涛"
+   ],
+   "expect": [
+    {
+     "mark": "J1",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 6,
+     "note": "摘录里显示为〔姓名1〕，对应刘海"
+    },
+    {
+     "mark": "J2",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 6,
+     "note": "摘录里显示为〔姓名2〕，对应王和平"
+    },
+    {
+     "mark": "J4",
+     "id": "SOE-022",
+     "level": "P0",
+     "line": 6,
+     "note": "摘录里显示为〔姓名3〕，对应孙浩"
+    },
+    {
+     "mark": "J5",
+     "id": "SOE-001",
+     "level": "P1",
+     "line": 12
+    }
+   ],
+   "known_miss": [
+    {
+     "mark": "J3",
+     "id": "SOE-022",
+     "level": "P0",
+     "reason": "“原总经理助理李建华严重违纪违法，已被开除党籍”：主语与“被开除党籍”隔着分句，规则的“某某被/受到+处分”写法要求姓名紧挨处分词；该句摘录被截在“；原”之前，姓名未泄露"
+    }
+   ],
+   "allow_extra_p0": [],
+   "note": "第 9 行“一期已投入使用……提请董事会审议平台二期建设方案”按设计报 SOE-001 P1（提请事项可能与已执行事项不同），不是埋点，也不是 P0。"
+  }
+ ]
+}

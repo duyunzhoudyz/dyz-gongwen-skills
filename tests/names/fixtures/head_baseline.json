@@ -1,0 +1,253 @@
+{
+  "说明": "HEAD（提交 d07b657，v1.2.0 之后）与 v1.2.0 引擎在 tests/names/fixtures/names.txt 上的实跑基线：每个句式一个文件、一行一个名字，统计该规则命中的行数（detected）及其中 P0 行数（p0）。数字由开发期脚本一次性生成，不随当前实现变化。医院、国企的姓名规则（HOS-031/032、SOE-022）在 v1.2.0 里还不存在，所以 v1.2.0 一栏的 0 不代表识别能力；v1.2.0 的 K12-G04 是更早的宽松正则，数字也只作参考。第 2 步各引擎的测试用 HEAD 一栏作对照：新实现在同一句式、同一名字集上的命中数不得低于 HEAD。",
+  "names_file": "tests/names/fixtures/names.txt",
+  "names_count": 408,
+  "commits": {
+    "HEAD": "d07b6573be77d575506b968912540c24d8cb8869",
+    "v1.2.0": "6e1c78b452d570007c92fc4395f638a50ee974fb"
+  },
+  "rows": [
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}，男，56岁，因胸痛入院。",
+      "HEAD": {
+        "detected": 203,
+        "p0": 203
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}行冠脉造影术。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}家属对处理结果不满。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}在病房跌倒。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}昨日出院。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}病情加重。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-031",
+      "args": [],
+      "template": "患者{n}确诊为肺癌。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "hospital",
+      "rule": "HOS-032",
+      "args": [
+        "--type",
+        "RCA"
+      ],
+      "template": "值班护士{n}凌晨巡视时发现异常。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "soe",
+      "rule": "SOE-022",
+      "args": [],
+      "template": "给予{n}同志党内警告处分。",
+      "HEAD": {
+        "detected": 127,
+        "p0": 127
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "soe",
+      "rule": "SOE-022",
+      "args": [],
+      "template": "对{n}给予记过处分。",
+      "HEAD": {
+        "detected": 127,
+        "p0": 127
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "soe",
+      "rule": "SOE-022",
+      "args": [],
+      "template": "给予副部长{n}撤职处分。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "soe",
+      "rule": "SOE-022",
+      "args": [],
+      "template": "给予财务部原副部长{n}党内严重警告处分。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "soe",
+      "rule": "SOE-022",
+      "args": [],
+      "template": "对物资公司副总经理{n}给予记过处分。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "k12",
+      "rule": "K12-G04",
+      "args": [],
+      "template": "单亲家庭学生{n}近期情绪低落。",
+      "HEAD": {
+        "detected": 30,
+        "p0": 30
+      },
+      "v1.2.0": {
+        "detected": 408,
+        "p0": 408
+      }
+    },
+    {
+      "engine": "k12",
+      "rule": "K12-G04",
+      "args": [],
+      "template": "特困学生{n}获得资助。",
+      "HEAD": {
+        "detected": 30,
+        "p0": 30
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "k12",
+      "rule": "K12-G04",
+      "args": [],
+      "template": "低保家庭学生{n}本学期获得资助。",
+      "HEAD": {
+        "detected": 30,
+        "p0": 30
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    },
+    {
+      "engine": "k12",
+      "rule": "K12-G04",
+      "args": [],
+      "template": "留守儿童{n}由祖父母照看。",
+      "HEAD": {
+        "detected": 0,
+        "p0": 0
+      },
+      "v1.2.0": {
+        "detected": 0,
+        "p0": 0
+      }
+    }
+  ],
+  "用法": "共享层测试（tests/names）只断言 hospital、soe、k12 三类锚点在 HEAD 已有召回的句式上不退步；K12 角色锚点、国企职务称谓框架等需要引擎接入后才能断言的句式留给第 2 步的引擎测试。"
+}

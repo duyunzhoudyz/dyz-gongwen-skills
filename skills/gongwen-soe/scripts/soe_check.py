@@ -4,11 +4,10 @@
 
 在通用机检 gongwen_lint.py 之外，补查国企专用文书中能写成规则的问题：
   - 决策程序：先执行后补程序、追认、职代会后置、直接提交决策机构、党委会“决定”经营事项、
-    拆分规避集体决策、经理层超授权（SOE-001～007）；
+    拆分规避集体决策、经理层超授权（SOE-001～007、029）；
   - 对外表述：无出处的“第一”“领先”、绝对化环境声明和合规结论（SOE-008～010）；
   - 对外材料中的未公开信息、商业秘密、经营数据（SOE-011～013、027，只在对外材料中检查）；
-  - 材料自带商业秘密标注、处分对象和敏感人员名单的姓名（个人信息，报告中遮蔽摘录；同一行里被识别为姓名的片段，
-    在其他规则和函数检查的摘录、上下文中也一律换成“〔已遮蔽〕”）、职工安置方案只听取意见、
+  - 材料自带商业秘密标注、处分对象和敏感人员名单的姓名（个人信息，见下“实名识别与遮蔽”）、职工安置方案只听取意见、
     议案预写表决结果、合规报告自称已经董事会审议（SOE-021～028）；
   - 数据表述：比率变化用百分数、同比环比用混（SOE-014、015）；党建成效归因（SOE-016）；
   - 函数检查：议题要件和方案比选（SOE-101、102）、议案要件（SOE-103）、决议出席人数和票数（SOE-104）、
@@ -16,13 +15,62 @@
     纪要议定事项和前置程序（SOE-108、109）、融合材料“两张皮”（SOE-110）、
     职工切身利益议题缺职代会或工会意见（SOE-111）。
 
+实名识别与遮蔽（SOE-022 处分对象、SOE-023 敏感人员名单）：
+  - 识别方式是“锚点 + 候选 + 打分”，由共享模块 gw_names.py 完成：先找能带出姓名的上下文（“给予……处分”“被开除党籍”
+    “拟提拔人选名单：”），再在锚点旁取 2～4 字的候选，按“锚点分 + 边界分 + 形态分”打分。总分 >= 6 为高置信，
+    用规则级别（SOE-022 为 P0）；总分 = 5 为低置信，降为 P1（如歧义姓的两字名）；< 5 不报。不分内外，只按置信度分级。
+  - 全文姓名表：所有被识别的姓名（包括因豁免没报出的）按全文首次出现顺序编号，输出里一律写成〔姓名1〕〔姓名2〕；
+    所有规则（含函数检查 SOE-1xx）的 excerpt、context，以及文本和 JSON 输出都经同一张表遮蔽。
+    隐私规则自己的 excerpt 保留“锚点 + 占位 + 右侧最多 8 字”，如“对〔姓名1〕给予记过处分。”。
+    代称（张某）不进表。(id、行号、遮蔽后摘录、说明) 完全相同的多条合并为一条，带 count。
+  - 缺少 gw_names.py、gw_names.json 或 gw_clause.py，或数据文件损坏时，直接按输入错误退出（退出码 2），
+    不静默降级——隐私是 P0 红线，“没查成”不能显示成“没检出”。
+
+豁免窗口统一用共享模块 gw_clause.py：整句按 。！？；!?;换行 切；分句再按 ，,、：: 切。窗口有 clause（命中所在分句）、prev（紧邻的前一分句，出处类用）、
+chain（命中分句向前并入顿号连着的并列分句，禁止类用：“杜绝先行开工、先行签约”里第二项也在“杜绝”之内）、
+lead（分句紧跟冒号时冒号前的引导分句）、prefix（命中前同一分句内 N 个字，默认 8，
+规则里用 prefix_window 调整）、sentence（整句，只留给出处、后续程序常在相邻分句的少数规则，如 SOE-008）。
+规则 JSON 的 exempt_clause、exempt_chain、exempt_lead、exempt_before、exempt_context 依次对应这些窗口；
+exempt_dispose（只看命中所在分句）是处置类的自带词，程序倒置规则（SOE-001）在命中处就近有如实声明时不适用；
+【收缩】命中之后的分句不再能豁免（已取消 after 窗口）：处置类只在命中所在分句内生效，出处类在命中所在分句与紧邻的前一分句内生效；
+否决、整改、出处写在后一分句的句子会重新被报出（已知代价）：后续分句里若有针对该做法的处置、出处词（后续词同样要过让步、例外、定语、“避免违规”这类目的成分、指他、“此前”这类过去、出处未出具的语境检查，只看规则实际配置的类别），P0 降为 P1 仍报出，suggestion 末尾补“若后文已写明否决、整改或出处，可忽略本条”；处置词在同一分句里时必须针对被命中的做法：在命中之后要紧接（间隔不超过 14 字、没有“并、且、同时、还”等并列词、之后不再带无关宾语），在命中之前要是“否决了……的建议”这样的指称结构，拿不准不豁免；“经自我评价、院内评审、本院认定、初步评价”不算出处；
+豁免正则里可写 <<DISPOSE>>（处置类）、<<SOURCE>>（出处类）、<<PROHIBIT>>（禁止类），由共享模块代入。
+
+程序倒置（SOE-001）：除正则外，还用 gw_clause.find_inversions 做“已执行 + 提请或补办”的组合判定
+（规则 JSON 顶层 procedure_inversion，七个判定正则全部用共享模块默认口径，本包不覆盖）。组合判定只在议题材料、议案、纪要、决议中生效，
+SOE-001 的正则规则本身不限文书类型。【收缩】组合判定的命中一律为 P1（提示性质），P0 只来自 SOE-001 对
+“先行开工、补办手续、先……后报批”等明确写法的正则命中（动词里没有“采购”）；单独的“追认”写法由 SOE-002 报 P1。已执行分两档：强档为“已开工建设、已签约、已与……签订合同、已完成……采购安装、已进场施工、已开始施工、
+主体工程已完成30%”等；弱档为不带“已”的“于9月开工、投入使用”。已执行成分作定语（已签订的框架协议）、计划于、拟于、战略合作框架协议、
+采购管理办法等不判；提请对象是验收、结算、备案、收费标准、管理办法、计划、预算等事后正常事项且没有追认、补办的不判。
+如实声明降级只作用于正则命中的 P0：同一句或紧邻的前、后一句有未被否定的肯定式声明（“属于程序倒置”“未履行决策程序”“该做法违反……规定”），
+且这三句里没有追认、补办，才降 P1；“不属于、不存在、未发生、杜绝、防止、自查”等否定写法和单独的“如实报告”“如实说明”不算声明；不再有全文级降级。
+声明只认“对本事项的直接断言”：主语是“该、本、此、上述、以上 + 项目、事项、做法、情况”或承前省略，声明所在分句以断言收束；疑问（是否）、条件（如、若）、转述（有人认为、……的说法）、指他（其他单位）、“难以认定、谈不上、算不上、未必、所谓、质疑”等写法不算；追认、补办的检查范围是声明所在句及其后两句、倒置句及其前后一句；拿不准不降级（保持 P0）。
+命中处就近有声明时，“已整改”“违反”等处置类豁免不适用；声明判断统一调用 gw_clause.Declaration。
+P1 的说明文案按 find_inversions 给出的 reason_code 选用，不会出现与原因矛盾的文字。与同一行已有的正则命中合并，保留正则那条的级别与摘录。
+
+已知局限（机检只做能写成规则的部分，其余人工核对）：
+  1. 没有锚点就识别不了：单独一句“马建国分管的项目……”不会被当作姓名；只有同一姓名在别处被锚点识别过，才靠全文姓名表遮蔽。
+  2. 名字里用了黑名单字、或尾字是地名机构字的姓名会漏报（如“李山”“孙湖”“王会”）。
+  3. 少见姓、歧义姓只给 P1，弱语境下漏报；与整词排除词同形的姓名（刘海、林海）没有强证据时漏报；处分对象与处分隔着分句
+     （“李建华……已被开除党籍”）识别不了。
+  4. 形似姓名的企业简称在处分框架里可能误报 P0（如“对唐钢给予警告处分”“对马钢给予警告”），已列入排除词的除外，企业简称与人名
+     同形时无法穷尽。
+  5. 名单类锚点按顿号、逗号读到句末，用分号或换行分开的后续名单项读不到；带“·”的姓名、外文名、昵称识别不了。
+  6. 全文遮蔽是整串替换，会过度遮蔽（姓名“高明”会把“高明的做法”也遮成占位）。
+  7. 文件名：报告头和 JSON 的 file 字段按全文姓名表遮蔽；文件名里写着、正文没有被锚点识别到的姓名遮不住。
+  8. 程序倒置组合判定按固定搭配判断，只给 P1；“是否同一事项”只按字面包含判断，被动句、跨段、跨三句以上的写法识别不了，
+     不保证穷尽所有换说法，须人工复核。
+  9. 否决、整改、出处写在后一分句的句子会被报出，后续分句里有针对该做法的处置词时 P0 降为 P1 并提示，需人工判断；SOE-008 的出处豁免是整句范围（exempt_context），
+     与医院 HOS-003（只看命中分句与前一分句）口径不一致。
+ 10. 表格行里的姓名识别不了；锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+
 用法：
     python scripts/soe_check.py <文件> [--type 文书] [--external] [--as-of YYYY-MM-DD] [--json] [--strict]
     python scripts/soe_check.py --list-rules
 
 输入 .txt、.md、.docx（docx 需要 python-docx），遇到单独成行的【起草说明】即停止读取。
 输出字段与 gongwen_lint.py 一致（file、doc_type、char_count、summary、issues），可以并入核稿意见。
-退出码：0 正常；--strict 且存在 P0 时为 1；输入错误为 2。
+退出码：0 正常；--strict 且存在 P0 时为 1；输入错误（含共享模块缺失）为 2。
 只依赖标准库；正则规则在同目录的 soe_rules.json 中，修改规则不必改代码。不访问网络，不写任何文件。
 """
 from __future__ import annotations
@@ -30,6 +78,7 @@ from __future__ import annotations
 import argparse
 import calendar
 import datetime as _dt
+import importlib.util
 import json
 import re
 import sys
@@ -37,20 +86,61 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.0.0"
-RULES_PATH = Path(__file__).resolve().parent / "soe_rules.json"
+VERSION = "1.2.0"
+_HERE = Path(__file__).resolve().parent
+RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")
 
 # 【起草说明】分界行，与 gongwen_lint.py、fact_diff.py 的写法一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?【起草说明】")
-SENTENCE_END = "。！？；!?;\n"
-CLAUSE_END = SENTENCE_END + "，,、"
 
 Lines = Sequence[Tuple[int, str]]
 
 
 class InputError(Exception):
     """输入错误，退出码 2。"""
+
+
+# ---------------------------------------------------------------------------
+# 共享模块：实名识别（gw_names）与分句豁免、程序倒置（gw_clause）。缺文件或数据损坏时按输入错误退出，不静默降级
+# ---------------------------------------------------------------------------
+
+def _load_shared(stem: str) -> Any:
+    """按文件路径加载同目录的共享模块；模块名按 skill 目录区分，避免同一进程里先后加载多个行业引擎时串用缓存。"""
+    path = _HERE / f"{stem}.py"
+    if not path.is_file():
+        raise InputError(f"缺少 scripts/{stem}.py（共享模块），请重新安装本包或运行 tools/sync_shared.py")
+    name = f"_gw_{_HERE.parent.name}_{stem}"
+    mod = sys.modules.get(name)
+    if mod is None:
+        spec = importlib.util.spec_from_file_location(name, str(path))
+        if spec is None or spec.loader is None:
+            raise InputError(f"无法加载共享模块 scripts/{stem}.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        try:
+            spec.loader.exec_module(mod)
+        except Exception as exc:  # 模块损坏
+            sys.modules.pop(name, None)
+            raise InputError(f"共享模块 scripts/{stem}.py 无法加载：{exc}") from exc
+    return mod
+
+
+_SHARED: Dict[str, Any] = {}
+
+
+def _shared() -> Tuple[Any, Any, Any]:
+    """返回 (gw_names, gw_clause, 姓名数据)。数据文件缺失或损坏抛 InputError。"""
+    gn = _load_shared("gw_names")
+    gc = _load_shared("gw_clause")
+    lex = _SHARED.get("lex")
+    if lex is None:
+        try:
+            lex = gn.load_lexicon()
+        except gn.LexiconError as exc:
+            raise InputError(str(exc)) from exc
+        _SHARED["lex"] = lex
+    return gn, gc, lex
 
 
 @dataclass
@@ -66,14 +156,24 @@ class Rule:
     regex: Optional[Pattern[str]] = None
     external_level: Optional[str] = None
     external_only: bool = False
-    exempt: Optional[Pattern[str]] = None
-    exempt_match: Optional[Pattern[str]] = None
-    exempt_clause: Optional[Pattern[str]] = None
-    exempt_before: Optional[Pattern[str]] = None
-    mask_excerpt: bool = False
-    name_regex: Optional[Pattern[str]] = None  # 在 mask_excerpt 命中片段上取出姓名本身
+    exempt: Optional[Pattern[str]] = None            # 整句窗口
+    exempt_match: Optional[Pattern[str]] = None      # 命中文字本身
+    exempt_clause: Optional[Pattern[str]] = None     # 命中所在分句
+    exempt_lead: Optional[Pattern[str]] = None       # 冒号前的引导分句
+    exempt_before: Optional[Pattern[str]] = None     # 命中前同一分句内 prefix_window 个字
+    exempt_chain: Optional[Pattern[str]] = None      # 命中所在分句并入顿号并列的前面各项（禁止类词放这里）
+    exempt_dispose: Optional[Pattern[str]] = None    # 处置类自带词（命中所在分句）；就近有如实声明时不适用
+    later_hint: bool = False                         # 规则带处置类、出处类豁免：后续分句里有针对该做法的处置、出处词时报出带提示，P0 降为 P1
+    later_kinds: Tuple[str, ...] = ()                # 规则实际配置的豁免类别（dispose、source）：提示与降级只看这些类别的词
+    prefix_window: int = 8
+    exempt_windows: Dict[str, Pattern[str]] = field(default_factory=dict)  # 交给 gw_clause.is_exempt 的窗口正则
+    exempt_windows_declared: Dict[str, Pattern[str]] = field(default_factory=dict)  # 同上，去掉处置类（就近有如实声明时用）
+    detector: Optional[str] = None                   # "names"：锚点 + 候选 + 打分的姓名识别
+    low_level: Optional[str] = None                  # 低置信（总分 = 5）命中的级别
+    anchors: List[Any] = field(default_factory=list)
     hit_examples: List[str] = field(default_factory=list)
     miss_examples: List[str] = field(default_factory=list)
+    level_examples: List[Dict[str, str]] = field(default_factory=list)  # [{"text": 例句, "level": 应得级别}]
 
     def applies(self, doc_type: Optional[str]) -> bool:
         """types 为空时所有文书都查；非空时只在指定文书类型下查。"""
@@ -88,6 +188,7 @@ class RuleSet:
     external_types: Tuple[str, ...]
     rules: List[Rule]
     procedural: Dict[str, Rule]
+    inversion: Optional[Dict[str, Any]] = None  # 程序倒置组合判定的配置（procedure_inversion）
 
 
 # ---------------------------------------------------------------------------
@@ -97,10 +198,19 @@ class RuleSet:
 def _compile(pattern: Optional[str], rid: str, name: str) -> Optional[Pattern[str]]:
     if not pattern:
         return None
+    _gn, gc, _lex = _shared()
+    # 豁免正则里的 <<DISPOSE>>、<<SOURCE>>、<<PROHIBIT>> 由共享模块代入，避免在规则文件里重复写长词表
+    for token, value in (("<<DISPOSE>>", gc.DISPOSE), ("<<SOURCE>>", gc.SOURCE), ("<<PROHIBIT>>", gc.PROHIBIT_WORDS)):
+        pattern = pattern.replace(token, value)
     try:
         return re.compile(pattern)
     except re.error as exc:
         raise InputError(f"规则 {rid} 的 {name} 不是合法的正则表达式：{exc}") from exc
+
+
+def _union(a: Optional[Pattern[str]], b: Pattern[str]) -> Pattern[str]:
+    """两个豁免正则合并成“任一命中”。"""
+    return b if a is None else re.compile(f"(?:{a.pattern})|(?:{b.pattern})")
 
 
 def _level(value: Any, rid: str) -> str:
@@ -130,15 +240,42 @@ def _build_rule(item: Dict[str, Any], procedural: bool) -> Rule:
         exempt=_compile(item.get("exempt_context"), rid, "exempt_context"),
         exempt_match=_compile(item.get("exempt_match"), rid, "exempt_match"),
         exempt_clause=_compile(item.get("exempt_clause"), rid, "exempt_clause"),
+        exempt_lead=_compile(item.get("exempt_lead"), rid, "exempt_lead"),
         exempt_before=_compile(item.get("exempt_before"), rid, "exempt_before"),
-        mask_excerpt=bool(item.get("mask_excerpt")),
-        name_regex=_compile(item.get("name_pattern"), rid, "name_pattern"),
+        exempt_chain=_compile(item.get("exempt_chain"), rid, "exempt_chain"),
+        exempt_dispose=_compile(item.get("exempt_dispose"), rid, "exempt_dispose"),
+        prefix_window=int(item.get("prefix_window") or 8),
+        later_hint=any(isinstance(v, str) and ("<<DISPOSE>>" in v or "<<SOURCE>>" in v)
+                       for k, v in item.items() if k.startswith("exempt")),
+        later_kinds=tuple(kind for kind, token in (("dispose", "<<DISPOSE>>"), ("source", "<<SOURCE>>"))
+                          if any(isinstance(v, str) and token in v for k, v in item.items() if k.startswith("exempt"))),
+        detector=item.get("detector") or None,
+        low_level=_level(item["low_level"], rid) if item.get("low_level") else None,
         hit_examples=list(item.get("hit_examples") or []),
         miss_examples=list(item.get("miss_examples") or []),
+        level_examples=list(item.get("level_examples") or []),
     )
+    for window, attr in (("sentence", "exempt"), ("clause", "exempt_clause"), ("chain", "exempt_chain"),
+                         ("lead", "exempt_lead"), ("prefix", "exempt_before")):
+        pattern = getattr(rule, attr)
+        if pattern is not None:
+            rule.exempt_windows[window] = pattern
+    rule.exempt_windows_declared = dict(rule.exempt_windows)
+    if rule.exempt_dispose is not None:
+        rule.exempt_windows["clause"] = _union(rule.exempt_windows.get("clause"), rule.exempt_dispose)
     if not procedural:
         rule.regex = _compile(item.get("pattern"), rid, "pattern")
-        if rule.regex is None:
+        if rule.detector not in (None, "names"):
+            raise InputError(f"规则 {rid} 的 detector 只能是 names")
+        if rule.detector == "names":
+            gn, _gc, _lex = _shared()
+            try:
+                rule.anchors = gn.compile_anchors(item.get("name_anchors"))
+            except gn.LexiconError as exc:
+                raise InputError(f"规则 {rid} 的 name_anchors 有误：{exc}") from exc
+            if not rule.anchors:
+                raise InputError(f"规则 {rid} 的 detector 为 names，但没有 name_anchors")
+        elif rule.regex is None:
             raise InputError(f"规则 {rid} 缺少 pattern")
     return rule
 
@@ -168,8 +305,48 @@ def load_rules(path: Path = RULES_PATH) -> RuleSet:
     missing = [rid for rid in PROCEDURAL_IDS if rid not in {r.id for r in procedural_list}]
     if missing:
         raise InputError(f"规则文件缺少函数检查的登记：{'、'.join(missing)}")
+    inversion = data.get("procedure_inversion")
+    if inversion is not None:
+        inversion = _check_inversion_cfg(inversion, rules, types)
     return RuleSet(types=types, external_types=external_types, rules=rules,
-                   procedural={r.id: r for r in procedural_list})
+                   procedural={r.id: r for r in procedural_list}, inversion=inversion)
+
+
+INVERSION_KEYS = ("exec", "exec_neg", "prior_ok", "req", "other_obj", "decl", "normalize",
+                  "exec_sign", "exec_done", "exec_start", "exec_dated", "post_obj", "decl_neg")
+
+# 程序倒置 P1 的说明文案按 gw_clause.find_inversions 给出的 reason_code 选择，避免 P1 配着与原因矛盾的文字
+INVERSION_MESSAGES = {
+    "same_sentence": "同一句里既写了“已执行”又写了“提请审议”，请核实是否先执行后上会（组合判定仅作提示）",
+    "normalize": "出现“追认”“补办”字样，请核实是否先执行后上会，写清已执行情况、原因和责任",
+    "declared": "已如实写明程序倒置，请确认写清已执行情况、原因和责任，由会议决定后续处理；不要写成追认或补办",
+    "other_item": "提请事项可能与已执行事项不同（如二期、续签），请核实提请事项本身没有先行实施",
+    "adjacent": "“已执行”与“提请审议”在相邻两句，请核实是否先执行后上会",
+    "weak_exec": "“于X月开工、投入使用”等写法表明已执行，请核实是否先执行后上会",
+}
+
+
+def _check_inversion_cfg(cfg: Any, rules: List[Rule], types: Sequence[str]) -> Dict[str, Any]:
+    """校验顶层 procedure_inversion：rule_id 必须是已登记的正则规则，各正则能编译，types 必须是已登记的文书类型。"""
+    if not isinstance(cfg, dict):
+        raise InputError("procedure_inversion 必须是对象")
+    rid = str(cfg.get("rule_id") or "")
+    if rid not in {r.id for r in rules}:
+        raise InputError(f"procedure_inversion 的 rule_id {rid!r} 不是已登记的规则")
+    unknown = [t for t in (cfg.get("types") or []) if t not in types]
+    if unknown:
+        raise InputError(f"procedure_inversion 的 types 含未登记的文书类型：{'、'.join(unknown)}")
+    for key in INVERSION_KEYS:
+        val = cfg.get(key)
+        if val is None:
+            continue
+        if not isinstance(val, str):
+            raise InputError(f"procedure_inversion 的 {key} 必须是字符串")
+        try:
+            re.compile(val)
+        except re.error as exc:
+            raise InputError(f"procedure_inversion 的 {key} 不是合法的正则表达式：{exc}") from exc
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -260,14 +437,6 @@ def cut_at_note(lines: Lines) -> List[Tuple[int, str]]:
 # 公共小工具
 # ---------------------------------------------------------------------------
 
-def _sentence(text: str, start: int, end: int, stops: str = SENTENCE_END) -> str:
-    """命中位置所在的句子（stops 含逗号时为分句），用于豁免判断。"""
-    left = max((text.rfind(ch, 0, start) for ch in stops), default=-1)
-    rights = [pos for pos in (text.find(ch, end) for ch in stops) if pos != -1]
-    right = min(rights) if rights else len(text)
-    return text[left + 1:right]
-
-
 def _clip(text: str, limit: int = 40) -> str:
     text = text.strip()
     return text if len(text) <= limit else text[:limit] + "……"
@@ -278,7 +447,10 @@ def _context(text: str, start: int, end: int, width: int = 12) -> str:
 
 
 def _issue(rule: Rule, level: str, line: int, excerpt: str, context: str = "",
-           message: Optional[str] = None, suggestion: Optional[str] = None) -> Dict[str, Any]:
+           message: Optional[str] = None, suggestion: Optional[str] = None, hint: bool = False) -> Dict[str, Any]:
+    if hint:      # 命中之后的分句里有处置、出处词：收缩后它们不再豁免，提示可能是已写明否决、整改或出处的句子
+        base = rule.suggestion if suggestion is None else suggestion
+        suggestion = (base.rstrip("。；") + "；" if base else "") + _shared()[1].LATER_HINT + "。"
     data: Dict[str, Any] = {
         "id": rule.id,
         "level": level,
@@ -330,15 +502,25 @@ NUM = r"([0-9]+|[零〇一二两三四五六七八九十]+)"
 
 
 # ---------------------------------------------------------------------------
-# 正则规则
+# 正则规则与姓名规则
 # ---------------------------------------------------------------------------
 
-def _rule_matches(rule: Rule, text: str):
+def _is_exempt(rule: Rule, text: str, start: int, end: int, declared: bool = False) -> bool:
+    """按 gw_clause 的统一窗口判断豁免：sentence、clause、chain、lead、prefix 任一窗口搜到豁免词即豁免。
+    declared=True（程序倒置规则、命中处就近有如实声明）时不适用处置类豁免。"""
+    windows = rule.exempt_windows_declared if declared else rule.exempt_windows
+    if not windows:
+        return False
+    _gn, gc, _lex = _shared()
+    return bool(gc.is_exempt(text, start, end, windows, rule.prefix_window))
+
+
+def _rule_matches(rule: Rule, text: str, decl: Any = None, line: int = 0):
     """逐个产出通过全部豁免检查的命中。
 
-    豁免分三层：exempt_context 整句生效，只留给“出处、证据在相邻分句”的少数规则；
-    exempt_clause 只看命中所在分句（含命中跨越的各分句）；
-    exempt_before 只看命中之前同一分句内最近 16 个字（用于“不包含任何未公开信息”这类前置否定）。
+    豁免分窗口（切分与窗口定义见 gw_clause.py）：exempt_context 看命中所在整句，只留给“出处、证据在相邻分句”的少数规则；
+    exempt_clause 只看命中所在分句（含命中跨越的各分句）；exempt_lead 看分句紧跟冒号时冒号前的引导分句（“严禁下列行为：……”）；
+    exempt_before 只看命中前同一分句内最近 prefix_window 个字（用于“不包含任何未公开信息”这类前置否定）。
     """
     assert rule.regex is not None
     for match in rule.regex.finditer(text):
@@ -346,15 +528,9 @@ def _rule_matches(rule: Rule, text: str):
             continue
         if rule.exempt_match and rule.exempt_match.search(match.group(0)):
             continue
-        if rule.exempt and rule.exempt.search(_sentence(text, match.start(), match.end())):
+        near = bool(decl is not None and decl.near_declared(line, match.start()))
+        if _is_exempt(rule, text, match.start(), match.end(), declared=near):
             continue
-        if rule.exempt_clause and rule.exempt_clause.search(
-                _sentence(text, match.start(), match.end(), CLAUSE_END)):
-            continue
-        if rule.exempt_before:
-            left = max((text.rfind(ch, 0, match.start()) for ch in CLAUSE_END), default=-1)
-            if rule.exempt_before.search(text[left + 1:match.start()][-16:]):
-                continue
         yield match
 
 
@@ -362,166 +538,137 @@ def _rule_level(rule: Rule, external: bool) -> str:
     return rule.external_level if (external and rule.external_level) else rule.level
 
 
+def _applicable(rule: Rule, doc_type: Optional[str], external: bool) -> bool:
+    return rule.applies(doc_type) and not (rule.external_only and not external)
+
+
 def _active_rules(ruleset: RuleSet, doc_type: Optional[str], external: bool) -> List[Rule]:
-    return [r for r in ruleset.rules
-            if r.regex is not None and r.applies(doc_type) and not (r.external_only and not external)]
+    """有 pattern 的正则规则。"""
+    return [r for r in ruleset.rules if r.regex is not None and _applicable(r, doc_type, external)]
+
+
+def _name_rules(ruleset: RuleSet) -> List[Rule]:
+    """用锚点识别姓名的规则（不论文书类型，姓名表要覆盖全部：别处写的姓名在任何输出里都要遮蔽）。"""
+    return [r for r in ruleset.rules if r.detector == "names"]
 
 
 def check_regex(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet) -> List[Dict[str, Any]]:
     issues: List[Dict[str, Any]] = []
+    inversion_id = (ruleset.inversion or {}).get("rule_id")
+    _gn, gc, _lex = _shared()
+    # 程序倒置规则（SOE-001）的声明判断：命中处就近有如实声明时不适用处置类豁免；就近有声明且无追认、补办时 P0 降 P1
+    decl = gc.Declaration([t for _n, t in lines], ruleset.inversion) if ruleset.inversion else None
     for rule in _active_rules(ruleset, doc_type, external):
         level = _rule_level(rule, external)
-        for number, text in lines:
-            for match in _rule_matches(rule, text):
-                if rule.mask_excerpt:
-                    # 个人信息类规则：不在报告里原样打印姓名
-                    issues.append(_issue(rule, level, number, f"〔已遮蔽，共{len(match.group(0))}字〕"))
-                    continue
-                issues.append(_issue(rule, level, number, _clip(match.group(0)),
-                                     _context(text, match.start(), match.end())))
+        is_inv = decl is not None and rule.id == inversion_id
+        for idx, (number, text) in enumerate(lines):
+            for match in _rule_matches(rule, text, decl if is_inv else None, idx):
+                lv = decl.adjust(level, idx, match.start()) if is_inv else level
+                # 后续分句里有针对该做法的处置、出处词：不再豁免，但 P0 降为 P1（仍报出要人看），并追加提示
+                later = rule.later_hint and gc.later_exemption_words(text, match.start(), match.end(), rule.later_kinds)
+                # 程序倒置规则：就近写了追认、补办的，本身就是在补手续，不因后文的处置词降级
+                if later and lv == "P0" and not (is_inv and decl.near_normalized(idx, match.start())):
+                    lv = "P1"
+                issues.append(_issue(rule, lv, number, _clip(match.group(0)),
+                                     _context(text, match.start(), match.end()), hint=later))
     return issues
 
 
-# ---------------------------------------------------------------------------
-# 隐私遮蔽：任何规则（含函数检查）输出 excerpt、context 前，把同一行里被 mask_excerpt 规则
-# 识别到的片段换成“〔已遮蔽〕”，避免姓名经其他规则的摘录泄露
-# ---------------------------------------------------------------------------
-
-MASK_TEXT = "〔已遮蔽〕"
+NAME_TAIL = 8  # 姓名规则的摘录：锚点 + 姓名 + 右侧最多 8 字
 
 
-def _merge_spans(spans: Sequence[Tuple[int, int]]) -> List[Tuple[int, int]]:
-    merged: List[Tuple[int, int]] = []
-    for start, end in sorted(spans):
-        if merged and start <= merged[-1][1]:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-        else:
-            merged.append((start, end))
-    return merged
+def scan_names(lines: Lines, ruleset: RuleSet):
+    """逐行识别姓名，返回 (全文姓名表, {行下标: [(规则, 命中)]})。
 
-
-def _masked_slice(text: str, start: int, end: int, spans: Sequence[Tuple[int, int]]) -> str:
-    """截取 text[start:end]，与隐私命中片段重叠的部分整段换成“〔已遮蔽〕”。"""
-    out: List[str] = []
-    pos = start
-    for s, e in spans:
-        if e <= pos or s >= end:
-            continue
-        if s > pos:
-            out.append(text[pos:s])
-        out.append(MASK_TEXT)
-        pos = max(pos, e)
-    if pos < end:
-        out.append(text[pos:end])
-    return "".join(out)
-
-
-MaskInfo = Dict[int, List[Tuple[str, List[Tuple[int, int]]]]]
-
-
-def extract_names(rule: Rule, text: str, match: "re.Match[str]") -> List[str]:
-    """从隐私规则的命中片段里取出姓名本身（用 name_pattern 的第一个非空捕获组；取不到则用整个片段）。
-
-    “张某”“李某某”这类代称、长度小于 2 的不收；名单类命中按顿号、逗号拆成多个姓名。
+    姓名表覆盖所有姓名规则的命中（含因豁免、文书类型不适用而没有报出的），按全文首次出现的顺序编号；代称不进表。
     """
-    frag = match.group(0)
-    found = ""
-    if rule.name_regex is not None:
-        m = rule.name_regex.search(frag)
-        if m:
-            found = next((g for g in m.groups() if g), "")
-    names: List[str] = []
-    for part in re.split(r"[、，,]", found or frag):
-        part = re.sub(r"同志$", "", part.strip())
-        if len(part) >= 2 and "某" not in part:
-            names.append(part)
-    return names
-
-
-def collect_known_names(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet) -> List[str]:
-    """本文已识别姓名表：隐私规则命中的姓名（含因豁免未报出的），长的在前。
-
-    只跳过 exempt_match 命中的片段（那是“黄山分公司”这类根本不是人名的误命中）。
-    """
-    known: Set[str] = set()
-    for rule in _active_rules(ruleset, doc_type, external):
-        if not rule.mask_excerpt:
+    gn, _gc, lex = _shared()
+    table = gn.NameTable()
+    per_line: Dict[int, List[Tuple[Rule, Any]]] = {}
+    rules = _name_rules(ruleset)
+    for idx, (_number, text) in enumerate(lines):
+        entries = [(rule, hit) for rule in rules for hit in gn.find_names(text, rule.anchors, lex)]
+        if not entries:
             continue
-        for _number, text in lines:
-            for match in rule.regex.finditer(text):
-                if match.end() == match.start():
-                    continue
-                if rule.exempt_match and rule.exempt_match.search(match.group(0)):
-                    continue
-                known.update(extract_names(rule, text, match))
-    return sorted(known, key=lambda n: (-len(n), n))
+        entries.sort(key=lambda e: (e[1].start, e[1].end))
+        table.add_hits(hit for _rule, hit in entries)
+        per_line[idx] = entries
+    return table, per_line
 
 
-def collect_mask_spans(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet,
-                       names: Sequence[str] = ()) -> MaskInfo:
-    """每行（行号）被遮蔽的片段：{行号: [(该行文本, [(起, 止)])]}。
-
-    含两部分：本行被隐私类规则命中的片段；全文任何一行里出现的“已识别姓名”。
-    """
-    info: MaskInfo = {}
-    for rule in _active_rules(ruleset, doc_type, external):
-        if not rule.mask_excerpt:
-            continue
-        for number, text in lines:
-            spans = [(m.start(), m.end()) for m in _rule_matches(rule, text)]
-            if spans:
-                info.setdefault(number, []).append((text, spans))
-    for number, text in lines:
-        spans = []
-        for name in names:
-            pos = text.find(name)
-            while pos >= 0:
-                spans.append((pos, pos + len(name)))
-                pos = text.find(name, pos + len(name))
-        if spans:
-            info.setdefault(number, []).append((text, spans))
-    merged: MaskInfo = {}
-    for number, entries in info.items():
-        by_text: Dict[str, List[Tuple[int, int]]] = {}
-        for text, spans in entries:
-            by_text.setdefault(text, []).extend(spans)
-        merged[number] = [(text, _merge_spans(spans)) for text, spans in by_text.items()]
-    return merged
-
-
-def _mask_field(value: str, entries: List[Tuple[str, List[Tuple[int, int]]]]) -> str:
-    """遮蔽 excerpt 或 context。先在该行原文中定位这段文字，按位置遮蔽；定位不到时按片段原文替换。"""
-    clipped = value.endswith("……")
-    core = value[:-2] if clipped else value
-    if not core:
-        return value
-    for text, spans in entries:
-        pos = text.find(core)
-        if pos >= 0:
-            return _masked_slice(text, pos, pos + len(core), spans) + ("……" if clipped else "")
-    result = value
-    for text, spans in entries:
-        for s, e in spans:
-            result = result.replace(text[s:e], MASK_TEXT)
-    return result
-
-
-def apply_masks(issues: List[Dict[str, Any]], mask_info: MaskInfo, mask_ids: Sequence[str],
-                names: Sequence[str] = ()) -> None:
-    for issue in issues:
-        if issue["id"] in mask_ids:
-            continue
-        entries = mask_info.get(issue["line"])
-        for key in ("excerpt", "context"):
-            value = issue.get(key)
-            if not value:
+def check_names(lines: Lines, doc_type: Optional[str], external: bool,
+                per_line: Dict[int, List[Tuple[Rule, Any]]]) -> List[Dict[str, Any]]:
+    """姓名规则的报出：高置信（总分 >= 6）用规则级别，低置信（= 5）用 low_level；代称不报。"""
+    gn, _gc, _lex = _shared()
+    issues: List[Dict[str, Any]] = []
+    for idx, entries in per_line.items():
+        number, text = lines[idx]
+        # 同一规则、同一锚点下的并列姓名（“名单：张三、李四”）共用一条摘录：从锚点读到最后一个姓名再加右侧上下文，
+        # 这样各姓名的摘录完全相同，由 merge_issues 合并成一条并带 count
+        group_end: Dict[Tuple[str, int], int] = {}
+        for rule, hit in entries:
+            if hit.anchor_start >= 0:
+                key = (rule.id, hit.anchor_start)
+                group_end[key] = max(group_end.get(key, 0), hit.end)
+        for rule, hit in entries:
+            if hit.pseudo or hit.table_only or not _applicable(rule, doc_type, external):
+                continue    # 代称不报；并列后项（table_only）只进姓名表用于遮蔽，不单独报
+            if _is_exempt(rule, text, hit.start, hit.end):
                 continue
-            if entries:
-                value = _mask_field(value, entries)
-            # 兜底：摘录跨行、定位不到原文时，已识别姓名仍直接替换
-            for name in names:
-                value = value.replace(name, MASK_TEXT)
-            issue[key] = value
+            high = _rule_level(rule, external)
+            level = high if hit.score >= gn.SCORE_HIGH else (rule.low_level or high)
+            a0 = hit.anchor_start if 0 <= hit.anchor_start <= hit.start else hit.start
+            end = group_end.get((rule.id, hit.anchor_start), hit.end) if a0 == hit.anchor_start else hit.end
+            issues.append(_issue(rule, level, number, text[a0:max(end, hit.end) + NAME_TAIL].strip()))
+    return issues
+
+
+def check_inversions(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet,
+                     issues: List[Dict[str, Any]]) -> None:
+    """程序倒置组合判定（gw_clause.find_inversions），与同一行已有的同规则正则命中合并：取较高级别，保留正则那条的摘录。"""
+    cfg = ruleset.inversion
+    if not cfg:
+        return
+    types = cfg.get("types") or []
+    if types and doc_type not in types:
+        return
+    _gn, gc, _lex = _shared()
+    rule = next(r for r in ruleset.rules if r.id == cfg["rule_id"])
+    found = gc.find_inversions([text for _n, text in lines], cfg)
+    regex_hits = [i for i in issues if i["id"] == rule.id]  # 只与正则命中合并；组合判定之间互不合并
+    for inv in found:
+        number = lines[inv["line"] - 1][0]
+        same = [i for i in regex_hits if i["line"] == number]
+        if same:
+            for item in same:
+                if LEVELS.index(inv["level"]) < LEVELS.index(item["level"]):
+                    item["level"] = inv["level"]
+            continue
+        text = lines[inv["line"] - 1][1]
+        message = rule.message
+        if inv["level"] != rule.level:
+            detail = INVERSION_MESSAGES.get(inv.get("reason_code", ""), inv["reason"])
+            message = f"{rule.message}（组合判定：{detail}）"
+        issues.append(_issue(rule, inv["level"], number, inv["excerpt"],
+                             _context(text, inv["start"], inv["end"]), message=message))
+
+
+# ---------------------------------------------------------------------------
+# 遮蔽：所有规则（含函数检查）输出 excerpt、context、message 前，按全文姓名表把姓名换成〔姓名N〕
+# ---------------------------------------------------------------------------
+
+def mask_issues(issues: List[Dict[str, Any]], lines: Lines, table: Any) -> None:
+    if not len(table):
+        return
+    by_number: Dict[int, str] = {}
+    for number, text in lines:
+        by_number.setdefault(number, text)
+    for issue in issues:
+        text = by_number.get(issue["line"])
+        for key in ("excerpt", "context"):
+            if issue.get(key):
+                issue[key] = table.mask_excerpt(issue[key], text)
+        issue["message"] = table.mask(issue["message"])
         if issue.get("context") == issue.get("excerpt"):
             issue.pop("context", None)
 
@@ -984,10 +1131,23 @@ def check_staff_interest(lines: Lines, ruleset: RuleSet) -> List[Dict[str, Any]]
     if any(STAFF_SATISFIED_RE.search(t) for _n, t in lines):
         return []
     for number, text in lines:
-        m = STAFF_TRIGGER_RE.search(text)
-        if m:
+        for m in STAFF_TRIGGER_RE.finditer(text):
+            if _staff_negated(text, m):
+                continue
             return [_issue(rule, rule.level, number, _clip(m.group(0)), _context(text, m.start(), m.end()))]
     return []
+
+
+# 触发词前 8 字内（同一分句）出现这些词，说明写的是“不涉及”，不触发（“本项目不涉及职工安置”）
+STAFF_NEGATION_RE = re.compile(r"不涉及|不含|无|没有|不存在|未涉及")
+STAFF_NEGATION_REACH = 8
+
+
+def _staff_negated(text: str, m: "re.Match[str]") -> bool:
+    lo = max(0, m.start() - STAFF_NEGATION_REACH)
+    head = re.split(r"[。！？；;，,、：:\n]", text[lo:m.start()])[-1]
+    # 触发词本身以“涉及”开头时（涉及职工切身利益），把它的前两个字并进来，才认得出“不涉及”“未涉及”
+    return bool(STAFF_NEGATION_RE.search(head + m.group(0)[:2]))
 
 
 PROCEDURAL_IDS = ("SOE-101", "SOE-102", "SOE-103", "SOE-104", "SOE-105", "SOE-106",
@@ -1027,13 +1187,24 @@ def check_lines(lines: Lines, doc_type: Optional[str] = None, external: bool = F
     ruleset = ruleset or load_rules()
     as_of = as_of or _dt.date.today()
     external = external or doc_type in ruleset.external_types
-    issues = check_regex(lines, doc_type, external, ruleset)
-    issues += check_procedural(lines, doc_type, ruleset, as_of)
-    mask_ids = [r.id for r in ruleset.rules if r.mask_excerpt]
-    names = collect_known_names(lines, doc_type, external, ruleset)
-    apply_masks(issues, collect_mask_spans(lines, doc_type, external, ruleset, names), mask_ids, names)
-    issues.sort(key=lambda item: (item["line"], LEVELS.index(item["level"]), item["id"]))
+    gn, _gc, _lex = _shared()
+    issues, _table = _check_lines_table(lines, doc_type, external, ruleset, as_of)
     return issues
+
+
+def _check_lines_table(lines: Lines, doc_type: Optional[str], external: bool, ruleset: RuleSet,
+                       as_of: _dt.date) -> Tuple[List[Dict[str, Any]], Any]:
+    """检查正文，返回 (issue 列表, 全文姓名表)；姓名表供文件名遮蔽使用。"""
+    gn, _gc, _lex = _shared()
+    issues = check_regex(lines, doc_type, external, ruleset)
+    table, per_line = scan_names(lines, ruleset)
+    issues += check_names(lines, doc_type, external, per_line)
+    check_inversions(lines, doc_type, external, ruleset, issues)
+    issues += check_procedural(lines, doc_type, ruleset, as_of)
+    mask_issues(issues, lines, table)
+    issues = gn.merge_issues(issues)
+    issues.sort(key=lambda item: (item["line"], LEVELS.index(item["level"]), item["id"]))
+    return issues, table
 
 
 def build_result(file_name: str, lines: Lines, doc_type: Optional[str], external: bool,
@@ -1043,7 +1214,9 @@ def build_result(file_name: str, lines: Lines, doc_type: Optional[str], external
         raise InputError(f"--type 只能取：{'、'.join(ruleset.types)}")
     as_of = as_of or _dt.date.today()
     is_external = bool(external or doc_type in ruleset.external_types)
-    issues = check_lines(lines, doc_type, is_external, ruleset, as_of)
+    issues, table = _check_lines_table(lines, doc_type, is_external, ruleset, as_of)
+    # 文件名也可能写着姓名（“王建国处分材料.docx”）：按全文姓名表遮蔽后再输出；文件名里有、正文没识别到的姓名遮不住（已知局限）
+    file_name = table.mask(file_name) if len(table) else file_name
     notes: List[str] = []
     if doc_type is None:
         notes.append("未指定 --type，只执行了不限文书的正则规则；议题要件、决议票数、台账状态等检查没有执行。")
@@ -1098,6 +1271,8 @@ def render_text(result: Dict[str, Any]) -> str:
         line = f"    原文：{issue['excerpt']}"
         if issue.get("context"):
             line += f"（上下文：{issue['context']}）"
+        if issue.get("count", 1) > 1:
+            line += f"（同一摘录共 {issue['count']} 处）"
         out.append(line)
         if issue.get("suggestion"):
             out.append(f"    建议：{issue['suggestion']}")
@@ -1113,6 +1288,8 @@ def render_rules(ruleset: RuleSet) -> str:
     for rule in ruleset.rules + list(ruleset.procedural.values()):
         scope = "、".join(rule.types) if rule.types else "全部"
         ext = f"；对外材料 {rule.external_level}" if rule.external_level else ""
+        if rule.low_level and rule.low_level != rule.level:
+            ext += f"；低置信 {rule.low_level}"
         only = "；只查对外材料" if rule.external_only else ""
         out.append(f"{rule.id}  [{rule.level}{ext}{only}]  {rule.category}：{rule.message}（适用：{scope}）")
     return "\n".join(out)

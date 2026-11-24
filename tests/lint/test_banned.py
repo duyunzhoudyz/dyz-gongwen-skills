@@ -88,6 +88,78 @@ class LoadBannedTest(TempDirMixin, unittest.TestCase):
         terms = {t.term: t.banned for t in gl.load_banned(self.write("级别.md", text))}
         self.assertEqual(terms, {"打造": False, "拉满": True})
 
+    def _levels(self, text):
+        return {t.term: t.banned for t in gl.load_banned(self.write("层级.md", text))}
+
+    def test_nested_heading_inherits_level(self):
+        """二级套三级：下级标题看不出级别时继承上级；同级的新标题重置。"""
+        text = "## 慎用词\n### 经济类\n- 爆发式增长\n- 弯道超车\n## 禁用词\n### 政治类\n- 打擦边球\n"
+        self.assertEqual(self._levels(text), {"爆发式增长": False, "弯道超车": False, "打擦边球": True})
+
+    def test_nested_three_to_four(self):
+        text = "### 慎用\n#### 甲类\n- 甲词\n#### 乙类\n- 乙词\n### 其他\n- 丙词\n"
+        self.assertEqual(self._levels(text), {"甲词": False, "乙词": False, "丙词": True})
+
+    def test_sibling_switch_and_return_to_shallow(self):
+        text = ("## 慎用\n### 子类\n- 甲\n## 禁用\n- 乙\n## 慎用\n- 丙\n"
+                "# 总表\n- 丁\n")
+        self.assertEqual(self._levels(text), {"甲": False, "乙": True, "丙": False, "丁": True})
+
+    def test_heading_level_skip(self):
+        text = "## 慎用\n#### 深层\n- 甲\n## 其他\n- 乙\n"
+        self.assertEqual(self._levels(text), {"甲": False, "乙": True})
+
+    def test_nested_own_level_overrides_parent(self):
+        text = "## 慎用\n### 其中必改\n- 甲\n### 普通\n- 乙\n"
+        self.assertEqual(self._levels(text), {"甲": True, "乙": False})
+
+    def test_descriptive_subheading_does_not_escalate(self):
+        """复审指出的复现：“## 慎用词”下的子标题含“不规范”“需结合语境”等说明文字，不能把慎用升级为禁用。"""
+        text = "## 慎用词\n\n### 宣传类（不规范易引发歧义，需结合语境）\n- 赋能\n- 抓手\n\n### 其他\n- 闭环\n"
+        self.assertEqual(self._levels(text), {"赋能": False, "抓手": False, "闭环": False})
+        terms = gl.load_banned(self.write("复现.md", text))
+        result = gl.lint_text("要找准抓手，用数字化赋能，形成闭环。", "汇报材料", "style", linter=LINTER, banned=terms)
+        self.assertEqual({(i["id"], i["level"]) for i in result["issues"] if i["id"].startswith("BAN-")},
+                         {("BAN-002", "P2")})
+
+    def test_explanatory_words_in_subheading_never_escalate(self):
+        for sub in ("不规范", "需结合语境", "规范表述见附录", "统一口径", "规范用词", "统一表述", "规范写法",
+                    "宣传类（不规范，需结合语境）", "视情况使用", "酌情", "不用赘述", "统一规范"):
+            text = "## 慎用词\n### %s\n- 甲词\n" % sub
+            self.assertEqual(self._levels(text), {"甲词": False}, sub)
+
+    def test_explicit_ban_word_in_subheading_still_overrides(self):
+        for sub in ("其中必改", "严禁使用", "不得使用的", "禁用类", "停用词"):
+            text = "## 慎用词\n### %s\n- 甲词\n### 普通\n- 乙词\n" % sub
+            self.assertEqual(self._levels(text), {"甲词": True, "乙词": False}, sub)
+
+    def test_caution_words_in_heading(self):
+        for head in ("慎用", "少用", "酌情使用", "需结合语境", "视情况而定"):
+            self.assertEqual(self._levels("## %s\n- 甲\n" % head), {"甲": False}, head)
+
+    def test_top_level_heading_without_level_word_defaults_to_ban(self):
+        """没有上级级别时，说明性标题回到默认级别（禁用）；“规范用词”“不规范表述”都不改变这一点。"""
+        for head in ("规范用词", "不规范表述", "本单位规范词", "统一口径"):
+            self.assertEqual(self._levels("## %s\n- 甲\n" % head), {"甲": True}, head)
+
+    def test_level_cell_and_tail_weak_signals(self):
+        """级别单元格、列表项说明里：整格“规范/统一/不用”和固定搭配仍算禁用；“不规范”不算信号。"""
+        text = ("## 慎用\n\n| 词语 | 级别 |\n|---|---|\n| 甲 | 规范 |\n| 乙 | 不规范 |\n| 丙 | 统一表述 |\n"
+                "| 丁 | 慎用 |\n")
+        self.assertEqual(self._levels(text), {"甲": True, "乙": False, "丙": True, "丁": False})
+        self.assertEqual(self._levels("## 慎用\n- 戊：统一表述为某某\n- 己：不规范\n"), {"戊": True, "己": False})
+
+    def test_no_heading_list_default(self):
+        self.assertEqual(self._levels("- 甲\n- 乙（慎用）\n"), {"甲": True, "乙": False})
+
+    def test_wildcard_crosses_enumeration_comma(self):
+        regex = gl._term_regex("打造……高地")
+        self.assertTrue(regex.search("打造开放、创新、协同的人才高地"))
+        self.assertIsNone(regex.search("打造，开放创新，人才高地"))
+        self.assertIsNone(regex.search("打造开放；人才高地"))
+        self.assertIsNone(regex.search("打造开放：人才高地"))
+        self.assertTrue(gl._term_regex("在……领导下").search("在县委、县政府的领导下"))
+
     def test_wildcard_does_not_cross_clause(self):
         regex = gl._term_regex("落实……工作")
         self.assertIsNone(regex.search("落实，搞定问题，安全工作"))

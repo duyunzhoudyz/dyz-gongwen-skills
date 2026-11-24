@@ -2,6 +2,7 @@
 """密级和内部标注识别：style_profile.py、draft_diff.py 共用，不单独运行（gongwen-profile）。
 
 规则来源：
+    0. 密级相关两条（PRI-005/006）的内置副本来自同目录 secret_check.lint_patterns()，口径与保密闸门一致；
     1. 优先读同目录 lint_rules.json 中 PRI-005（密级标识）、PRI-006（内部资料等标注）、
        PRI-007（未公开、未披露）的 pattern，与共享机检 gongwen_lint.py 保持一致；
     2. 读不到、缺条目或无法编译时，用本文件内置的副本；
@@ -33,8 +34,9 @@ LABELS = {
     "PRI-007": "未公开或未披露信息",
 }
 
-# 内置副本：与 shared/scripts/lint_rules.json 同编号规则一致（核对日期 2026-10-16）
-BUILTIN: Dict[str, str] = {
+# 内置副本：PRI-005/PRI-006 取自同目录 secret_check.lint_patterns()（与 shared/scripts/lint_rules.json 同源，
+# 保证三处密级识别口径一致）；同目录没有 secret_check 时才退回下面的旧写法。PRI-007 为静态副本（核对日期 2026-10-16）
+_STATIC_BUILTIN: Dict[str, str] = {
     "PRI-005": (r"(?:绝密|机密|秘密)\s*★|^\s*(?:绝密|机密|秘密)\s*$|密级\s*[：:]\s*(?:绝密|机密|秘密)|"
                 r"^\s*(?:绝密|机密|秘密)\s*[（(]?\s*\d+\s*年\s*[）)]?\s*$"),
     "PRI-006": (r"^\s*[（(【\[]?\s*(?:内部资料|内部文件|内部材料|内部参阅|工作秘密|内部使用|不得外传|注意保密|"
@@ -44,6 +46,14 @@ BUILTIN: Dict[str, str] = {
     "PRI-007": (r"(?:上述|以上|本|该|这些|此)[^。；！？\n]{0,12}(?:为|系|属于?|均为|均系)"
                 r"(?:未公开|未披露|尚未公开|尚未披露)"),
 }
+
+BUILTIN: Dict[str, str] = dict(_STATIC_BUILTIN)
+try:
+    import secret_check as _secret_check  # 同目录同步副本
+
+    BUILTIN.update(_secret_check.lint_patterns())
+except Exception:  # 缺少或损坏时保留静态副本，不影响其他功能
+    pass
 
 # 补充规则：机检词表之外的常见写法
 _HEAD = (r"(?:内部资料|内部文件|内部材料|内部参阅|内部参考|内部传阅|工作秘密|内部使用|不得外传|严禁外传|不得翻印|"

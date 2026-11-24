@@ -525,5 +525,271 @@ class GeneralCheckTest(K12TestCase):
         self.assertIn("## 六、课后服务自愿参加", text)
 
 
+class GeneralNameRecognitionTest(K12TestCase):
+    """K12-G04 的“锚点 + 候选姓名 + 打分”：句子级期望（应报、不应报）与遮蔽。"""
+
+    SHOULD_REPORT = (
+        "对低保家庭学生马小明已落实资助。",
+        "建档立卡户孙小红同学家庭困难。",
+        "单亲家庭的郭晓东同学需要关注。",
+        "低保户张明同学。",
+        "建档立卡学生王某某。",
+        "五年级二班低保户学生名单：郑磊、孙婷、何静。",
+        "低保学生赵强已纳入帮扶。",
+        "特困学生名单:郑磊,孙婷,何静",
+    )
+    SHOULD_NOT_REPORT = (
+        "本学期特困学生：一年级、三年级各2人",
+        "低保家庭学生名单：七年级、八年级，详见附表",
+        "本学期学校统计全校建档立卡学生共43人，已全部享受资助政策。",
+        "低保学生3名，均已落实资助。",
+        "困难家庭学生共12人。",
+        "特困学生名单已按规定渠道报送。",
+        "关注离异家庭子女心理健康：班主任、心理教师、家长三方联动。",
+        "困难家庭学生资助项目包括：助学金、营养餐、校服减免。",
+        "违纪处分政策学习王主任作专题辅导。",
+        "低保政策由李老师负责解读。",
+        "同学们积极参与低保政策宣传。",
+        "严禁公开低保学生张明的信息。",
+        "不得公示低保学生赵强的姓名。",
+    )
+    NAMES = ("马小明", "孙小红", "郭晓东", "张明", "郑磊", "孙婷", "何静", "赵强")
+
+    def _general(self, text: str, *extra: str) -> str:
+        p = self.write("general_g04.txt", text)
+        code, out, err = self.run_main("general", str(p), *extra)
+        self.assertIn(code, (0, 1), err)
+        return out
+
+    def _issues(self, text: str) -> list:
+        return json.loads(self._general(text + "\n", "--json"))["issues"]
+
+    def test_should_report_as_p0(self):
+        for s in self.SHOULD_REPORT:
+            with self.subTest(s=s):
+                issues = self._issues(s)
+                self.assertEqual([(i["id"], i["level"]) for i in issues], [("K12-G04", "P0")])
+
+    def test_should_not_report(self):
+        for s in self.SHOULD_NOT_REPORT:
+            with self.subTest(s=s):
+                self.assertEqual([i["id"] for i in self._issues(s) if i["id"] == "K12-G04"], [])
+
+    def test_pseudo_name_after_identity_stays_p0_and_is_not_masked(self):
+        for s in ("单亲家庭的某同学需要关注。", "低保家庭A同学已资助。", "建档立卡学生王某家庭困难，已资助。"):
+            with self.subTest(s=s):
+                issues = self._issues(s)
+                self.assertEqual([i["level"] for i in issues], ["P0"])
+                self.assertNotIn("〔姓名", issues[0]["excerpt"])
+
+    def test_same_clause_after_tongxue_anchor(self):
+        # “同学”后锚点：姓名与敏感身份词同分句才报；跨分句不报
+        issues = self._issues("李华同学是低保家庭的孩子。")
+        self.assertEqual([(i["id"], i["level"]) for i in issues], [("K12-G04", "P1")])  # 分数 5：低置信
+        self.assertEqual(self._issues("李华同学在校表现良好，低保家庭学生共12人。"), [])
+
+    def test_excerpt_masks_names_in_text_and_json(self):
+        text = "\n".join(self.SHOULD_REPORT) + "\n"
+        out_json = self._general(text, "--json")
+        out_text = self._general(text)
+        for name in self.NAMES:
+            self.assertNotIn(name, out_json)
+            self.assertNotIn(name, out_text)
+        issues = json.loads(out_json)["issues"]
+        self.assertEqual(len(issues), len(self.SHOULD_REPORT))
+        by_line = {i["line"]: i["excerpt"] for i in issues}
+        self.assertIn("低保家庭学生〔姓名1〕", by_line[1])
+        self.assertIn("低保户学生名单：〔姓名", by_line[6])
+        self.assertIn("建档立卡学生王某某", by_line[5])  # 代称不遮蔽、不进姓名表
+
+    def test_bare_name_on_later_line_is_masked_in_other_rules(self):
+        text = "低保家庭学生马小明已落实资助。\n学校拟公布马小明的考试成绩排名。\n"
+        data = json.loads(self._general(text, "--json"))
+        g01 = [i for i in data["issues"] if i["id"] == "K12-G01"]
+        self.assertEqual(len(g01), 1)
+        self.assertNotIn("马小明", g01[0]["excerpt"])
+        self.assertIn("〔姓名1〕", g01[0]["excerpt"])
+
+    def test_stage_other_than_compulsory_keeps_p0(self):
+        p = self.write("g.txt", "低保户张明同学。\n")
+        code, out, _err = self.run_main("general", str(p), "--stage", "高中", "--json")
+        self.assertEqual(json.loads(out)["issues"][0]["level"], "P0")
+
+
+class ParentsAndCommentsMaskTest(K12TestCase):
+
+    def test_parents_jz012_excerpt_masks_student_name(self):
+        text = "本周数学测验后，张小明同学多次违纪，受到批评。\n欧阳晓晓同学屡教不改，请家长配合。\n个别同学作业拖拉，请家长关注。\n"
+        p = self.write("parents_name.txt", text)
+        code, out_text, _err = self.run_main("parents", str(p))
+        code_j, out_json, _err = self.run_main("parents", str(p), "--json")
+        self.assertEqual((code, code_j), (0, 0))
+        for name in ("张小明", "欧阳晓晓", "晓晓"):
+            self.assertNotIn(name, out_text)
+            self.assertNotIn(name, out_json)
+        issues = json.loads(out_json)["issues"]
+        self.assertEqual([i["id"] for i in issues], ["JZ-012", "JZ-012"])
+        self.assertIn("〔姓名1〕同学", issues[0]["excerpt"])
+        self.assertIn("〔姓名2〕同学", issues[1]["excerpt"])
+
+    def test_parents_identity_anchor_name_masked_in_other_rule_excerpt(self):
+        text = "低保家庭学生周杰已资助。\n请家长检查周杰的作业并签字。\n"
+        p = self.write("parents_anchor.txt", text)
+        code, out, _err = self.run_main("parents", str(p), "--json")
+        self.assertEqual(code, 0)
+        self.assertNotIn("周杰", out)
+
+    def test_comments_label_kept_but_excerpt_masked(self):
+        text = "王小明：你太笨了，家里是低保户王小明的情况要照顾，你和李华同学一起进步。\nS02：你很聪明，这学期进步明显。\n"
+        p = self.write("评语_姓名.txt", text)
+        code, out, _err = self.run_main("comments", str(p), "--min-chars", "0", "--json")
+        self.assertEqual(code, 0)
+        data = json.loads(out)
+        self.assertEqual(data["entries"][0]["label"], "王小明")
+        issues = [i for i in data["issues"] if i["id"] in ("PY-001", "PY-006")]
+        self.assertEqual({i["id"] for i in issues}, {"PY-001", "PY-006"})
+        for i in issues:
+            self.assertEqual(i["label"], "王小明")  # label 是教师本机的定位标识，保留
+            self.assertNotIn("王小", i["excerpt"])  # 含被摘录截断的残片
+            self.assertIn("〔姓名1〕", i["excerpt"])
+
+    def test_code_labels_are_not_masked(self):
+        p = self.write("评语_编号.txt", "S01：你太笨了，要加油。\n")
+        out = json.loads(self.run_main("comments", str(p), "--min-chars", "0", "--json")[1])
+        self.assertTrue(any(i["id"] == "PY-001" and "〔姓名" not in i["excerpt"] for i in out["issues"]))
+
+
+class BoundaryRevisionTest(K12TestCase):
+    """逗号并列名单、JZ-012 窗口放宽到 20 字、否定词“不给/不向”。"""
+
+    def test_comma_list_both_names_found_and_masked(self):
+        path = self.write("资助.txt", "特困学生：张三，李四\n")
+        report = self.run_json("general", str(path))
+        rows = [i for i in report["issues"] if i["id"] == "K12-G04"]
+        self.assertEqual(len(rows), 1)
+        text = json.dumps(report, ensure_ascii=False)
+        self.assertNotIn("张三", text)
+        self.assertNotIn("李四", text)
+        self.assertEqual(rows[0]["excerpt"], "特困学生：〔姓名1〕，〔姓名2〕")
+
+    def test_later_line_mentioning_second_name_is_masked_too(self):
+        path = self.write("资助2.txt", "特困学生：张三，李四\n2026年春季学期李四同学继续享受生活补助。\n")
+        text = json.dumps(self.run_json("general", str(path)), ensure_ascii=False)
+        self.assertNotIn("李四", text)
+
+    def test_jz012_window_covers_20_chars_within_one_sentence(self):
+        path = self.write("通知.txt", "陆思琪同学近期数学作业经常拖拉，多次被老师批评。\n")
+        report = self.run_json("parents", str(path))
+        self.assertIn("JZ-012", self.ids(report))
+        self.assertNotIn("陆思琪", json.dumps(report, ensure_ascii=False))
+        # 不跨句：被批评在下一句，不报
+        path = self.write("通知2.txt", "陆思琪同学近期数学作业经常拖拉。多次被老师批评。\n")
+        self.assertNotIn("JZ-012", self.ids(self.run_json("parents", str(path))))
+        # 超过 20 字仍不报
+        path = self.write("通知3.txt", "陆思琪同学近期数学作业和语文作业以及英语作业都经常出现拖拉现象，多次被老师批评。\n")
+        self.assertNotIn("JZ-012", self.ids(self.run_json("parents", str(path))))
+
+    def test_negated_give_homework_not_reported(self):
+        for text in ("学校不给家长布置作业。", "学校不会给家长布置作业。", "学校不再给家长布置作业。", "老师不向家长布置作业。"):
+            path = self.write("否定.txt", text + "\n")
+            self.assertNotIn("JZ-002", self.ids(self.run_json("parents", str(path))), text)
+        path = self.write("肯定.txt", "请给家长布置作业。\n")
+        self.assertIn("JZ-002", self.ids(self.run_json("parents", str(path))))
+
+    def test_hong_and_lai_surnames(self):
+        path = self.write("洪赖.txt", "低保家庭学生洪建国，建档立卡户赖志强同学。\n")
+        report = self.run_json("general", str(path))
+        text = json.dumps(report, ensure_ascii=False)
+        self.assertIn("K12-G04", self.ids(report))
+        self.assertNotIn("洪建国", text)
+        self.assertNotIn("赖志强", text)
+        path = self.write("洪水.txt", "低保家庭学生资助政策宣传到位，洪水期间做好防汛。\n")
+        self.assertNotIn("K12-G04", self.ids(self.run_json("general", str(path))))
+
+
+class SharedModuleTest(K12TestCase):
+    """共享模块 gw_names.py / gw_names.json：数据来源与缺失、损坏时的退出码。"""
+
+    def test_surnames_come_from_shared_json(self):
+        data = json.loads((SCRIPTS_DIR / "gw_names.json").read_text(encoding="utf-8"))
+        self.assertEqual(k12_check.SURNAMES, set(data["surnames_common"]) | set(data["surnames_rare"]))
+        self.assertEqual(k12_check.COMPOUND_SURNAMES, tuple(data["compound"]))
+        self.assertEqual(len(k12_check.SURNAMES), 403)  # 旧表 401 字 + 洪、赖（见 gw_names.json 的 surnames_rare）
+        self.assertTrue({"洪", "赖"} <= k12_check.SURNAMES)
+
+    def test_looks_like_name_keeps_old_behaviour(self):
+        for word in ("王小明", "欧阳晓晓", "张某", "李华"):
+            self.assertTrue(k12_check.looks_like_name(word), word)
+        for word in ("需改进", "班主任", "家长电话", "S01", "获奖情况"):
+            self.assertFalse(k12_check.looks_like_name(word), word)
+
+    def _run_copy(self, files, *args):
+        import os
+        import subprocess
+        script_dir = self.tmp / "pkg" / "scripts"
+        script_dir.mkdir(parents=True, exist_ok=True)
+        for name in files:
+            (script_dir / name).write_bytes((SCRIPTS_DIR / name).read_bytes())
+        env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+        return subprocess.run([sys.executable, str(script_dir / "k12_check.py"), *args], capture_output=True,
+                              text=True, encoding="utf-8", env=env)
+
+    def _all_commands(self):
+        text = self.write("x.txt", "S01：你好。\n")
+        table = self.write("t.csv", "编号,姓名\nS01,王小明\n")
+        return [("mask", str(text)), ("unmask", str(text), str(table)), ("comments", str(text)),
+                ("parents", str(text)), ("general", str(text))]
+
+    def test_missing_gw_names_py_exits_2_for_every_command(self):
+        for cmd in self._all_commands():
+            with self.subTest(cmd=cmd[0]):
+                r = self._run_copy(["k12_check.py", "gw_names.json"], *cmd)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("gw_names.py", r.stderr)
+
+    def test_missing_gw_names_json_exits_2_for_every_command(self):
+        for cmd in self._all_commands():
+            with self.subTest(cmd=cmd[0]):
+                r = self._run_copy(["k12_check.py", "gw_names.py"], *cmd)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("gw_names.json", r.stderr)
+
+    def test_corrupt_gw_names_json_exits_2(self):
+        script_dir = self.tmp / "pkg" / "scripts"
+        script_dir.mkdir(parents=True, exist_ok=True)
+        (script_dir / "gw_names.json").write_text("{坏的", encoding="utf-8")
+        for cmd in self._all_commands():
+            with self.subTest(cmd=cmd[0]):
+                r = self._run_copy(["k12_check.py", "gw_names.py"], *cmd)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("gw_names.json", r.stderr)
+
+    def test_full_copy_runs(self):
+        r = self._run_copy(["k12_check.py", "gw_names.py", "gw_names.json"], *self._all_commands()[4])
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+
+class ConnectorPairMaskTest(K12TestCase):
+    """复审回退项：“和与及同跟”连接的两个学生姓名，两人都识别并遮蔽，连词不并入姓名，P0 不降。"""
+
+    def test_pairs_masked_and_p0(self) -> None:
+        pairs = (("程鹏", "邓景行"), ("宋向东", "李静"), ("林梓萌", "高峰"), ("彭语嫣", "苏醒"), ("邓景行", "田野"), ("卢俊豪", "黎明"))
+        for first, second in pairs:
+            with self.subTest(pair=(first, second)):
+                p = self.write("g04_pair.txt", f"单亲家庭学生{first}和{second}参加了心理团辅。")
+                code, out, err = self.run_main("general", str(p), "--json")
+                report = json.loads(out)
+                dump = json.dumps(report, ensure_ascii=False)
+                self.assertNotIn(first, dump)
+                self.assertNotIn(second, dump)
+                self.assertEqual([i["level"] for i in report["issues"] if i["id"] == "K12-G04"], ["P0"])
+
+    def test_common_nouns_after_connector_not_masked(self) -> None:
+        p = self.write("g04_noun.txt", "单亲家庭学生和家庭经济困难学生参加了活动。")
+        code, out, err = self.run_main("general", str(p), "--json")
+        report = json.loads(out)
+        self.assertEqual([i for i in report["issues"] if i["id"] == "K12-G04"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

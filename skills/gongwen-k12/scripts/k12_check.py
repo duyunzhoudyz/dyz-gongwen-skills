@@ -8,6 +8,7 @@
                                 [--min-chars N] [--max-chars N] [--similarity 0.6]
                                 [--person second|third|any] [--json] [--strict]
     python scripts/k12_check.py parents <面向家长的文稿> [--stage 学段] [--json] [--strict]
+    python scripts/k12_check.py general <校内综合文书> [--stage 学段] [--json] [--strict]
 
 子命令：
     mask      学生名单或事实表在本机脱敏：姓名换成 S01、S02 编号，删去身份证号、手机号、学号、住址，
@@ -20,11 +21,37 @@
     parents   面向家长文书检查（致家长的一封信、家长会讲话稿、给家长的通知）：要求家长检查批改作业、
               给家长布置作业、公布成绩分数和排名、一二年级书面作业、收费和统一购买、推荐校外培训、
               强制参加课后服务、课后服务讲新课、承诺升学、点名批评学生、要求转发点赞等。
+    general   校内综合文书检查（学期计划总结、督导自评、课后服务方案、安全教育和教研记录）：
+              公布考试成绩排名、补造台账记录、课后服务讲新课和强制参加、学生隐私外露（K12-G04）。
+
+姓名识别与遮蔽：
+    K12-G04 由共享模块 scripts/gw_names.py 识别学生实名：先找“低保家庭学生”“建档立卡户”等敏感身份词作锚点，
+    再在锚点旁取候选姓名并打分。得分 6 分及以上为 P0，5 分为 P1；敏感身份词后接“某同学”“王某”等代称，仍为 P0。
+    “特困学生：一年级、三年级各2人”这类汇总写法、没有冒号的“名单已报送”不报。
+    general、parents 的 excerpt（含 JZ-012“点名批评”）会把识别出的姓名换成〔姓名1〕〔姓名2〕，文本和 --json 输出都生效。
+    “、”并列的后项（“周梓涵、吴雨桐等5人”）由共享模块一律登记并遮蔽，即使自身分数不足；宁可多遮，个别非姓名词（单亲、杜鹃花）可能被遮成〔姓名N〕。
+    comments 的 label 是教师在本机定位用的标识（编号或姓名），原样保留；只遮蔽 excerpt。
+    文件名回显：general、parents、comments 的报告头和 --json 的 file 字段，会把文件名里与正文已识别姓名相同的部分遮蔽
+    （“马小明家访记录.txt”显示为“〔姓名1〕家访记录.txt”）。文件名里有、正文没有识别出来的姓名遮不住，
+    请在把报告发给别人之前自行改文件名。
+    K12-G04 敏感身份词除“低保家庭”“特困”等外，还含“受到（警告、记过等）处分的”后接“学生、同学”的写法
+    （“受到警告处分的学生孙浩宇”）；“受到处分的学生名单已按规定报送”这类没有姓名的汇总写法不报。
+    已知局限：
+    1. 没有敏感身份词等锚点的裸姓名识别不了，只有同一姓名在别处被锚点识别过，才靠全文姓名表遮蔽。
+    2. 身份词与姓名之间隔着其他成分（“低保家庭的三年级学生周梓涵”“特困学生，现就读于二班的周梓涵”）识别不了。
+    3. 与常用词同形的姓名（刘海、林海、黎明、高峰）只在有强证据时识别（姓名后紧跟“同学”等）；其余写法漏报。
+    4. 两字少见姓或歧义姓的姓名、名字里含“会”“山”等非名用字的姓名、名字用字不在常见名用字表里的三字名，
+       在词表外的后续动词下可能漏报；全文遮蔽是整串替换，可能多遮。
+    5. 带“·”的姓名、外文名、昵称识别不了；“受到处分”的写法只覆盖后接“学生、同学”的情形，
+       “该生因打架受到处分”这类写法不报。
+    6. 敏感身份词是固定清单：残疾、受助、留守学生、被记过的学生、患病学生、“学生 + 姓名 + 的 + 亲属 + 敏感事件”等不在内，不报。
+    7. 表格行里的姓名识别不了；锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+    缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 输入：.txt、.md、.csv；.docx 需要 python-docx，.xlsx 需要 openpyxl，未安装时给出安装提示并返回 2。
 comments、parents 只检查【起草说明】之前的内容。
 
-退出码：0 正常；--strict 时存在 P0 返回 1；输入错误返回 2。
+退出码：0 正常；--strict 时存在 P0 返回 1；输入错误、缺少共享模块返回 2。
 只用标准库，不联网；文件一律按 UTF-8 读写；输出文件已存在时加 -v2、-v3，不覆盖。
 规则依据见 references/redlines.md 和 references/sources.md。
 """
@@ -33,14 +60,15 @@ from __future__ import annotations
 import argparse
 import csv
 import difflib
+import importlib.util
 import json
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -80,6 +108,44 @@ B_LOCAL = "以学校或当地教育部门规定为准"
 
 class InputError(Exception):
     """输入错误：文件不存在、格式不支持、缺少依赖、内容无法识别。返回码 2。"""
+
+
+# ---------------------------------------------------------------------------
+# 共享姓名模块（scripts/gw_names.py + gw_names.json，源文件在仓库 shared/scripts/，由 tools/sync_shared.py 同步）
+# ---------------------------------------------------------------------------
+
+_HERE = Path(__file__).resolve().parent
+
+
+def _load_shared(stem: str) -> Any:
+    """按文件路径加载同目录的共享模块；模块名按 skill 目录区分，避免工具箱同进程加载多个引擎时串用缓存。"""
+    path = _HERE / f"{stem}.py"
+    if not path.is_file():
+        raise InputError(f"缺少 scripts/{stem}.py（共享模块），请重新安装本包或运行 tools/sync_shared.py")
+    name = f"_gw_{_HERE.parent.name}_{stem}"
+    mod = sys.modules.get(name)
+    if mod is None:
+        try:
+            spec = importlib.util.spec_from_file_location(name, str(path))
+            if spec is None or spec.loader is None:
+                raise ImportError("无法创建模块说明")
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[name] = mod
+            spec.loader.exec_module(mod)
+        except Exception as exc:  # 共享模块损坏：按输入错误处理，不静默降级
+            sys.modules.pop(name, None)
+            raise InputError(f"共享模块 scripts/{stem}.py 无法加载：{exc}") from exc
+    return mod
+
+
+def shared_names() -> Tuple[Any, Any]:
+    """返回 (gw_names 模块, 姓名数据)；缺文件或数据损坏抛 InputError（退出码 2）。"""
+    mod = _load_shared("gw_names")
+    try:
+        lex = mod.load_lexicon()
+    except mod.LexiconError as exc:
+        raise InputError(str(exc)) from exc
+    return mod, lex
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +279,12 @@ def mask_digits(text: str) -> str:
     return re.sub(r"\d{6,}", lambda m: m.group(0)[:3] + "*" * (len(m.group(0)) - 5) + m.group(0)[-2:], text)
 
 
+def mask_names(table: Any, text: str) -> str:
+    """用全文姓名表遮蔽摘录里的姓名。摘录两端可能把姓名截断（如“……低保户王小”），
+    端点处残留的姓名片段（至少 2 字）也一并换成占位符（实现在共享模块 NameTable.mask_fragment）。"""
+    return table.mask_fragment(text)
+
+
 def excerpt_of(text: str, start: int, end: int, radius: int = 10) -> str:
     left = max(0, start - radius)
     right = min(len(text), end + radius)
@@ -243,19 +315,17 @@ HEALTH_EXTRA_RE = re.compile(r"焦虑|心理老师|心理咨询|心理辅导|心
 SENSITIVE_TYPES = (("家庭", (FAMILY_RE, FAMILY_EXTRA_RE)), ("健康", (HEALTH_RE, HEALTH_EXTRA_RE)),
                    ("处分", (DISCIPLINE_RE,)))
 
-COMPOUND_SURNAMES = ("欧阳", "司马", "诸葛", "上官", "东方", "皇甫", "尉迟", "公孙", "慕容", "长孙",
-                     "夏侯", "轩辕", "令狐", "钟离", "宇文", "司徒", "端木", "西门", "南宫", "独孤")
-# 常见单姓（含部分少见姓）。按行识别姓名时首字须在此表中或为复姓，避免把“需改进：”之类的栏目当成学生。
-SURNAMES = set(
-    "王李张刘陈杨黄赵吴周徐孙马朱胡郭何高林罗郑梁谢宋唐许韩冯邓曹彭曾肖萧田董袁潘于蒋蔡余杜叶程苏魏吕丁任沈"
-    "姚卢姜崔钟谭陆汪范金石廖贾夏韦付傅方白邹孟熊秦邱江尹薛闫阎段雷侯龙史陶黎贺顾毛郝龚邵万钱严覃武戴莫孔向"
-    "汤常温康施文牛樊葛邢安齐易乔伍庞颜倪庄聂章鲁岳翟殷詹申欧耿关兰焦俞左柳甘祝包宁尚符舒阮柯纪梅童凌毕单"
-    "季裴霍涂成苗谷盛曲翁冉骆蓝路游辛靳管柴蒙鲍华喻祁蒲房滕屈饶解牟艾尤阳时穆农司卓古吉缪简车项连芦卢麦褚"
-    "娄窦戚岑景党宫费卜冷晏席卫米柏宗瞿桂全佟应臧闵苟邬边卞姬师和仇栾隋商刁沙荣巫寇桑郎甄丛仲虞敖巩明佘池"
-    "查麻苑迟邝官封谈匡鞠惠荆乐冀郁胥南班储原栗燕楚鄢劳谌奚皮粟冼蔺楼盘满闻位厉伊仝区郜海阚花权强帅屠豆朴"
-    "盖练廉禹井祖漆巴丰支卿国狄平计索宣晋相初门云容敬来扈晁芮都普阙浦戈伏鹿薄邸雍辜羊阿乌母裘亓修邰赫杭况"
-    "那宿鲜印逯隆茹诸战慕危玉银亢嵇公哈湛宾戎勾茅利於呼居揭干但尉冶斯元束檀衣信展阴昝智幸奉植衡富尧闭由钮"
-)
+# 复姓和单姓来自共享数据 gw_names.json（全集与原脚本内嵌的表相同）。按行识别时首字须在表中或为复姓，
+# 避免把“需改进：”之类的栏目当成学生。导入时读不到共享数据则置空，由 main() 和各检查函数统一报错退出（码 2）。
+_SHARED_LOAD_ERROR = ""
+try:
+    _LEX0 = shared_names()[1]
+    COMPOUND_SURNAMES = tuple(_LEX0.compound)
+    SURNAMES = set(_LEX0.surnames)
+except InputError as _exc:
+    _SHARED_LOAD_ERROR = str(_exc)
+    COMPOUND_SURNAMES = ()
+    SURNAMES = set()
 NOT_NAMES = {"姓名", "学生", "说明", "备注", "要求", "时间", "地点", "班级", "事实", "表现", "情况",
              "优点", "不足", "建议", "期望", "进步", "特点", "评语", "注意", "附件", "联系人", "主题",
              "目的", "内容", "过程", "结果", "问题", "措施", "总结", "计划", "附", "示例", "格式",
@@ -292,7 +362,8 @@ def looks_like_name(word: str) -> bool:
         return True
     if any(word.endswith(s) for s in NOT_NAME_SUFFIXES) and word not in COMPOUND_SURNAMES:
         return False
-    return word[0] in SURNAMES or any(word.startswith(s) and len(word) > len(s) for s in COMPOUND_SURNAMES)
+    gw, lex = shared_names()
+    return bool(gw.has_surname_prefix(word, lex))
 
 
 def sensitive_types(text: str) -> List[str]:
@@ -916,6 +987,9 @@ def _window(text: str, start: int, end: int, before: int, after: int) -> str:
 def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "义务教育",
                    min_chars: int = 50, max_chars: int = 300, similarity: float = 0.6,
                    person: str = "second", shared_threshold: int = 3) -> dict:
+    """学生评语批量检查。label 是教师在本机定位用的标识（编号或姓名），原样保留；
+    只遮蔽 excerpt：label 里的姓名和评语正文里由敏感身份锚点识别出的姓名，在 excerpt 中换成〔姓名N〕。"""
+    gw, _lex = shared_names()
     doc = load_document(path)
     entries = parse_comment_entries(doc)
     if not entries:
@@ -1094,11 +1168,20 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                     add(e, "PY-017", "P2", "对账", f"引号或书名号中的“{q}”在该生的事实表中找不到",
                         "核对作品、奖项、活动名称，事实表中没有的删去", B_GUARDRAIL_2, q)
 
+    table = gw.NameTable()
+    for e in entries:
+        label = re.sub(r"\s", "", e.label)
+        if 2 <= len(label) <= 4 and not CODE_LIKE_RE.fullmatch(label) and looks_like_name(label):
+            table.add(label)
+        for name in _g04_analyze(e.body)[1]:
+            table.add(name)
+    for it in issues:
+        it.excerpt = mask_names(table, it.excerpt)
     marker_text = "\n".join(e.body for e in entries)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
     return {
         "mode": "comments",
-        "file": path.name,
+        "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
         "entry_count": len(entries),
         "summary": summarize(issues, marker_text),
@@ -1118,7 +1201,7 @@ NON_NAME_WORDS = ("个别", "部分", "有的", "有些", "一些", "少数", "�
                   "很多", "不少", "男", "女", "男生", "女生", "新", "请", "让", "和", "的",
                   "们班", "我们班", "你们班", "他们班", "各班", "每班", "同班", "该班", "班")
 NEG_RE = re.compile(
-    r"不(?:得|要|再|会|需|必|准|允许|应|能|用|搞|组织|安排|布置|公布|排名|收取|收|强制|统一|推荐|讲|上|签|批改|检查)"
+    r"不(?:得|要|再|会|需|必|准|允许|应|能|用|搞|组织|安排|布置|公布|排名|收取|收|强制|统一|推荐|讲|上|签|批改|检查|给|向)"
     r"|严禁|禁止|无需|无须|免费|免收|杜绝|避免|拒绝|勿|未|没有|不予"
 )
 PARENT_SUBJECT_RE = re.compile(r"家长|您|父母|监护人|爸爸|妈妈|亲子")
@@ -1230,7 +1313,7 @@ PARENT_RULES: Tuple[ParentRule, ...] = (
                re.compile(r"保证[^。；！？\n]{0,6}(?:提分|升学率|升学|上线|录取)"),
                "对提分、升学率作出承诺", "改为学校将采取的具体措施", B_PROMISE),
     ParentRule("JZ-012", "P1", "P1", "点名批评",
-               re.compile(r"(?P<who>[一-龥]{1,3})同学(?!们)[^。；！？\n]{0,15}(?:违纪|批评|不及格|倒数|处分|打架|抄袭|作弊|不交作业|成绩差"
+               re.compile(r"(?P<who>[一-龥]{1,3})同学(?!们)[^。；！？\n]{0,20}(?:违纪|批评|不及格|倒数|处分|打架|抄袭|作弊|不交作业|成绩差"
                           r"|拖了?[^。；！？\n]{0,4}后腿|只考了|才考了|屡教不改)"),
                "面向家长的材料点名批评学生", "删去姓名，改为面向全体的提醒；个别问题单独与家长沟通",
                B_MINOR + "（尊重人格尊严、保护隐私）", negation=False),
@@ -1239,6 +1322,16 @@ PARENT_RULES: Tuple[ParentRule, ...] = (
                "要求家长转发、点赞、投票或下载 App", "非必要的删去；确需使用的说明用途",
                B_XIETONG + "（规范家长通讯群组信息发布）", need_subject=True),
 )
+
+
+def _who_name(line: str, start: int, end: int, lex: Any) -> str:
+    """JZ-012 点名批评里“XX同学”的 XX：复姓被截在前面时补回一个字；代称、单字、字母不登记。"""
+    who = line[start:end]
+    if start > 0 and line[start - 1:start + 1] in lex.compound:
+        who = line[start - 1:end]
+    if len(who) < 2 or "某" in who or not re.fullmatch(r"[一-龥]+", who):
+        return ""
+    return who
 
 
 def _clause_of(text: str, start: int, end: int) -> str:
@@ -1254,6 +1347,9 @@ def _sentence_of(text: str, start: int, end: int) -> str:
 
 
 def check_parents(path: Path, stage: str = "义务教育") -> dict:
+    """面向家长文书检查。识别出的学生姓名（敏感身份锚点、JZ-012 点名批评）进全文姓名表，excerpt 统一遮蔽。"""
+    gw, lex = shared_names()
+    table = gw.NameTable()
     doc = load_document(path)
     if doc.kind == "table":
         lines = [" ".join(row) for table in doc.tables for row in table]
@@ -1265,6 +1361,8 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     for index, line in enumerate(lines, start=1):
         if not line.strip():
             continue
+        for name in _g04_analyze(line)[1]:
+            table.add(name)
         for rule in PARENT_RULES:
             level = rule.level if compulsory else rule.level_other
             if level == "skip":
@@ -1295,14 +1393,20 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                 if key in seen:
                     continue
                 seen.add(key)
+                if who is not None:
+                    given = _who_name(line, m.start("who"), m.end("who"), lex)
+                    if given:
+                        table.add(given)
                 issues.append(Issue(id=rule.id, level=level, category=rule.category, message=rule.message,
                                     suggestion=rule.suggestion, basis=rule.basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+    for it in issues:
+        it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
     return {
         "mode": "parents",
-        "file": path.name,
+        "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
         "summary": summarize(issues, "\n".join(lines)),
         "issues": [i.to_dict() for i in issues],
@@ -1333,12 +1437,7 @@ GENERAL_RULES = (
     ),
     (
         "K12-G04", "P0", "P0", "学生隐私",
-        re.compile(
-            r"(?:低保户|低保家庭|低保|建档立卡|特困|困难家庭|单亲家庭|离异家庭|抑郁症|多动症|违纪处分)"
-            r"(?:[^。；，,\n]{0,10}?(?:某同学|[A-Za-z]同学|[张王李赵刘陈杨黄周吴](?!(?:主任|老师|校长|书记|园长|处长|科长|局长|组长|教授|医生|师傅|女士|先生|院长|主席|部长|经理|同志))[某一-龥]{1,2})"
-            r"|[^。；，,\n]{0,15}?名单[：:]?\s*[一-龥]{2,4}(?:[、，,][一-龥]{2,4}){1,}"
-            r"|(?:学生|同学|子女|儿童)(?:\d+[名人位])?[：:]\s*[一-龥]{2,4}(?:[、，,][一-龥]{2,4}){1,})"
-        ),  # 只在指向具体个人时触发：具名/某同学，或“身份词…名单[：]”、“身份词+学生/同学/子女/儿童[+N名]：”后接姓名列举；冒号前是“项目包括/心理健康/措施”等非指人成分不报，汇总人数写法不报
+        None,  # 不再用单条正则：由 _g04_analyze 按“锚点 + 候选姓名 + 打分”判定，见下方 K12 学生隐私识别
         "校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私",
         "删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数",
         "《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条",
@@ -1346,8 +1445,131 @@ GENERAL_RULES = (
 )
 
 
+# ---------------------------------------------------------------------------
+# K12 学生隐私识别（K12-G04）：敏感身份锚点 + 共享模块 gw_names 的候选与打分
+# ---------------------------------------------------------------------------
+
+# 敏感身份词。“低保”后接金、政策、标准等是政策用语，不是指人
+K12_SENS = (r"(?:受(?:到|过)[^，。；]{0,4}处分的?(?=学生|同学|儿童|子女|[一-龥]{2,3}同学)|低保户|低保家庭|低保(?!金|政策|标准|对象|资金|工作)|建档立卡户?|特困(?:供养)?|困难家庭|家庭经济困难"
+            r"|单亲家庭|离异家庭|留守儿童|孤儿|抑郁症|多动症|自闭症|违纪处分|受过处分)")
+# 前锚点分两档：身份词 + 角色名词（学生、同学、子女、儿童、家庭学生）4 分；身份词后直接接姓名 3 分
+# （后者不含逗号分隔，防“家庭经济困难，母亲长期无业”被当成身份词 + 姓名）
+K12_ROLE = K12_SENS + r"(?:的)?(?:学生|同学|子女|儿童|家庭学生)[：:，,\s]{0,2}"
+K12_BARE = K12_SENS + r"(?:的)?[：:\s]{0,2}"
+# 名单锚点：“敏感身份……名单：”“敏感身份……3名：”之后的冒号名单，按“、”“，”逐项判姓名
+K12_LIST = K12_SENS + r"[^。；;：:\n]{0,12}?(?:名单(?:如下|为)?|\d+\s*[名人位])\s*[：:]\s*"
+# 后锚点：“同学”前面的姓名（“同学们”不算），分数低一档，须与敏感身份词同在一个分句才报
+K12_POST = r"(?=同学(?!们))"
+K12_SENS_RE = re.compile(K12_SENS)
+_K12_CLAUSE_SEP_RE = re.compile(r"[。！？；!?;，,、：:\n]")
+_K12_SENT_END_RE = re.compile(r"[。！？；!?;]")
+# “张某”“王某某”“某同学”“A同学”这类代称：敏感身份词后面 10 字内出现即报 P0（沿用旧口径）
+_K12_PSEUDO_CACHE: Dict[str, "re.Pattern[str]"] = {}
+_K12_ANCHOR_CACHE: Dict[str, list] = {}
+
+
+def _k12_pseudo_re(lex: Any) -> "re.Pattern[str]":
+    cached = _K12_PSEUDO_CACHE.get("re")
+    if cached is None:
+        chars = "".join(sorted(lex.surnames))
+        cached = re.compile(K12_SENS + r"[^。；，,\n]{0,10}?(?:某同学|[A-Za-z]同学|[" + re.escape(chars) + r"]某{1,2})")
+        _K12_PSEUDO_CACHE["re"] = cached
+    return cached
+
+
+def _k12_anchors(gw: Any) -> Tuple[list, list]:
+    cached = _K12_ANCHOR_CACHE.get("a")
+    if cached is None:
+        try:
+            front = gw.compile_anchors({"prefix": [{"re": K12_ROLE, "strength": 4}, {"re": K12_BARE, "strength": 3}],
+                                        "list": [{"re": K12_LIST, "strength": 3}]})
+            post = gw.compile_anchors({"postfix": [{"re": K12_POST, "strength": 2}]})
+        except gw.LexiconError as exc:
+            raise InputError(str(exc)) from exc
+        cached = [front, post]
+        _K12_ANCHOR_CACHE["a"] = cached
+    return cached[0], cached[1]
+
+
+def _clause_bounds(line: str, pos: int) -> Tuple[int, int]:
+    """pos 所在分句（按。！？；，、：切）的起止。"""
+    left = 0
+    for m in _K12_CLAUSE_SEP_RE.finditer(line, 0, pos):
+        left = m.end()
+    m = _K12_CLAUSE_SEP_RE.search(line, pos)
+    return left, (m.start() if m else len(line))
+
+
+def _g04_analyze(line: str) -> Tuple[List[dict], List[str]]:
+    """K12-G04 单行识别。返回 (候选问题, 要登记进全文姓名表的姓名)。
+
+    候选问题字段：start、end（摘录起止，含锚点）、score（代称记 9）、pseudo。
+    姓名表登记：前锚点、名单识别出的真名，以及与敏感身份词同分句的“XX同学”；即使因前置否定词不报，也登记。"""
+    gw, lex = shared_names()
+    front, post = _k12_anchors(gw)
+    cands: List[dict] = []
+    names: List[str] = []
+
+    front_hits = gw.find_names(line, front, lex)
+    spans: Dict[int, int] = {}
+    for h in front_hits:
+        if not h.pseudo:
+            spans[h.anchor_start] = max(spans.get(h.anchor_start, 0), h.end)
+    for h in front_hits:
+        if h.pseudo:
+            cands.append({"start": h.anchor_start, "end": h.end, "score": 9, "pseudo": True})
+            continue
+        names.append(h.name)
+        if h.table_only:    # 并列后项：只进姓名表（遮蔽用），摘录由首个姓名的 spans 一并延伸到它
+            continue
+        cands.append({"start": h.anchor_start, "end": spans[h.anchor_start], "score": h.score, "pseudo": False})
+
+    for h in gw.find_names(line, post, lex):
+        lo, hi = _clause_bounds(line, h.start)
+        sens = K12_SENS_RE.search(line, lo, hi)
+        if sens is None:
+            continue
+        end = min(h.end + 2, len(line))
+        if h.pseudo:
+            cands.append({"start": min(sens.start(), h.start), "end": max(sens.end(), end), "score": 9, "pseudo": True})
+            continue
+        names.append(h.name)
+        cands.append({"start": min(sens.start(), h.start), "end": max(sens.end(), end), "score": h.score,
+                      "pseudo": False})
+
+    for m in _k12_pseudo_re(lex).finditer(line):
+        cands.append({"start": m.start(), "end": m.end(), "score": 9, "pseudo": True})
+    return cands, names
+
+
+def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tuple[str, str]]:
+    """去掉前置否定的候选后，按级别取最重、位置最前的一条，返回 (级别, 未遮蔽的摘录)。"""
+    best: Optional[Tuple[int, int, str, dict]] = None
+    for c in cands:
+        if not c["pseudo"] and c["score"] < 5:
+            continue
+        before = re.split(r"[。！？；!?;，,]", line[:c["start"]])[-1][-12:]
+        if NEG_RE.search(before + line[c["start"]:c["end"]]):
+            continue
+        level = rule_level if (c["pseudo"] or c["score"] >= 6) else "P1"
+        key = (LEVELS.index(level), c["start"])
+        if best is None or key < (best[0], best[1]):
+            best = (key[0], key[1], level, c)
+    if best is None:
+        return None
+    c = best[3]
+    tail = line[c["end"]:c["end"] + 8]
+    m = _K12_SENT_END_RE.search(tail)
+    if m:
+        tail = tail[:m.end()]
+    return best[2], mask_digits((line[c["start"]:c["end"]] + tail).strip())
+
+
 def check_general(path: Path, stage: str = "义务教育") -> dict:
-    """校内综合文书检查（学期计划总结、督导自评、课后服务方案、安全教育/教研记录）。"""
+    """校内综合文书检查（学期计划总结、督导自评、课后服务方案、安全教育/教研记录）。
+
+    K12-G04 由 _g04_analyze 识别学生实名（锚点 + 打分）；识别出的姓名进全文姓名表，所有 excerpt 在输出前统一遮蔽。"""
+    gw, _lex = shared_names()
     doc = load_document(path)
     if doc.kind == "table":
         lines = [" ".join(row) for table in doc.tables for row in table]
@@ -1355,12 +1577,23 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
         lines, _ = cut_at_boundary(doc.lines)
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
+    table = gw.NameTable()
     seen = set()
     for index, line in enumerate(lines, start=1):
         if not line.strip():
             continue
         for rid, lv_c, lv_o, cat, pat, msg, sug, basis in GENERAL_RULES:
             level = lv_c if compulsory else lv_o
+            if pat is None:  # K12-G04：锚点 + 候选姓名 + 打分
+                cands, names = _g04_analyze(line)
+                for name in names:
+                    table.add(name)
+                picked = _g04_pick(line, cands, level)
+                if picked is not None and (rid, index) not in seen:
+                    seen.add((rid, index))
+                    issues.append(Issue(id=rid, level=picked[0], category=cat, message=msg,
+                                        suggestion=sug, basis=basis, line=index, excerpt=picked[1]))
+                continue
             for m in pat.finditer(line):
                 before = re.split(r"[。！？；!?;，,]", line[:m.start()])[-1][-12:]
                 if NEG_RE.search(before + m.group(0)):
@@ -1373,10 +1606,12 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=sug, basis=basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+    for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
+        it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
     return {
         "mode": "general",
-        "file": path.name,
+        "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
         "summary": summarize(issues, "\n".join(lines)),
         "issues": [i.to_dict() for i in issues],
@@ -1449,8 +1684,8 @@ def _sub(subparsers, name: str, help_text: str) -> argparse.ArgumentParser:
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="k12_check.py",
-        description="中小学行业包的本地脱敏与检查工具：学生事实表脱敏和还原、学生评语检查、面向家长文书检查。",
-        epilog="退出码：0 正常；1 使用 --strict 且存在 P0；2 输入错误。",
+        description="中小学行业包的本地脱敏与检查工具：学生事实表脱敏和还原、学生评语检查、面向家长文书检查、校内综合文书检查。",
+        epilog="退出码：0 正常；1 使用 --strict 且存在 P0；2 输入错误或缺少共享模块。",
         formatter_class=_ChineseHelpFormatter, add_help=False,
     )
     parser._optionals.title = "选项"
@@ -1508,6 +1743,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         parser.print_help()
         return 2
     try:
+        shared_names()  # 缺共享模块或数据损坏：所有子命令（含 mask、unmask）统一退出码 2，不静默降级
         if args.command == "mask":
             report = mask_document(Path(args.file), args.name_col, args.drop_sensitive)
             text = render_mask_text(report)

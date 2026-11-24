@@ -11,6 +11,18 @@
       "dest": "scripts/secret_check.py"
     },
     {
+      "src": "scripts/gw_names.py",
+      "dest": "scripts/gw_names.py"
+    },
+    {
+      "src": "scripts/gw_names.json",
+      "dest": "scripts/gw_names.json"
+    },
+    {
+      "src": "scripts/gw_clause.py",
+      "dest": "scripts/gw_clause.py"
+    },
+    {
       "src": "style/output-format.md"
     },
     {

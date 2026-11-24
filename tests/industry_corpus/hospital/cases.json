@@ -1,0 +1,514 @@
+{
+ "engine": "hospital",
+ "docs": [
+  {
+   "file": "A_h01_RCA跌倒.txt",
+   "type": "RCA",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h02_RCA给药错误.txt",
+   "type": "RCA",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h03_质量分析.txt",
+   "type": "质量分析",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h04_绩效分析DRG.txt",
+   "type": "绩效分析",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h05_等级评审自评.txt",
+   "type": "等级评审",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h06_党委会议题设备购置.txt",
+   "type": "议题",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h07_行风廉洁整改报告.txt",
+   "type": "行风",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h08_述职报告.txt",
+   "type": "述职",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h09_对外宣传新技术.txt",
+   "type": "对外宣传",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h10_对外宣传胸痛中心.txt",
+   "type": "对外宣传",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h11_整改报告_引述否决.txt",
+   "type": "整改",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "shrink_cost": [
+    {
+     "id": "HOS-033",
+     "level": "P1",
+     "line": 9,
+     "reason": "收缩：否决、整改写在命中之后的分句，不再豁免；后续分句有针对该做法的处置词，P0 降为 P1 仍报出（负责人决定）"
+    },
+    {
+     "id": "HOS-033",
+     "level": "P1",
+     "line": 10,
+     "reason": "收缩：否决、整改写在命中之后的分句，不再豁免；后续分句有针对该做法的处置词，P0 降为 P1 仍报出（负责人决定）"
+    },
+    {
+     "id": "HOS-003",
+     "level": "P2",
+     "line": 16,
+     "reason": "收缩：出处写在命中之后的分句，不再豁免，仍报 P2（对外宣传类型才升级，P0 降 P1）"
+    }
+   ]
+  },
+  {
+   "file": "A_h11_整改报告_引述否决.txt",
+   "type": "议题",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "shrink_cost": [
+    {
+     "id": "HOS-033",
+     "level": "P1",
+     "line": 9,
+     "reason": "收缩：否决、整改写在命中之后的分句，不再豁免；后续分句有针对该做法的处置词，P0 降为 P1 仍报出（负责人决定）"
+    },
+    {
+     "id": "HOS-033",
+     "level": "P1",
+     "line": 10,
+     "reason": "收缩：否决、整改写在命中之后的分句，不再豁免；后续分句有针对该做法的处置词，P0 降为 P1 仍报出（负责人决定）"
+    },
+    {
+     "id": "HOS-034",
+     "level": "P1",
+     "line": 13,
+     "reason": "收缩：否决、整改写在命中之后的分句，不再豁免；后续分句有针对该做法的处置词，P0 降为 P1 仍报出（负责人决定）"
+    },
+    {
+     "id": "HOS-003",
+     "level": "P2",
+     "line": 16,
+     "reason": "收缩：出处写在命中之后的分句，不再豁免，仍报 P2（对外宣传类型才升级，P0 降 P1）"
+    }
+   ]
+  },
+  {
+   "file": "A_h12_RCA_岗位代称.txt",
+   "type": "RCA",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h13_整改报告_同句否决.txt",
+   "type": "整改",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "A_h13_整改报告_同句否决.txt",
+   "type": "议题",
+   "external": false,
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0
+  },
+  {
+   "file": "V_h01_议题_购置设备.txt",
+   "type": "议题",
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "E1",
+     "id": "HOS-034",
+     "level": "P0",
+     "line": 11
+    },
+    {
+     "mark": "E1",
+     "id": "HOS-035",
+     "level": "P1",
+     "line": 11
+    },
+    {
+     "mark": "E2",
+     "id": "HOS-004",
+     "level": "P1",
+     "line": 14
+    },
+    {
+     "mark": "E4",
+     "id": "HOS-036",
+     "level": "P1",
+     "line": 8
+    }
+   ],
+   "allow_extra_p0": [],
+   "known_miss": [
+    {
+     "mark": "E3",
+     "id": "HOS-005",
+     "level": "P1",
+     "reason": "HOS-005 的触发词只认“三重一大”“大额资金”“大型医用设备”等字样；本文只写“预算合计420万元”，没有触发词，规则不会判断金额是否构成大额。"
+    }
+   ]
+  },
+  {
+   "file": "V_h02_RCA_输液外渗.txt",
+   "type": "RCA",
+   "kind": "violation",
+   "names": [
+    "赵敏华",
+    "孙丽"
+   ],
+   "expect": [
+    {
+     "mark": "E5",
+     "id": "HOS-030",
+     "level": "P0",
+     "line": 4
+    },
+    {
+     "mark": "E6",
+     "id": "HOS-031",
+     "level": "P0",
+     "line": 4
+    },
+    {
+     "mark": "E7",
+     "id": "HOS-032",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "E8",
+     "id": "HOS-018",
+     "level": "P1",
+     "line": 11
+    },
+    {
+     "mark": "E9",
+     "id": "HOS-020",
+     "level": "P1",
+     "line": 14
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_h03_等级评审_自评.txt",
+   "type": "等级评审",
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "E10",
+     "id": "HOS-037",
+     "level": "P1",
+     "line": 4
+    },
+    {
+     "mark": "E12",
+     "id": "HOS-015",
+     "level": "P2",
+     "line": 9
+    },
+    {
+     "mark": "E13",
+     "id": "HOS-033",
+     "level": "P0",
+     "line": 12
+    },
+    {
+     "mark": "E14",
+     "id": "HOS-039",
+     "level": "P1",
+     "line": 16
+    },
+    {
+     "mark": "E15",
+     "id": "HOS-002",
+     "level": "P2",
+     "line": 19
+    },
+    {
+     "mark": "E15",
+     "id": "HOS-003",
+     "level": "P2",
+     "line": 19
+    }
+   ],
+   "allow_extra_p0": [],
+   "known_miss": [
+    {
+     "mark": "E11",
+     "id": "HOS-007",
+     "level": "P1",
+     "reason": "HOS-007 只认“CMI为1.06%”这类把指数本身写成百分数的写法；本文写“CMI由1.01提高至1.06，增长5.0%”是增幅带百分号，规则不判（增幅用百分号本身合法，要查的是增幅算对没有，属人工核对）。"
+    }
+   ]
+  },
+  {
+   "file": "V_h03_等级评审_自评.txt",
+   "type": "等级评审",
+   "external": true,
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "E10",
+     "id": "HOS-037",
+     "level": "P1",
+     "line": 4
+    },
+    {
+     "mark": "E12",
+     "id": "HOS-015",
+     "level": "P2",
+     "line": 9
+    },
+    {
+     "mark": "E13",
+     "id": "HOS-033",
+     "level": "P0",
+     "line": 12
+    },
+    {
+     "mark": "E14",
+     "id": "HOS-039",
+     "level": "P1",
+     "line": 16
+    },
+    {
+     "mark": "E15",
+     "id": "HOS-002",
+     "level": "P0",
+     "line": 19
+    },
+    {
+     "mark": "E15",
+     "id": "HOS-003",
+     "level": "P0",
+     "line": 19
+    }
+   ],
+   "allow_extra_p0": [],
+   "known_miss": [
+    {
+     "mark": "E11",
+     "id": "HOS-007",
+     "level": "P1",
+     "reason": "同上：增幅带百分号不在 HOS-007 的识别范围。"
+    }
+   ]
+  },
+  {
+   "file": "V_h04_整改报告_编码建议.txt",
+   "type": "整改",
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "N1",
+     "id": "HOS-033",
+     "level": "P0",
+     "line": 8
+    },
+    {
+     "mark": "N2",
+     "id": "HOS-033",
+     "level": "P0",
+     "line": 9
+    },
+    {
+     "mark": "N3",
+     "id": "HOS-033",
+     "level": "P0",
+     "line": 10
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_h05_RCA_姓名未带当班.txt",
+   "type": "RCA",
+   "kind": "violation",
+   "names": [
+    "张丽丽",
+    "王建国"
+   ],
+   "expect": [
+    {
+     "mark": "N4",
+     "id": "HOS-031",
+     "level": "P0",
+     "line": 5
+    },
+    {
+     "mark": "N5",
+     "id": "HOS-031",
+     "level": "P0",
+     "line": 6
+    },
+    {
+     "mark": "N6",
+     "id": "HOS-032",
+     "level": "P0",
+     "line": 9
+    },
+    {
+     "mark": "N7",
+     "id": "HOS-032",
+     "level": "P0",
+     "line": 10
+    },
+    {
+     "mark": "N8",
+     "id": "HOS-032",
+     "level": "P0",
+     "line": 11
+    },
+    {
+     "mark": "N9",
+     "id": "HOS-018",
+     "level": "P1",
+     "line": 12
+    }
+   ],
+   "allow_extra_p0": [],
+   "note": "第 12 行“张丽丽当晚独自值守病区”没有锚点，本行不会被识别为姓名命中；它靠全文姓名表遮蔽，由同行的 HOS-018 带出的摘录与上下文里不得出现姓名（names 断言）。"
+  },
+  {
+   "file": "V_h06_议题_换说法倒置.txt",
+   "type": "议题",
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "N10",
+     "id": "HOS-034",
+     "level": "P1",
+     "line": 12
+    }
+   ],
+   "allow_extra_p0": []
+  },
+  {
+   "file": "V_h07_RCA_跌倒骨折_复审人自写.txt",
+   "type": "RCA",
+   "kind": "violation",
+   "names": [
+    "刘海",
+    "周晓梅",
+    "李明",
+    "王和平",
+    "马会芳"
+   ],
+   "expect": [
+    {
+     "mark": "R1",
+     "id": "HOS-030",
+     "level": "P0",
+     "line": 4,
+     "note": "标注时写的是 HOS-031；实际由 HOS-030（床号加姓名）报出同一姓名，运行后发现标注选错了规则，按检出登记，marks.json 未改"
+    },
+    {
+     "mark": "R2",
+     "id": "HOS-032",
+     "level": "P0",
+     "line": 4
+    },
+    {
+     "mark": "R4",
+     "id": "HOS-032",
+     "level": "P1",
+     "line": 5,
+     "note": "标注 P0，实际只报 P1（两字名，弱锚点“值班医师”加普通动词）"
+    },
+    {
+     "mark": "R6",
+     "id": "HOS-032",
+     "level": "P0",
+     "line": 8
+    }
+   ],
+   "known_miss": [
+    {
+     "mark": "R3",
+     "id": "HOS-031",
+     "level": "P0",
+     "reason": "“刘海”与整词排除词同形，“患者刘海家属反映”没有强证据（括注、同志等）时不识别；同行 HOS-030 命中后姓名进了全文姓名表，摘录里已遮蔽，未泄露，但没有报 HOS-031"
+    },
+    {
+     "mark": "R5",
+     "id": "HOS-032",
+     "level": "P0",
+     "reason": "“骨科医师王和平建议”：带科室修饰的角色词“骨科医师”不是锚点；名字含软字“和”，弱锚点下不识别"
+    },
+    {
+     "mark": "R7",
+     "id": "HOS-032",
+     "level": "P0",
+     "reason": "“由护士长马会芳牵头”：“护士长”不是锚点；名字含软字“会”，弱锚点下不识别"
+    },
+    {
+     "mark": "R8",
+     "id": "HOS-031",
+     "level": "P0",
+     "reason": "“患者刘海出院后电话随访”：“刘海”与整词排除词同形，无强证据时不识别"
+    }
+   ],
+   "allow_extra_p0": []
+  }
+ ]
+}
