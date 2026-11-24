@@ -1,6 +1,6 @@
 > **中小学行业包（gongwen-k12）**（提示词版）
 >
-> 版本：1.1.0　成熟度：Stable（稳定版）　全文约 28846 字符
+> 版本：1.1.0　成熟度：Stable（稳定版）　全文约 28009 字符
 >
 > 使用方法：
 > 1. 复制全文，粘贴到对话开头；
@@ -320,25 +320,6 @@
 
 ## 三、交付方式
 
-**能写文件的 Agent 工具**（Claude Code、Codex、Cursor 等）：在当前工作目录下建 `公文/<YYYYMMDD>-<简短标题>/`，按需写入：
-
-| 文件 | 内容 |
-|---|---|
-| `正文.txt` | 只含正文；成稿 .docx、.md 同样只含正文，起草说明只在对话中给出 |
-| `素材台账.md` | 事实、数据、案例及其来源 |
-| `提纲.md` | 提纲与标题备选 |
-| `标题方案.md` | gongwen-title 的标题备选与一致性检查结果 |
-| `原稿.txt` | 改稿类 skill 保存的用户原稿，供 fact_diff.py 比对 |
-| `文风问题清单.md` | gongwen-humanize、gongwen-direct 只标注不改时的问题清单 |
-| `核稿意见.md`、`核稿意见.json` | gongwen-review 的问题清单 |
-| `成稿.docx` | gongwen-format 的排版成品 |
-| `要点表.md`、`任务分解表.md`（可另出 .xlsx）、`上级文件.txt` | gongwen-implement；`上级文件.txt` 是比对用工作副本，写入前删去联系人行 |
-| `整改台账.md`（可另出 .xlsx）、`对账意见.md` | gongwen-rectify |
-| `议定事项梳理表.md`、`督办清单.md`（可另出 .xlsx）、`原始记录.txt` | gongwen-minutes；`原始记录.txt` 存档前脱敏 |
-| `计算底稿.md`、`体检报告.md` | gongwen-data |
-
-一份素材出多个版本时，正文文件名加版本名，如 `正文-单位总结.txt`。同名文件已存在时加后缀 `-v2`、`-v3`，不覆盖用户已有文件。写完后在对话中告诉用户文件位置，并给出正文的简要概述，不必整篇重复。
-
 **网页对话环境**（无文件系统）：在回复中依次输出正文、`【起草说明】`。回复开头直接是正文；只有停在提纲时，开头先用一句话说明属于哪种情形（`references/_shared/profiles/roles.md` 第十节）；不加“以下是……”之类的引导语，遇敏感信号才在起草说明末尾提示一句（（见附录一）第一条第1款）。
 
 ## 四、交接卡与转交
@@ -348,7 +329,6 @@
 1. 能调用其他 skill 且目标 skill 已安装的环境，直接调用，不需要交接卡。
 2. 目标 skill 未安装，或在网页环境的，同时给出三样：（1）交接卡；（2）说明“可以新开对话，先粘贴 `dist/prompts/<skill 名>.md` 全文，再粘贴交接卡和材料继续”；（3）安装命令：Claude Code 为 `/plugin marketplace add duyunzhoudyz/dyz-gongwen-skills` 和 `/plugin install gongwen@dyz-gongwen-skills`（行业包把 gongwen 换成包名，如 gongwen-hospital），其他工具为 `npx skills add duyunzhoudyz/dyz-gongwen-skills`。不用不对口的 skill 代写。请用户准备素材的，同时提醒先删去素材里的姓名、学号、成绩、家庭情况等个人信息。
 3. 用户在 Agent 环境里贴了交接卡的，同样按卡开工，本站完成后输出更新后的交接卡。
-
 
 ### （二）交接卡
 
