@@ -109,7 +109,7 @@
 - **本次表格与简称回归**：`tests/hospital`、`tests/soe`、`tests/k12` 各命中表格姓名正例 3/3，反例误报均为 0/11。国企简称用例预期命中 10/10（4 条 P1、6 条 P0），有单位证据的反例误报 0/5。三行业各新增一篇违规表格、一篇规范汇总表，3 个新增埋点均报 P0，3 篇规范表格均零报出。
 - **实名专项复审回归**：47 条评审复现及文书类型扩展样例。另用 12 条真人与单位同形样例、12 条表格跨规则遮蔽样例做独立复测，两组均为 12/12。
 - **其他新增测试**：`tests/names/`（姓名识别结构、召回、精度、对抗探针与 `gw_clause` 切分、豁免、程序倒置判定、词表数据与文档统计的一致性；提交前复审后新增 `test_gw_names_repair.py`、`test_gw_clause_repair.py`，覆盖名字含“向从以于”、并列链整条登记、连词并列、处置词针对性、声明直接断言、后续分句降级与自评出处）、`tests/k12/test_k12_name_review.py`、`tests/soe/test_soe_names_inversion.py`、`tests/secret/test_three_way.py` 与涉密标本、`tests/industry_corpus` 运行器自身的断言逻辑测试。
-- **测试总数**：全仓库 2666 项单元测试，0 失败，1 项跳过（Windows 符号链接）。
+- **测试总数**：全仓库 2673 项单元测试，0 失败，1 项跳过（Windows 符号链接）。
 
 ### 七、版本口径
 - 套件版本升为 1.3.0（`.claude-plugin/marketplace.json`、中英文 README、`site/index.html`、`CONTRIBUTING.md`）。行业引擎版本：医院 1.3.1、国企 1.3.1、中小学 1.2.1（脚本内 `VERSION` 常量，v1.2.0 发布版均为 1.0.0）。各 skill 的 `manifest.json` 版本按各自口径。
