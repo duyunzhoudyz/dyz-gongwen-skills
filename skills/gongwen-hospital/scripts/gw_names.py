@@ -1094,7 +1094,7 @@ def _md_table_start(lines: Sequence[str], idx: int) -> List[Tuple[int, str]]:
 
 
 def _table_nonname(value: str, lex: Lexicon) -> bool:
-    if value in lex.table_nonnames or value in _CHAIN_GRADES:
+    if value in lex.table_nonnames or value in _CHAIN_GRADES or value.removesuffix("年级组") in _CHAIN_GRADES:
         return True
     if _TABLE_CLASS_RE.fullmatch(value):
         return True
@@ -1105,13 +1105,11 @@ def _table_nonname(value: str, lex: Lexicon) -> bool:
 
 
 def _table_department(value: str, lex: Lexicon) -> bool:
-    if not value.endswith(_TABLE_DEPT_END):
+    if len(value) < 2 or not value.endswith(_TABLE_DEPT_END):
         return False
-    # 交班、返班等动作也有部门尾字。内含姓氏起点时保留全段供登记，允许多遮。
-    suffix = max((s for s in _TABLE_DEPT_END if value.endswith(s)), key=len)
-    if any(has_surname_prefix(value[pos:pos + 4], lex) for pos in range(1, len(value) - len(suffix) - 1)):
-        return False
-    return len(value) >= 2 and (len(value) >= 5 or not has_surname_prefix(value, lex))
+    # “王秀英返班”从首字起名，“值守李科”的“科”同时是姓名尾字。检查所有起点。
+    # 含姓氏的常见单位、年级组已在上面的精确分支处理。
+    return not any(has_surname_prefix(value[pos:pos + 4], lex) for pos in range(len(value) - 1))
 
 
 def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexicon,

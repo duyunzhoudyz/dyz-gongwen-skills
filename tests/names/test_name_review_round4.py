@@ -6,6 +6,7 @@ from pathlib import Path
 
 from tests.industry_corpus.test_industry_corpus import build_argv, load_engine, run_engine
 from tests.names.masking import check_masked_outputs
+from tests.names.test_name_review_regressions import md
 
 FIXTURES = Path(__file__).with_name("fixtures")
 UNKNOWN = "姓名列内容未能识别，请人工核对"
@@ -30,7 +31,7 @@ def review_cases():
         yield dict(case, expect=expected[case["id"]])
     for idx, cell in enumerate(source["round3_m1_clean_cells"], 1):
         yield {"id": f"M1_{idx:02d}", "engine": "hos", "filename": "clean.md", "expected_names": [], "expect": "",
-               "body": f"| 患者姓名 | 诊断 |\\n| --- | --- |\\n| {cell} | 哮喘 |"}
+               "body": md("| 患者姓名 | 诊断 |", f"| {cell} | 哮喘 |")}
     # B1 科/班尾姓名，B2 括号，B3 带前缀残段，B4 框架召回，B5 单位动作，
     # M1 同级对照及其后连词、格式、评语、公开名单的独立复现。
     levels = [
@@ -94,11 +95,18 @@ class NameReviewRoundFourTest(unittest.TestCase):
         if case["id"].startswith("A13") or case["id"].startswith("R4_44"):
             self.assertEqual(rows[0]["message"], "可能是单位简称，请人工确认" if case["id"] == "A13e" else "文内已定义为单位简称，如确指单位可忽略")
 
+    def test_department_suffix_can_belong_to_name_or_action(self):
+        for value, name in (("王秀英返班", "王秀英"), ("值守李科", "李科"), ("王建科复诊后返班", "王建科")):
+            with self.subTest(value=value):
+                self.check_input({"id": "部门尾字", "engine": "hos", "filename": name + ".md",
+                                  "body": md("| 患者姓名 | 诊断 | 说明 |", f"| {value} | 哮喘 | {name}治愈率100% |"),
+                                  "expected_names": [name], "expect": "?"})
+
     def test_mixed_placeholders_are_exact(self):
         for value in ("王某、N/A、共5人", "〔姓名1〕、〔姓名2〕", "—、N/A、合计3人", "（空）／见附件"):
             with self.subTest(value=value):
                 self.check_input({"id": "混合占位", "engine": "hos", "filename": "汇总.md",
-                                  "body": f"| 患者姓名 | 诊断 |\\n| --- | --- |\\n| {value} | 哮喘 |",
+                                  "body": md("| 患者姓名 | 诊断 |", f"| {value} | 哮喘 |"),
                                   "expected_names": [], "expect": ""})
 
     def test_reference_hits(self):
