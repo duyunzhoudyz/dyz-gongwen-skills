@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from tests.industry_corpus.test_industry_corpus import load_engine
+from tests.names.masking import check_masked_outputs
 
 
 class Case(NamedTuple):
@@ -143,7 +144,130 @@ ADVERSARIAL_TABLES = (
          ("欧阳明月", "陈丽"), ("P0", "P0"), other_rule="HOS-002"),
 )
 
+# 第二轮评审原始输入；文件名也故意含人名，供两个输出通道核验。
+ROUND2_PEOPLE = (
+    soe("NB1_01", "张伟公司电脑遗失，造成失密风险。\n对张伟给予警告处分。", ("张伟",), "P0"),
+    soe("NB1_02", "王建国公司卡消费超标。\n对王建国给予警告处分。", ("王建国",), "P0"),
+    soe("NB1_03", "经查，陈敏公司账目异常。\n拟安置人员：陈敏、周杰。", ("陈敏", "周杰"), "P1"),
+    soe("NB1_04", "李明集团内违规违纪。\n对李明给予警告处分。", ("李明",), "P0"),
+    soe("NB1_05", "张伟股份占比30%。\n对张伟给予警告处分。", ("张伟",), "P0"),
+    soe("NB1_06", "免去：张建国公司副总工程师职务。\n对张建国给予记过处分。", ("张建国",), "P0"),
+    soe("NB1_07", "刘洋公司纪委书记职务已免。\n对刘洋给予记过处分。", ("刘洋",), "P0"),
+    soe("NB1_08", "经王伟公司垫付差旅费。\n对王伟给予警告处分。", ("王伟",), "P0"),
+    soe("NB1_09", "在李强公司工作期间考勤造假。\n拟安置人员：李强、周敏。", ("李强", "周敏"), "P1"),
+    soe("NB1_10", "对赵磊公司期间报销开展核查。\n对赵磊给予警告处分。", ("赵磊",), "P0"),
+    soe("NB1_11", "唐钢公司回函。\n对唐钢（42岁，男）给予警告处分。", ("唐钢",), "P0"),
+    soe("NB1_12", "唐钢公司回函。\n拟安置人员：唐钢（42岁，男）、王建国。", ("唐钢", "王建国"), "P1"),
+    soe("NB1_13", "东岭冶炼有限责任公司（以下简称“唐钢”）。\n\n" +
+        md("| 职工姓名 | 处分 |", "| 唐钢 | 警告 |"), ("唐钢",), "P0"),
+    soe("NB1_14", "孙建公司副厂长任职期满。\n对孙建给予记过处分。", ("孙建",), "P1"),
+)
+
+
+def table_case(key, industry, cell, names, remarks):
+    header, detail, sensitive, other = {
+        "hospital": ("患者姓名", "诊断", "哮喘", "HOS-002"),
+        "soe": ("职工姓名", "处分", "警告", "SOE-001"),
+        "k12": ("学生姓名", "困难类型", "低保", "K12-G01"),
+    }[industry]
+    body = md(f"| {header} | {detail} | {'备注' if industry == 'k12' else '说明'} |",
+              f"| {cell} | {sensitive} | {remarks} |")
+    return Case(key, industry, body, names, ("P0",) * (1 if industry == "k12" else len(names)),
+                "纪要" if industry == "soe" else None, other_rule=other)
+
+
+ROUND2_CELLS = (
+    table_case("NB2_01", "hospital", "**王秀英、李明**", ("王秀英", "李明"), "治愈率100%，王秀英、李明已出院"),
+    table_case("NB2_02", "soe", "`王秀英、李明`", ("王秀英", "李明"), "王秀英、李明先行开工"),
+    table_case("NB2_03", "k12", "**周梓涵（三班）、吴雨桐（五班）**", ("周梓涵", "吴雨桐"), "公布考试成绩排名，周梓涵、吴雨桐在列"),
+    table_case("NB2_04", "hospital", "王秀英、李明等2人", ("王秀英", "李明"), "治愈率100%，李明出院"),
+    table_case("NB2_05", "k12", "周梓涵等3人", ("周梓涵",), "公布考试成绩排名，周梓涵第一"),
+    table_case("NB2_06", "hospital", "王秀英 李明", ("王秀英", "李明"), "治愈率100%，王秀英、李明复查"),
+    table_case("NB2_07", "soe", "王秀英；李明", ("王秀英", "李明"), "王秀英、李明先行开工"),
+    table_case("NB2_08", "k12", "周梓涵/吴雨桐", ("周梓涵", "吴雨桐"), "公布考试成绩排名，周梓涵、吴雨桐在列"),
+    table_case("NB2_09", "hospital", "王秀英<br>李明", ("王秀英", "李明"), "治愈率100%，王秀英、李明出院"),
+    table_case("NB2_10", "soe", "副部长**王秀英**", ("王秀英",), "王秀英先行开工"),
+    table_case("NB2_11", "hospital", "~~王秀英~~", ("王秀英",), "治愈率100%，王秀英已转院"),
+    table_case("NB2_12", "k12", "1.周梓涵", ("周梓涵",), "公布考试成绩排名，周梓涵第一"),
+    table_case("NB2_13", "hospital", "王秀英、刘海", ("王秀英", "刘海"), "治愈率100%，王秀英、刘海复查"),
+    table_case("NB2_14", "soe", "（原财务部）王秀英", ("王秀英",), "王秀英先行开工"),
+)
+ROUND2_DUTY = (
+    soe("O1", md("| 责任人 | 处分 | 整改措施 |", "| 王秀英 | 党内警告 | 限期退赔 |"), ("王秀英",), "P0"),
+    soe("O2", md("| 责任人 | 违纪事实 | 处分 | 完成时限 |", "| 王秀英 | 违规报销 | 记过 | 10月底 |"), ("王秀英",), "P0"),
+    Case("O9", "hospital", md("| 责任人 | 诊断 | 整改措施 |", "| 王秀英 | 哮喘 | 整改完成 |"), ("王秀英",), ("P0",)),
+)
+
+# 弱处分锚点与独立身份说明分开；严格定义放在正文前、后两种位置。
+NEW_PEOPLE = (
+    *(soe(f"真人{i:02}", f"河西检测中心（以下简称“陆航”）。\n对陆航给予警告处分。\n{identity}", ("陆航",), "P0")
+      for i, identity in enumerate((
+          "人员身份已核验：纪委书记陆航签字。", "人员身份已核验：陆航副总审计师签字。",
+          "签收记录：陆航（档案编号37，工号82）。", "出席凭据：陆航（本期核验，56岁）。",
+          "签名记录：陆航（轮值，女）。", "参会人员：陆航同志签到。",
+          "班务履历：陆航同学曾任班长。", "紧急联络人：工会主席陆航。",
+          "交接记录：陆航（已返岗）。", "负责人：党组副书记陆航。",
+      ), 1)),
+    soe("真人11", "对姚钢给予警告处分。\n交接由姚钢副总法律顾问签字。\n河东冶炼厂，以下简称姚钢。", ("姚钢",), "P0"),
+    soe("真人12", "北岸电力有限公司（以下简称“唐钢-A”）。\n对唐钢给予警告处分。", ("唐钢",), "P1"),
+    soe("真人13", "东岭资产有限公司审计方案（以下简称“罗敏”）。\n对罗敏给予警告处分。", ("罗敏",), "P0"),
+    soe("真人14", "西岭资产有限公司《资金管理规定》（以下简称“谢华”）。\n对谢华给予记过处分。", ("谢华",), "P0"),
+    soe("真人15", "东岭检测中心（以下简称“许航”）。\n对许航给予警告处分。\n" +
+        md("| 随访员姓名 | 序号 |", "| 许航 | 7 |"), ("许航",), "P0", "P1"),
+    *(soe(f"真人{i}", f"{phrase}（以下简称“唐钢”）。\n对唐钢给予警告处分。", ("唐钢",), "P1")
+      for i, phrase in enumerate(("公共场所", "园区布局", "患者入院", "依法治厂"), 16)),
+    *(soe(f"真人{i}", f"河西检测中心（以下简称“{name}”）。\n{body}", (name,), lv)
+      for i, name, body, lv in (
+          (20, "刘海", "对刘海（42岁，男）给予警告处分。", "P0"),
+          (21, "刘海", "拟安置人员：刘海（42岁，男）。", "P1"),
+          (22, "唐钢", "对唐钢同学给予警告处分。", "P0"),
+          (23, "唐钢", "唐钢同学受到警告处分。", "P0"),
+          (24, "唐钢", "任命唐钢担任副总经理。\n对唐钢给予警告处分。", "P0"),
+      )),
+)
+
+
+def cross_table(key, domain, cells, names, *, lead="", header="", levels=None):
+    label, sensitive, other, trigger = {
+        "hospital": ("患者姓名", "诊断", "HOS-002", "治愈率100%"),
+        "soe": ("职工姓名", "处分", "SOE-001", "先行开工"),
+        "k12": ("学生姓名", "病史", "K12-G01", "公布考试成绩排名"),
+    }[domain]
+    echo = "、".join(names) + trigger + "。"
+    body = echo + "\n" + lead + md(f"| {header or label} | {sensitive} |", *(f"| {v} | 记录 |" for v in cells)) + "\n" + echo
+    return Case(key, domain, body, names, levels or ("P0",) * (len(cells) if domain == "k12" else len(names)),
+                "纪要" if domain == "soe" else None, other_rule=other)
+
+
+NEW_TABLES = (
+    cross_table("外露01", "hospital", ["王秀英🩺李明"], ("王秀英", "李明")),
+    cross_table("外露02", "soe", ["陈敏\\|周杰"], ("陈敏", "周杰")),
+    cross_table("外露03", "k12", ["周梓涵\u200b吴雨桐"], ("周梓涵", "吴雨桐")),
+    cross_table("外露04", "hospital", ["陈丽①李明②王秀英"], ("陈丽", "李明", "王秀英")),
+    cross_table("外露05", "soe", ["审计部副总审计师陈敏"], ("陈敏",)),
+    cross_table("外露06", "k12", ["【随访（周五复查）】周梓涵"], ("周梓涵",)),
+    cross_table("外露07", "hospital", ["〔一病区〕陈丽〔床位（待定）〕"], ("陈丽",)),
+    cross_table("外露08", "soe", ["采购中心时任副厂长宋文静"], ("宋文静",)),
+    cross_table("外露09", "k12", ["周梓涵→吴雨桐"], ("周梓涵", "吴雨桐"), header="随访学生姓名"),
+    cross_table("外露10", "hospital", ["罗佳琪", "陈丽", "罗佳琪"], ("罗佳琪", "陈丽"), levels=("P0",) * 3),
+    cross_table("外露11", "soe", ["(A-9)李明｜陈敏"], ("李明", "陈敏")),
+    cross_table("外露12", "k12", ["一、吴雨桐★周梓涵等两人"], ("吴雨桐", "周梓涵")),
+    cross_table("外露13", "hospital", ["刘海＋陈丽"], ("刘海", "陈丽")),
+    cross_table("外露14", "soe", ["张伟\t陈敏"], ("张伟", "陈敏"), lead="| 标题 | 序号 |\n| --- | --- |\n| 至此 | 1 |\n"),
+    cross_table("外露15", "k12", ["整改组〔说明〕吴雨桐◆周梓涵"], ("吴雨桐", "周梓涵")),
+    *(Case(f"外露{i}", domain, f"李明{trigger}。\n王秀英、李明。{trigger}。\n" +
+           md(header, "| 王秀英 | 记录 |"), ("王秀英", "李明"), ("P0",),
+           "纪要" if domain == "soe" else None, other_rule=other)
+      for i, domain, header, trigger, other in (
+          (16, "hospital", "| 患者姓名 | 诊断 |", "治愈率100%", "HOS-002"),
+          (17, "soe", "| 职工姓名 | 处分 |", "先行开工", "SOE-001"),
+          (18, "k12", "| 学生姓名 | 病史 |", "公布考试成绩排名", "K12-G01"),
+      )),
+)
+
 CASE_GROUPS = {
+    "new_people": NEW_PEOPLE, "new_tables": NEW_TABLES,
+    "round2_people": ROUND2_PEOPLE, "round2_cells": ROUND2_CELLS, "round2_duty": ROUND2_DUTY,
     "unit_priority": UNIT_PRIORITY, "cell_items_and_cross_rule_masking": CELL_ITEMS, "distinct_placeholders": PLACEHOLDERS,
     "markdown_boundaries": MARKDOWN, "public_and_duty_tables": PUBLIC, "natural_person_actions_and_titles": PERSON_ACTION,
     "rule_scope_and_deduplication": SCOPE_AND_DEDUP, "adversarial_people": ADVERSARIAL_PEOPLE,
@@ -156,12 +280,16 @@ def run_case(case: Case, path: Path):
     path.write_text(case.body, encoding="utf-8")
     engine = load_engine(case.industry)
     if case.industry == "k12":
-        report = engine.check_general(path)
-        screen = engine.render_check_text(report)
+        names, check, render = engine.shared_names()[0], lambda: engine.check_general(path), engine.render_check_text
     else:
-        report = engine.check_file(path, case.doc_type)
-        screen = engine.render_text(report)
-    return report, screen
+        names = engine.shared_kit().names if case.industry == "hospital" else engine._shared()[0]
+        check, render = lambda: engine.check_file(path, case.doc_type), engine.render_text
+
+    def run():
+        report = check()
+        return report, render(report)
+
+    return check_masked_outputs(names, run)
 
 
 class NameReviewRegressionTest(unittest.TestCase):
@@ -190,6 +318,72 @@ class NameReviewRegressionTest(unittest.TestCase):
                     self.assertIn("可能是单位简称，请人工确认", rows[0]["message"])
                 if (case.key.startswith("M3.") and case.levels) or case.key in ("人02", "人12"):
                     self.assertTrue(all("可能是单位简称" not in row["message"] for row in rows), rows)
+
+    def test_unknown_cells_warn_once_per_row_and_respect_scope(self):
+        for domain, header, rule, types in (
+            ("hospital", "诊断", "HOS-031", (None,)), ("k12", "病史", "K12-G04", (None,)),
+            ("soe", "违纪", "SOE-022", ("合规报告", "纪要")),
+            ("soe", "序号", "SOE-023", ("纪要", "合规报告")),
+        ):
+            for doc_type in types:
+                with self.subTest(domain=domain, doc_type=doc_type, header=header), tempfile.TemporaryDirectory() as work:
+                    body = md(f"| 姓名 | 当事人 | {header} |", "| ？？？ | X-17 | 记录 |",
+                              "| 王秀英 | 𠮷野 | 记录 |", "| | — | 记录 |")
+                    case = Case("兜底", domain, body, ("王秀英",), (), doc_type)
+                    report, screen = run_case(case, Path(work) / "王秀英.md")
+                    rows = [i for i in report["issues"] if i["id"] == rule]
+                    warnings = [(i["line"], i["level"]) for i in rows if i["message"] == "姓名列内容未能识别，请人工核对"]
+                    expected = [] if rule == "SOE-023" and doc_type == "合规报告" else [(3, "P1"), (4, "P1")]
+                    self.assertEqual(sorted(warnings), expected)
+                    self.assertEqual(report["file"], "〔姓名1〕.md")
+                    if expected:
+                        self.assertIn("姓名列内容未能识别，请人工核对", screen)
+
+    def test_fallback_skips_public_and_duty_tables(self):
+        for domain, col in (("hospital", "投诉问题"), ("soe", "违纪整改任务"), ("k12", "整改措施")):
+            for label, subject in (("责任人姓名", col), ("姓名", "授课内容")):
+                case = Case("公开", domain, md(f"| {label} | {subject} |", "| A-17 | 记录 |"), (), (), "纪要")
+                with self.subTest(domain=domain, label=label), tempfile.TemporaryDirectory() as work:
+                    report, _ = run_case(case._replace(doc_type="纪要" if domain == "soe" else None), Path(work) / "表.md")
+                    self.assertFalse(any(i["id"] in NAME_RULES[domain] for i in report["issues"]))
+
+    def test_strict_alias_definition_and_titles(self):
+        engine = load_engine("soe")
+        gn = engine._shared()[0]
+        rule = next(r for r in engine.load_rules().rules if r.id == "SOE-022")
+        self.assertTrue(all(a.left_ok.pattern == "(?:" + gn._PERSON_TITLE + "|原|时任|现任|该)$"
+                            for a in rule.anchors if a.kind == "frame"))
+        for unit in ("能源有限公司", "能源有限责任公司", "能源股份有限公司", "集团公司", "集团有限公司",
+                     "总公司", "分公司", "电机厂", "矿务局", "设计院", "研究所", "检测中心", "管理委员会"):
+            body = f"河西{unit}（以下简称“陆航”）。\\n对陆航给予警告处分。"
+            case = soe("简称", body, ("陆航",), visible=True)
+            with self.subTest(unit=unit), tempfile.TemporaryDirectory() as work:
+                report, _ = run_case(case, Path(work) / "陆航.md")
+                self.assertEqual(report["file"], "陆航.md")
+                self.assertFalse(any(i["id"] in NAME_RULES["soe"] for i in report["issues"]))
+        for title in ("副总工程师", "副总会计师", "副总经济师", "副厂长", "纪委书记", "党委委员", "总法律顾问"):
+            body = md("| 处分对象 | 处分 |", f"| {title}陆航 | 警告 |")
+            case = soe("职务", body, ("陆航",), "P0")
+            with self.subTest(title=title), tempfile.TemporaryDirectory() as work:
+                report, _ = run_case(case, Path(work) / "陆航.md")
+                self.assertEqual([(i["level"], i["excerpt"]) for i in report["issues"] if i["id"] == "SOE-022"],
+                                 [("P0", "〔姓名1〕")])
+                self.assertEqual(report["file"], "〔姓名1〕.md")
+
+    def test_new_people(self):
+        self.assert_cases("new_people")
+
+    def test_new_tables(self):
+        self.assert_cases("new_tables")
+
+    def test_round2_people(self):
+        self.assert_cases("round2_people")
+
+    def test_round2_cells(self):
+        self.assert_cases("round2_cells")
+
+    def test_round2_duty(self):
+        self.assert_cases("round2_duty")
 
     def test_unit_priority(self) -> None:
         self.assert_cases("unit_priority")

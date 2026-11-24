@@ -18,6 +18,8 @@ import shutil
 import sys
 import tempfile
 import unittest
+
+from tests.names.masking import check_masked_outputs
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
@@ -404,6 +406,9 @@ class FileNameMaskTest(unittest.TestCase):
         self.assertEqual(sc.check_file(path, "纪要", ruleset=self.ruleset)["file"], "张伟的材料.txt")
 
     def run_table(self, name, body):
+        return check_masked_outputs(sc._shared()[0], lambda: self._run_table(name, body))
+
+    def _run_table(self, name, body):
         path = self.tmp / name
         path.write_text(body, encoding="utf-8")
         out, rendered, err = io.StringIO(), io.StringIO(), io.StringIO()
@@ -456,6 +461,9 @@ class FileNameMaskTest(unittest.TestCase):
     def test_abbreviations_follow_document_evidence(self) -> None:
         examples = [
             ("对唐钢给予警告处分。", "唐钢", "P1"),
+            ("对唐钢给予警告处分。\n唐钢集团已回函。", "唐钢", "P1"),
+            ("唐钢股份有限公司回函。\n拟安置人员：王建国、唐钢。", "唐钢", "P1"),
+            ("唐钢公司回函。\n对唐钢给予警告处分。", "唐钢", "P1"),
             ("对马钢给予警告。", "马钢", "P1"),
             ("对曹宇航给予警告处分。", "曹宇航", "P1"),
             ("拟安置人员：唐钢、王建国。", "唐钢", "P1"),
@@ -471,8 +479,8 @@ class FileNameMaskTest(unittest.TestCase):
             with self.subTest(body=body):
                 path = self.write(f"{name}核查.txt", body)
                 report = sc.check_file(path, "纪要", ruleset=self.ruleset)
-                rid = "SOE-023" if body.startswith("拟安置") else "SOE-022"
-                issues = [i for i in report["issues"] if i["id"] == rid and "〔姓名1〕" in i["excerpt"]]
+                rid = "SOE-023" if "拟安置" in body else "SOE-022"
+                issues = [i for i in report["issues"] if i["id"] == rid and "〔姓名" in i["excerpt"]]
                 self.assertIn(level, [i["level"] for i in issues])
                 if level == "P1":
                     self.assertFalse(any(i["level"] == "P0" for i in issues))
@@ -481,9 +489,6 @@ class FileNameMaskTest(unittest.TestCase):
                 detected += 1
         controls = [
             "东岭冶炼有限责任公司（以下简称“唐钢”）。\n对唐钢给予警告处分。",
-            "对唐钢给予警告处分。\n唐钢集团已回函。",
-            "唐钢股份有限公司回函。\n拟安置人员：王建国、唐钢。",
-            "唐钢公司回函。\n对唐钢给予警告处分。",
             "东岭物资有限公司（以下简称“唐华”）。\n对唐华给予警告处分。",
         ]
         misfires = 0

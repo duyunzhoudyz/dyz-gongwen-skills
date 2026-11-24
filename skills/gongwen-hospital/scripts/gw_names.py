@@ -30,7 +30,7 @@
 NameTable.mask 还会把“已登记姓名 + 、 + 姓氏开头的 2～3 字 + 并列尾巴（、等 两人 同志 分别 标点）”里没登记的后项也遮蔽（宁可多遮）。
 
 Markdown 表格以姓名类表头作锚点，同表出现行业敏感列时报高置信。国企可传入全文识别出的单位简称；
-有单位佐证的候选跳过，末字形似单位简称但缺少人名证据的候选只给低置信。
+有全称紧邻的“以下简称”定义、且缺少人名证据的候选跳过，末字形似单位简称但缺少人名证据的候选只给低置信。
 
 本模块只做识别、编号遮蔽和结果去重，不读文件、不联网，只用标准库（re、json、pathlib、dataclasses）。
 数据缺失或损坏时抛 LexiconError，由引擎转成输入错误（退出码 2），不做静默降级。
@@ -82,28 +82,33 @@ _ETC_TAIL_RE = re.compile(r"等(?:\d+|[一二三四五六七八九十]+)?[人名
 _MD_PIPE_RE = re.compile(r"\\.|(?P<pipe>\|)")
 _MD_SEPARATOR_RE = re.compile(r":?-+:?")
 _MD_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
-_MD_CELL_RE = re.compile(r"(?P<mark>\*{1,3}|_{1,3}|`+)(?P<value>.+?)(?P=mark)")
-_MD_HEADER_MARKS_RE = re.compile(r"[\s*_`]")
+_MD_HEADER_MARKS_RE = re.compile(r"[\s*_\x60~]")
 _TABLE_PUBLIC_RE = re.compile(r"获奖|奖项|表彰|值班|授课|主讲")
-_TABLE_DUTY_RE = re.compile(r"整改(?:任务|措施|时限|进展|情况|台账)|完成时限|责任部门")
-_TABLE_ID_NOTE_RE = re.compile(r"\d+\s*岁|[（(，,]\s*[男女]\s*[，,）)]")
-_ORG_SUFFIX = r"(?:有限责任公司|股份(?:有限)?公司|有限公司|集团(?:有限责任公司|有限公司|公司)?|公司|股份)"
-_ORG_BOUNDARY = r"(?:^|[\s，,。；;：:、！？!?（(【《“\x22|])"
-_ORG_PREPOSITIONS = frozenset("由向与在经对为同")
-_ORG_FULL_RE = re.compile(_ORG_BOUNDARY + r"([一-鿿]{2,4}?)" + _ORG_SUFFIX)
-_ORG_ALIAS_RE = re.compile(r"(?:公司|集团|本单位|本企业|银行|研究[所院]|合作社)"
-                           r"\s*[（(，,]?\s*以下简称[：:\s]*[“\"‘（(《]?([一-鿿]{2,3})(?![一-鿿])")
-# 与国企 SOE-022 的 left_ok 共用职务、身份口径，不含“原”等时间修饰词。
-_PERSON_TITLE = (r"(?:相关责任人|直接责任人|责任人|当事人|负责人|副?总经理(?:助理)?|副?董事长|(?:党委)?副?书记"
-                 r"|副?(?:主任|经理|部长|处长|科长)|总(?:监|工程师|会计师|经济师)|[局厂院所队站组班]长"
-                 r"|主管|专员|员工|职工|干部|会计|出纳|工程师|技术员|业务员|采购员)")
+_TABLE_DUTY_RE = re.compile(r"整改|任务|问题|台账|措施|时限|部门")
+_TABLE_ID_NOTE_RE = re.compile(r"\d+\s*岁|(?:^|[（(，,、：:])\s*[男女](?:性)?\s*(?:$|[，,、）)])|工号")
+# 静默跳过使用封闭的单位通名白名单。“场所、布局、入院”的末字不能证明是单位；
+# 单字厂局院所仅在“单位全称”字段已声明对象类型时接受，其他未收录的通名走人工确认。
+_ORG_TYPE = (r"股份有限公司|有限责任公司|有限公司|集团公司|总公司|分公司|集团|中心|委员会|银行|合作社"
+             r"|制造厂|加工厂|机械厂|电机厂|发电厂|钢铁厂|冶炼厂|水泥厂|化工厂|分厂|总厂"
+             r"|管理局|矿务局|税务局|公安局|教育局|财政局|审计局|卫生局|分局|总局"
+             r"|医院|法院|检察院|研究院|设计院|科学院|研究所|事务所|审计所|派出所|卫生所")
+_ORG_ALIAS_RE = re.compile(
+    r"(?:(?<=[一-鿿）)]{2})(?:" + _ORG_TYPE + r")|单位全称\s*[：:]\s*[一-鿿]{2,}[厂局院所])"
+    r"[”’》]?\s*[（(，,]?\s*以下简称\s*[：:]?\s*[“\"‘'（(《]?\s*([一-鿿]{2,3})(?=\s*(?:[”\"’'》）)，,。；;]|$))")
+_PERSON_TITLE = (r"(?:相关责任人|直接责任人|责任人|当事人|负责人|副?总经理(?:助理)?|副?董事长"
+                 r"|(?:党委|纪委|党组|支部)?副?书记|党委委员|工会主席|董事|监事"
+                 r"|副?(?:主任|经理|部长|处长|科长)|副?总(?:监|工程师|会计师|经济师|法律顾问|审计师)"
+                 r"|副?[局厂院所队站组班]长|主管|专员|员工|职工|干部|会计|出纳|工程师|技术员|业务员|采购员)")
 _LIST_TITLE_RE = re.compile(_PERSON_TITLE + r"\s*")
 _PERSON_TITLE_END_RE = re.compile(_PERSON_TITLE + "$")
-_TITLE_NOTE_RE = re.compile(r"[（(][^）)]{0,12}" + _PERSON_TITLE + r"\s*[）)]")
-_ORG_OFFICE = r"\s*(?:原|现任|时任|的)?(?:[一-鿿]{1,8}(?:部|室|中心|处|科))?" + _PERSON_TITLE
-_ORG_PERSON_TAIL_RE = re.compile(r"(?:" + _ORG_OFFICE + r"|\s*(?:内部|报销|职务))")
-_ORG_APPOINT_RE = re.compile(r"(?:免去|聘任|任命|撤销|任免|解聘)\s*([一-鿿]{2,4}?)" + _ORG_SUFFIX
-                             + _ORG_OFFICE)
+_EMPLOYMENT_RE = re.compile(r"(?:离|退|调|转|下|待|在|返)岗|任职|卸任|离任|调任")
+_TABLE_UNIT_PREFIX_RE = re.compile(r"^(?:[一-鿿]+?(?:部门|中心|公司|集团|科|部|处|室))")
+_TABLE_PREFIX_RE = re.compile(r"^(?:原|时任|现任)?" + _PERSON_TITLE)
+_TABLE_NOTE_PAIRS = dict(zip("（(【[《〈{｛〔「『", "）)】]》〉}｝〕」』"))
+_TABLE_TOKEN_RE = re.compile(r"(?:(?![和与及])[一-鿿])+")
+_TABLE_ORDINAL_RE = re.compile(r"^\s*[一二三四五六七八九十百]+[、.．]")
+_TABLE_SUFFIX_RE = re.compile(r"(?:等(?:\d+|[一二两三四五六七八九十百]+)?[人名位]*|同志|同学)+\s*$")
+TABLE_UNKNOWN_HINT = "姓名列内容未能识别，请人工核对"
 _PERSON_ACTION = (r"(?:党内(?:严重)?警告|严重警告|留党察看|撤销党内职务|政务(?:警告|记大?过|降级|撤职|开除)"
                   r"|撤职|免职|开除|诫勉谈话)")
 _PERSON_ACTION_RE = re.compile(r"\s*(?:同志)?(?:\s*[（(][^）)]*[）)])?\s*(?:分别)?\s*"
@@ -186,6 +191,7 @@ class NameHit:
 class TableNameRow(NamedTuple):
     headers: Tuple[str, ...]
     hits: List[NameHit]
+    unrecognized: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -870,7 +876,8 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
                     left = 1       # 并列连词之后的一项
                 if left == 0:
                     continue
-                sh = _shape(word, lex, evidence=(left == 2 or bool(R3_RE.match(text, e))), common_ambig=(a.strength >= 3),
+                sh = _shape(word, lex, evidence=(left == 2 or person_action or _personal_context(text[:s], text[e:])),
+                            common_ambig=(a.strength >= 3),
                             tail_ok=True)      # 姓名组由框架正则圈定，右侧就是边界
                 if sh is None:
                     continue
@@ -955,7 +962,8 @@ def _scan_list(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], Na
             s = t0 + a0
             e = s + len(word)
             items.append((s, e, word))
-            sh = _shape(word, lex, evidence=titled, common_ambig=(a.strength >= 3), tail_ok=True)
+            evidence = titled or _personal_context(text[:s], text[e:])
+            sh = _shape(word, lex, evidence=evidence, common_ambig=(a.strength >= 3), tail_ok=True)
             if sh is None:
                 continue
             score = a.strength + 2 + sh.form
@@ -975,36 +983,51 @@ _SCANNERS = {"prefix": _scan_prefix, "postfix": _scan_postfix, "frame": _scan_fr
 
 
 def organization_names(lines: Iterable[str], lex: Lexicon) -> FrozenSet[str]:
-    """提取有单位先行词的简称与有左边界的短单位全称；任免写法不作为单位佐证。"""
-    found, appointees = set(), set()
+    """只有全称紧邻的显式定义可证明简称属于单位。"""
+    return frozenset(m[1] for line in lines for m in _ORG_ALIAS_RE.finditer(line) if has_surname_prefix(m[1], lex))
+
+
+def person_context_names(lines: Sequence[str], candidates: FrozenSet[str]) -> FrozenSet[str]:
+    """弱锚点撞简称时，别行称谓或身份括注也能证明是人。只检查已提取的两、三字候选。"""
+    people = set()
+    if not candidates:
+        return frozenset()
+    starts = re.compile("[" + "".join(sorted({name[0] for name in candidates})) + "]")
     for line in lines:
-        found.update(m[1] for m in _ORG_ALIAS_RE.finditer(line) if has_surname_prefix(m[1], lex))
-        appointees.update(m[1] for m in _ORG_APPOINT_RE.finditer(line))
-        for match in _ORG_FULL_RE.finditer(line):
-            word = match[1]
-            # 首字本身可能是姓（如“向”），此时不能把它当介词切掉。
-            if len(word) >= 3 and word[0] in _ORG_PREPOSITIONS and not has_surname_prefix(word, lex):
-                word = word[1:]
-            if len(word) in (2, 3) and has_surname_prefix(word, lex) and not _ORG_PERSON_TAIL_RE.match(line, match.end()):
-                found.add(word)
-    return frozenset(found - appointees)
+        for m in starts.finditer(line):
+            pos = m.start()
+            for width in (2, 3):
+                word = line[pos:pos + width]
+                if (len(word) == width and word in candidates and
+                        _personal_context(line[max(0, pos - 24):pos], line[pos + width:pos + width + 80])):
+                    people.add(word)
+    return frozenset(people)
+
+
+def _personal_context(head: str, tail: str) -> bool:
+    tail = tail.lstrip()
+    closer = _TABLE_NOTE_PAIRS.get(tail[:1])
+    note = tail[1:tail.index(closer)] if closer and closer in tail else ""
+    identity_note = _TABLE_ID_NOTE_RE.search(note) or _EMPLOYMENT_RE.search(note) or _PERSON_TITLE_END_RE.search(note.rstrip())
+    return bool(identity_note or R3_RE.match(tail) or head.rstrip().endswith(("任命", "聘任", "免去", "解聘"))
+                or _PERSON_TITLE_END_RE.search(head.rstrip())
+                or _LIST_TITLE_RE.match(tail) or _PERSON_ACTION_RE.match(tail))
 
 
 def _has_person_evidence(text: str, hit: NameHit, anchor: Anchor) -> bool:
-    tail = text[hit.end:].lstrip()
     head = text[:hit.start].rstrip()
     title = anchor.left_ok.search(head) if anchor.left_ok else None
-    return bool(hit.person_evidence or R3_RE.match(tail) or _TITLE_NOTE_RE.match(tail)
-                or _PERSON_TITLE_END_RE.search(head) or (title and title[0] not in ("原", "时任", "现任", "该")))
+    return bool(hit.person_evidence or _personal_context(head, text[hit.end:])
+                or (title and title[0] not in ("原", "时任", "现任", "该")))
 
 
 def keep_person_hit(hit: NameHit, lex: Lexicon, organizations: FrozenSet[str]) -> bool:
-    """按单位佐证过滤候选，并给缺少人名证据的正文同形候选标记待确认。"""
+    """按显式简称定义过滤候选，并给缺少人名证据的同形候选标记待确认。"""
     if hit.pseudo or hit.person_evidence or len(hit.name) not in (2, 3):
         return True
     if hit.name in organizations:
         return False
-    if hit.anchor_start >= 0 and hit.score >= SCORE_LOW and hit.name[-1] in lex.org_abbr_end:
+    if hit.score >= SCORE_LOW and hit.name[-1] in lex.org_abbr_end:
         hit.score = SCORE_LOW
         hit.maybe_org = True
     return True
@@ -1073,58 +1096,65 @@ def _md_table_start(lines: Sequence[str], idx: int) -> List[Tuple[int, str]]:
     return header if len(header) == len(separator) else []
 
 
-def _table_item_spans(value: str, lex: Lexicon) -> Iterable[Tuple[int, int]]:
-    # 括注内的逗号和连词都不是姓名分隔符。文字连词还须满足两边的姓名边界。
-    masked = _PAREN_RE.sub(lambda m: " " * len(m[0]), value)
-    for piece in re.finditer(r"[^、，,]+", masked):
-        start = piece.start()
-        for match in re.finditer(r"[和与及]", piece[0]):
-            pos = piece.start() + match.start()
-            left = re.sub(r"[*_`\s]", "", masked[start:pos])
-            right = pos + 1
-            while right < piece.end() and masked[right] in " *_`\t　":
-                right += 1
-            if len(left) >= 2 and _starts_name(masked, right, lex):
-                yield start, pos
-                start = pos + 1
-        yield start, piece.end()
+def _table_nonname(value: str, lex: Lexicon) -> bool:
+    return (not value or value in lex.table_nonnames or value.isdecimal() or value in _CHAIN_GRADES
+            or bool(re.fullmatch(r"(?:[一二三四五六七八九十\d]+年级|[一二三四五六七八九十\d]+班)", value))
+            or (not has_surname_prefix(value, lex) and
+                bool(re.fullmatch(r"[一-鿿]+(?:科|部|处|室|中心|学院|部门)", value))))
+
+
+def _table_without_notes(value: str) -> str:
+    # 等长空格保留原行偏移。只遮成对括注，嵌套括注也不会贡献姓名项。
+    chars = list(value)
+    stack = []
+    for i, char in enumerate(value):
+        if char in _TABLE_NOTE_PAIRS:
+            stack.append((i, _TABLE_NOTE_PAIRS[char]))
+        elif stack and char == stack[-1][1]:
+            start, _ = stack.pop()
+            if not stack:
+                chars[start:i + 1] = " " * (i + 1 - start)
+    return "".join(chars)
 
 
 def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexicon,
-                      person_action: bool) -> Iterable[NameHit]:
-    for a, b in _table_item_spans(value, lex):
-        raw = value[a:b]
-        offset = start + a + len(raw) - len(raw.lstrip())
-        word = raw.strip()
-        # “**姓名**（括注）”与“**姓名（括注）**”两种形式都保留原姓名偏移。
-        styled = _MD_CELL_RE.fullmatch(word)
-        if styled:
-            inner = styled["value"]
-            offset += styled.start("value") + len(inner) - len(inner.lstrip())
-            word = inner.strip()
-        note = _PAREN_RE.search(word)
-        evidence = bool(person_action or R3_RE.search(word) or _TITLE_NOTE_RE.search(word)
-                        or _TABLE_ID_NOTE_RE.search(word))
-        if note and not _PAREN_RE.sub("", word[note.start():]).strip():
-            word = word[:note.start()].rstrip()
-        word = _ITEM_TAIL_RE.sub("", word).rstrip()
-        styled = _MD_CELL_RE.fullmatch(word)
-        if styled:
-            inner = styled["value"]
-            offset += styled.start("value") + len(inner) - len(inner.lstrip())
-            word = inner.strip()
-        title = _LIST_TITLE_RE.match(word)
-        if title and _list_item_like_name(word[title.end():], lex):
-            evidence = True
-            offset += title.end()
+                      person_action: bool) -> Tuple[List[NameHit], bool]:
+    # 标记、HTML 换行和所有非汉字都自然成为分隔；先处理含汉字的括注、序号和整格尾缀。
+    def blank(m: "re.Match[str]") -> str:
+        return " " * len(m[0])
+
+    clean = re.sub(r"[*_~\x60]|<br\s*/?>", blank, _table_without_notes(value), flags=re.I)
+    clean = _TABLE_ORDINAL_RE.sub(blank, clean)
+    clean = _TABLE_SUFFIX_RE.sub(blank, clean)
+    if _table_nonname(value.strip("*_~\x60 "), lex) or (clean.strip() and _table_nonname(clean.strip(), lex)):
+        return [], False
+    candidates = []
+    for m in _TABLE_TOKEN_RE.finditer(clean):
+        word = _ITEM_TAIL_RE.sub("", m[0])
+        pos = m.start()
+        title = _TABLE_PREFIX_RE.match(word)
+        unit = None if title else _TABLE_UNIT_PREFIX_RE.match(word)
+        if unit and len(word) - unit.end() >= 2:
+            pos += unit.end()
+            word = word[unit.end():]
+            title = _TABLE_PREFIX_RE.match(word)
+        if title:
+            pos += title.end()
             word = word[title.end():]
-        if word in lex.table_nonnames or not _list_item_like_name(word, lex):
+        if _table_nonname(word, lex) or not _list_item_like_name(word, lex):
             continue
-        if len(word) >= 3 and word.endswith(("科", "中心", "学院", "部门")):
-            continue
+        tail = value[pos + len(word):].lstrip("*_~\x60 ")
+        has_note = _personal_context(value[:pos].rstrip("*_~\x60 "), tail)
+        evidence = "姓名" in label or person_action or bool(title) or has_note
         shape = _shape(word, lex, evidence=evidence, tail_ok=True)
-        if shape and not shape.pseudo and (evidence or not (shape.ambiguous and len(word) == 2)):
-            yield NameHit(offset, offset + len(word), word, score, False, label, person_evidence=evidence)
+        if shape and shape.pseudo:
+            continue
+        recognized = bool(shape and (evidence or not (shape.ambiguous and len(word) == 2)))
+        candidates.append(NameHit(start + pos, start + pos + len(word), word, score, False, label,
+                                  table_only=not recognized, person_evidence=evidence))
+    if any(not hit.table_only for hit in candidates):
+        return candidates, False
+    return [], True
 
 
 def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[int, TableNameRow]:
@@ -1149,11 +1179,17 @@ def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[in
             continue
         header_line = lines[idx]
         labels = tuple(_md_header_label(label) for _, label in header)
-        score = SCORE_HIGH if any(w in label for label in labels for w in sensitive) else SCORE_LOW
-        public = score == SCORE_LOW and any(label in lex.table_public or _TABLE_PUBLIC_RE.search(label) for label in labels)
-        duty = any(_TABLE_DUTY_RE.search(label) for label in labels)
+        sensitive_labels = [label for label in labels if any(w in label for w in sensitive)
+                            and not re.search(r"整改|任务|问题|台账", label)]
+        score = SCORE_HIGH if sensitive_labels else SCORE_LOW
+        public = not sensitive_labels and any(label in lex.table_public or _TABLE_PUBLIC_RE.search(label)
+                                               for label in labels)
+        personal_column = any(label not in lex.table_names and not label.endswith("姓名") for label in sensitive_labels)
+        duty = not personal_column and any(_TABLE_DUTY_RE.search(label) for label in labels)
         excluded = ({"姓名"} if public else set()) | ({"责任人", "责任人姓名"} if duty else set())
-        columns = [i for i, label in enumerate(labels) if label in lex.table_names and label not in excluded]
+        columns = [i for i, label in enumerate(labels) if (label in lex.table_names or label.endswith("姓名"))
+                   and label not in excluded and label[:-2] not in lex.table_public
+                   and label not in lex.table_public]
         discipline_cols = [i for i, label in enumerate(labels) if domain == "soe" and "处分" in label]
         idx += 2
         while idx < len(lines) and not _MD_FENCE_RE.match(lines[idx]) and not _md_table_start(lines, idx):
@@ -1161,14 +1197,17 @@ def find_table_names(lines: Sequence[str], lex: Lexicon, domain: str) -> Dict[in
             if not cells:
                 break
             hits = []
+            unrecognized = False
             person_action = any(i < len(cells) and _PERSON_ACTION_RE.match(cells[i][1]) for i in discipline_cols)
             for col in columns:
                 if col >= len(cells):
                     continue
                 start, value = cells[col]
-                hits.extend(_table_cell_names(value, start, labels[col], score, lex, person_action))
-            if hits:
-                found[idx] = TableNameRow(labels, hits)
+                items, unknown = _table_cell_names(value, start, labels[col], score, lex, person_action)
+                hits.extend(items)
+                unrecognized |= unknown
+            if hits or unrecognized:
+                found[idx] = TableNameRow(labels, hits, unrecognized)
             idx += 1
     return found
 
@@ -1230,16 +1269,30 @@ class NameTable:
         """把文字里所有已登记的姓名换成占位符，长名优先、单遍替换（占位符不会被再次匹配）。
         之后再处理并列尾巴：“〔姓名N〕、姓氏开头的 2～3 字”后面紧跟“、等 两人 三人 同志 分别 标点”，而后项没登记过的，
         把后项也登记并遮蔽（宁可多遮：摘录、context 里切到并列后项时，不让后项原名露出来）。"""
-        if not s:
-            return s
-        if self._order:
-            if self._pattern is None:
-                names = sorted(self._order, key=lambda n: (-len(n), self._order[n]))
-                self._pattern = re.compile("|".join(re.escape(n) for n in names))
-            s = self._pattern.sub(lambda m: f"〔姓名{self._order[m.group(0)]}〕", s)
-            if "〔姓名" in s and "、" in s:
-                s = self._mask_tails(s)
+        s = self._mask_registered(s)
+        if self._order and "〔姓名" in s and "、" in s:
+            s = self._mask_tails(s)
         return s
+
+    def _mask_registered(self, text: str) -> str:
+        if not self._order or not text:
+            return text
+        if self._pattern is None:
+            names = sorted(self._order, key=len, reverse=True)
+            self._pattern = re.compile("|".join(re.escape(name) for name in names))
+        return self._pattern.sub(lambda m: f"〔姓名{self._order[m[0]]}〕", text)
+
+    def mask_output(self, value: Any) -> Any:
+        """用最终登记表遮蔽报告。摘录或文件名可能刚刚登记了此前未知的并列后项。"""
+        if not self._order:
+            return value
+        if isinstance(value, str):
+            return self._mask_registered(value)
+        if isinstance(value, dict):
+            return {key: self.mask_output(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self.mask_output(item) for item in value]
+        return value
 
     def _mask_tails(self, s: str) -> str:
         try:

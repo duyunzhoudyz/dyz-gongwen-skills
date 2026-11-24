@@ -100,7 +100,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Tuple
 
-VERSION = "1.3.1"
+VERSION = "1.3.2"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "hospital_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -581,7 +581,8 @@ def _is_satisfied(rule: Rule, kit: SharedKit, text: str, start: int = 0, end: Op
 def check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = None,
                 external: bool = False, ruleset: Optional[RuleSet] = None) -> List[Dict[str, Any]]:
     """对正文逐行检查，返回 issue 列表（按行号排序）。"""
-    return _check_lines(lines, doc_type, external, ruleset)[0]
+    issues, table = _check_lines(lines, doc_type, external, ruleset)
+    return table.mask_output(issues)
 
 
 def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = None,
@@ -595,11 +596,14 @@ def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = Non
 
     # 第一遍：识别全文姓名（含因豁免不报的），按首次出现顺序编号。代称（张某）不进表，低于 5 分的不进表
     # 姓名表覆盖全部隐私（姓名类）规则，不分文书类型（与国企一致）：不适用于当前文书类型的规则识别出的姓名也要遮蔽，是否报出仍按类型
+    issues: List[Dict[str, Any]] = []
     detections: List[Tuple[int, int, int, Rule, Any]] = []
     for order, rule in enumerate(ruleset.rules):
         if rule.id == "HOS-031":
             for idx, row in kit.names.find_table_names(texts, kit.lexicon, "hospital").items():
                 detections.extend((idx, hit.start, order, rule, hit) for hit in row.hits)
+                if row.unrecognized and rule.applies(doc_type):
+                    issues.append(_issue(rule, "P1", lines[idx][0], "", message=kit.names.TABLE_UNKNOWN_HINT))
         if not rule.anchors:
             continue
         for idx, (_number, text) in enumerate(lines):
@@ -612,7 +616,6 @@ def _check_lines(lines: Sequence[Tuple[int, str]], doc_type: Optional[str] = Non
             table.add(hit.name)
     masker = _Masker(table)
 
-    issues: List[Dict[str, Any]] = []
     inv = ruleset.inversion
     inv_active = inv is not None and (not inv.types or doc_type in inv.types)
     decl = kit.clause.Declaration(texts, dict(inv.cfg, rule_id=inv.rule_id)) if inv_active and inv is not None else None
@@ -756,7 +759,7 @@ def build_result(file_name: str, lines: Sequence[Tuple[int, str]], doc_type: Opt
         "待补": sum(len(TODO_MARK_RE.findall(text)) for _n, text in lines),
         "待核实": sum(len(VERIFY_MARK_RE.findall(text)) for _n, text in lines),
     }
-    return {
+    return table.mask_output({
         "file": file_name,
         "doc_type": doc_type or "未指定",
         "external": bool(external or doc_type == EXTERNAL_TYPE),
@@ -765,7 +768,7 @@ def build_result(file_name: str, lines: Sequence[Tuple[int, str]], doc_type: Opt
         "issues": issues,
         "notes": notes,
         "engine_version": VERSION,
-    }
+    })
 
 
 # ---------------------------------------------------------------------------

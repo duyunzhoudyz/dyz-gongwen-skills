@@ -22,6 +22,8 @@ import shutil
 import sys
 import tempfile
 import unittest
+
+from tests.names.masking import check_masked_outputs
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
@@ -453,14 +455,22 @@ class ExampleDRegressionTest(EngineCase):
 class MarkdownNameTableTest(EngineCase):
     def test_parent_document_reports_table_privacy(self) -> None:
         path = self.write("王秀英回访单.md", "| 学生姓名 | 病史 |\n| --- | --- |\n| 王秀英 | 哮喘 |\n")
-        code, output, err = self.run_main("parents", str(path), "--json", "--strict")
-        self.assertEqual(code, 1, err)
-        report = json.loads(output)
+        def run():
+            code, output, err = self.run_main("parents", str(path), "--json", "--strict")
+            self.assertEqual(code, 1, err)
+            text_code, screen, text_err = self.run_main("parents", str(path), "--strict")
+            self.assertEqual(text_code, 1, text_err)
+            return json.loads(output), screen
+
+        report, _ = check_masked_outputs(k12_check.shared_names()[0], run)
         rows = [(i["id"], i["level"], i["excerpt"]) for i in report["issues"]]
         self.assertEqual(rows, [("K12-G04", "P0", "〔姓名1〕")])
         self.assertEqual(report["file"], "〔姓名1〕回访单.md")
 
     def run_table(self, name, body):
+        return check_masked_outputs(k12_check.shared_names()[0], lambda: self._run_table(name, body))
+
+    def _run_table(self, name, body):
         path = self.tmp / name
         path.write_text(body, encoding="utf-8")
         code, out, err = self.run_main("general", str(path), "--json")

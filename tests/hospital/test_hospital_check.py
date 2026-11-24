@@ -12,6 +12,8 @@ import shutil
 import sys
 import tempfile
 import unittest
+
+from tests.names.masking import check_masked_outputs
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
@@ -1449,6 +1451,9 @@ class RepairRoundTest(HospitalCheckBase):
 
 class MarkdownNameTableTest(HospitalCheckBase):
     def run_table(self, name, body):
+        return check_masked_outputs(hc.shared_kit().names, lambda: self._run_table(name, body))
+
+    def _run_table(self, name, body):
         path = self.tmp / name
         path.write_text(body, encoding="utf-8")
         code, out, err = self.run_main(str(path), "--json")

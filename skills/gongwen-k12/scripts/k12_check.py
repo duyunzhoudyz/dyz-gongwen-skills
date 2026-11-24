@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.1"
+VERSION = "1.2.2"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -1365,7 +1365,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
         names = _g04_analyze(line)[1]
         row = table_rows.get(index - 1)
         if row:
-            issues.append(_table_name_issue(row, table, index, names, gw.SCORE_HIGH))
+            issues.extend(_table_name_issues(row, table, index, names, gw))
         else:
             for _, name in names:
                 table.add(name)
@@ -1410,13 +1410,13 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
-    return {
+    return table.mask_output({
         "mode": "parents",
         "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
         "summary": summarize(issues, "\n".join(lines)),
         "issues": [i.to_dict() for i in issues],
-    }
+    })
 
 
 G04_RULE = (
@@ -1573,14 +1573,22 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
     return best[2], mask_digits((line[c["start"]:c["end"]] + tail).strip())
 
 
-def _table_name_issue(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], high_score: int) -> Issue:
+def _table_name_issues(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], gw: Any) -> List[Issue]:
     rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
     positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits]
     names = dict.fromkeys(name for _, name in sorted(positions))
-    level = "P0" if row.hits[0].score >= high_score else "P1"
-    excerpt = "、".join(table.placeholder(name) for name in names)
-    return Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
-                 suggestion=suggest, basis=basis, line=line, excerpt=excerpt)
+    for name in names:
+        table.add(name)
+    issues = []
+    if row.hits:
+        level = "P0" if row.hits[0].score >= gw.SCORE_HIGH else "P1"
+        excerpt = "、".join(table.placeholder(name) for name in names)
+        issues.append(Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
+                            suggestion=suggest, basis=basis, line=line, excerpt=excerpt))
+    if row.unrecognized:
+        issues.append(Issue(id=rid, level="P1", category=category, message=gw.TABLE_UNKNOWN_HINT,
+                            suggestion=suggest, basis=basis, line=line, excerpt=""))
+    return issues
 
 
 def check_general(path: Path, stage: str = "义务教育") -> dict:
@@ -1608,11 +1616,12 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                 row = table_rows.get(index - 1)
                 picked = _g04_pick(line, cands, level)
                 if row:
-                    issue = _table_name_issue(row, table, index, names, gw.SCORE_HIGH)
-                    if picked is not None and LEVELS.index(picked[0]) < LEVELS.index(issue.level):
-                        issue.level = picked[0]
-                    issues.append(issue)
-                    continue
+                    table_issues = _table_name_issues(row, table, index, names, gw)
+                    if row.hits and picked is not None and LEVELS.index(picked[0]) < LEVELS.index(table_issues[0].level):
+                        table_issues[0].level = picked[0]
+                    issues.extend(table_issues)
+                    if row.hits:
+                        continue
                 for _, name in names:
                     table.add(name)
                 if picked is not None and (rid, index) not in seen:
@@ -1635,13 +1644,13 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
     for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
         it.excerpt = mask_names(table, it.excerpt)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
-    return {
+    return table.mask_output({
         "mode": "general",
         "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
         "summary": summarize(issues, "\n".join(lines)),
         "issues": [i.to_dict() for i in issues],
-    }
+    })
 
 
 # ---------------------------------------------------------------------------
