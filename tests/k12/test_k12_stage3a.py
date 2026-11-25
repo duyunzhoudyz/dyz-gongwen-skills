@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from tests.k12.stage3a_checks import (
     PAIRS, RANK, RULES, assert_noise, assert_preserved, assert_probe_additions,
@@ -410,6 +411,7 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
     def setUpClass(cls):
         cls.fixture = json.loads((SAMPLES / "stage3a_adversarial.json").read_text(encoding="utf8"))
         cls.round2 = cls.fixture["review_round_2"]
+        cls.round3 = cls.fixture["review_round_3"]
 
     def assert_preserved_with_witness(self, path, stage, base):
         evidence = None
@@ -424,6 +426,14 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                 witness = baseline_exemption_witness(evidence, rule, line)
                 self.assertIsNotNone(witness, (entry, stage, rule, level, line, evidence.graph.text))
         return after
+
+    def assert_external_preserved(self, path, stage, before):
+        if path.suffix.lower() == ".docx":
+            try:
+                import docx
+            except ImportError:
+                self.skipTest("python-docx 未安装")
+        self.assert_preserved_with_witness(path, stage, before)
 
     def test_baseline_preservation_across_regression_and_documents(self):
         extra = {(id_, stage, entry): report for id_, stage, entry, report in self.round2["unlabelled_baseline"]}
@@ -455,7 +465,59 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
         for record in self.round2["external"]:
             for stage, before in record["base"].items():
                 with self.subTest(file=record["file"], stage=stage):
-                    self.assert_preserved_with_witness(REPO_ROOT / record["file"], stage, before)
+                    self.assert_external_preserved(REPO_ROOT / record["file"], stage, before)
+
+    def test_round3_without_docx(self):
+        self.assertGreaterEqual(len(set(self.round3["word_skip"])), 10)
+        with patch.dict("sys.modules", {"docx": None}):
+            for name in self.round3["word_skip"]:
+                with self.subTest(file=name):
+                    with self.assertRaisesRegex(unittest.SkipTest, "python-docx 未安装"):
+                        self.assert_external_preserved(Path(name), "义务教育", {})
+
+    def test_round3_text(self):
+        for kind in ("punishment", "benefit", "question", "past", "current", "quote", "source", "unit"):
+            self.assertGreaterEqual(sum(case["id"].startswith(f"{kind}-") for case in self.round3["variants"]), 10)
+        pairs = {"fee": ("JZ-006", "K12-G05"), "tutor": ("JZ-008", "K12-G09"), "rank": ("JZ-003", "K12-G01")}
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "review.txt"
+            for case in (*self.round3["text"], *self.round3["variants"]):
+                path.write_text(case["text"], encoding="utf8")
+                if case["id"].startswith(("question-", "past-", "current-", "quote-", "source-")):
+                    with self.subTest(id=case["id"], check="分句准入"):
+                        evidence = clause_evidence(path)
+                        graph, module = evidence.graph, evidence.module
+                        if case["id"].startswith(("quote-", "source-")):
+                            candidates = [a for a in graph.actions if graph.clauses[a.clause].parent is not None]
+                            expected = case["id"].startswith("source-")
+                            actual = [module.weak_ranking_context(graph, a) for a in candidates]
+                        else:
+                            candidates = [a for a in graph.actions if a.negation]
+                            expected = case["id"].startswith("current-")
+                            actual = [module.directly_denied(graph, a) for a in candidates]
+                        self.assertTrue(actual)
+                        self.assertEqual(set(actual), {expected})
+                for stage, before in case["base"].items():
+                    with self.subTest(id=case["id"], stage=stage):
+                        after = self.assert_preserved_with_witness(path, stage, before)
+                        for index, entry in enumerate(RULES):
+                            actual, old = hits(after[entry]), hits(before[entry])
+                            goal = case["goal"]
+                            if goal == "keep":
+                                assert_preserved(self, before[entry], after[entry], set())
+                            self.assertFalse(any(level == "P0" for _, level, _ in actual - old), (entry, actual - old))
+                            if not case["family"]:
+                                continue
+                            rule = pairs[case["family"]][index]
+                            levels = {level for rid, level, _ in actual if rid == rule}
+                            if goal in {"none", "exempt"}:
+                                self.assertEqual(levels, set(), (entry, rule, actual))
+                            elif goal in {"weak", "wide"}:
+                                self.assertEqual(levels, {"P1"}, (entry, rule, actual))
+                            elif goal == "hit":
+                                self.assertTrue(levels, (entry, rule, actual))
+                            elif goal == "no_new_p1":
+                                self.assertFalse(any(rid == rule and level == "P1" for rid, level, _ in actual - old))
 
     def test_review_and_variant_text(self):
         self.assertEqual(len(self.round2["text"]), 338)

@@ -271,6 +271,7 @@ _RECEIVER = re.compile(r"(?:家长群|班级群|班群|微信群|学生|家长|�
 _CENTRE = re.compile(r"的(?:全体)?(?:困难|贫困|留守|残疾)?(?:学生|新生|同学|家长|家庭|班级|人员)(?!名单|姓名|电话|微信|信息|成绩)")
 _COLLECTION = {"收取", "代收", "收缴", "收齐"}
 _FEE_RECIPIENT = re.compile(r"向(?P<target>[^，；。]{0,32}?(?:学生|新生|同学们?|家长|家庭))"
+                            r"(?:\s*(?:每[人生位月次年日周]|每学[期年]))?"
                             r"(?=\s*(?:收取|代收|收缴|收齐))")
 _REFUSAL = re.compile(r"(?:(?:尚)?未|没有|拒绝|拒不|不|拒)(?:统一|按期|按时)?(?:缴纳|交纳|上交|交齐|缴齐|缴费|缴|交费|交款|"
                       r"购买|订购|征订|订阅|办理保险|买|订|交(?=[^\s，。；]{1,16}(?:费|款)))")
@@ -278,13 +279,15 @@ _NON_COLLECTING = ("免收", "退费", "减免", "返还")
 _FEES = ("收取", "代收", "收缴", "缴纳", "交纳", "上交", "交齐", "缴齐", "购买", "订购", "征订", "订阅", "办理",
          "收费", "缴费", "交费", "付款", "缴", "买", "收", "订") + _NON_COLLECTING
 _COLLECTING_VERBS = _COLLECTION | {"缴纳", "交纳", "上交", "交齐", "缴齐", "收费", "缴费", "交费", "付款", "缴", "收"}
-_STUDENT_ACCESS = {"报名", "登记", "注册", "入校", "入班", "进入", "参加评优", "参加", "参与", "领取",
-                   "进教室", "离校", "入学登记", "选课", "领取课本"}
 _TEXTBOOK_CONSEQUENCES = ("发教材", "发放教材")
 _CONSEQUENCES = (*_TEXTBOOK_CONSEQUENCES, "发学习用品", "报名", "登记", "入校", "入班", "进入", "参加评优",
                  "参加", "参与", "领取", "进教室", "离校", "取消评先资格", "取消评优资格")
-_WIDE_CONSEQUENCES = {"注册", "入学登记", "安排座位", "发放课本", "发课本", "领取课本", "办理入学", "选课", "扣"}
-_RESTRICTION = re.compile(r"(?:不予|不得|不准|不能|不会|未|不)$")
+_PUNITIVE_CONSEQUENCES = {"扣", "扣发", "扣分", "取消资格", "取消评先资格", "取消评优资格",
+                          "歧视", "区别对待", "点名", "催缴", "公示名单"}
+_WIDE_CONSEQUENCES = ({"注册", "入学登记", "安排座位", "发放课本", "发课本", "领取课本", "办理入学", "选课"}
+                      | (_PUNITIVE_CONSEQUENCES - set(_CONSEQUENCES)))
+_RESTRICTION = re.compile(r"(?:不予|不得|不准|不许|不能|不会|未|不)$")
+_CONSEQUENCE_TOKENS = re.compile(r"不许|" + _TOKENS.pattern)
 _PAYMENT_DELIVERY = {"交给", "交到", "交至", "转给", "收齐", "汇给", "转入", "交"}
 _IDENTITY = ("属于", "系", "是", "认定为", "登记为", "确诊为", "患有", "享受助学金",
              "受处分", "被处分", "被记过", "受到处分")
@@ -492,7 +495,9 @@ _PROHIBITIVE_WRAPPER = re.compile(r"^(?:起草时)?不写|^(?:(?:义务教育|�
                                   r"(?:严禁|禁止|切勿|不得)(?:规定|把|将|作出|实施)")
 _SCORE_FRAGMENT = re.compile(r"[^，。；！？!?]{0,16}(?:平均分|均分|考了|总分)[^，。；！？!?\d]{0,4}\d")
 _LINKED_DENIAL = re.compile(r"^(?:(?:学校|本校|我校))?不向\S{1,18}(?:介绍|提供)")
-_RANK_WIDE_TIME = re.compile(r"明天|去年|前年|上一学年")
+_RANK_WIDE_TIME = re.compile(r"本学期|本学年|本月|本年度|今年|今后|今起|今日|今天|明天|明年|下学期|下学年|从今以后")
+_RANK_EXEMPT_TIMING = re.compile(r"(?:本|下|每)(?:(?:星期|周)[一二三四五六日天末]|周)(?:前|后|起|之前|之后)?")
+_RANK_REPORTED_TIME = re.compile(r"(?:" + _AGENT.pattern + r")?(?:去年|前年|上一学年)曾")
 _AUTONOMOUS_ENROLMENT = re.compile(
     r"(?:家长|监护人)自行(?:给孩子)?(?:报(?:名|读)?|选择|联系)(?:校外|周末|假期)\S+"
 )
@@ -1051,7 +1056,9 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
     index = start
     if linked:
         index = _LINK_TRANSITION.match(text, index, end).end()
-    scoped_negative = any(m[0] in _PROHIBITION + _NEGATIVE for m in _TOKENS.finditer(text, index, end))
+    tokens = _CONSEQUENCE_TOKENS if predicate in _CONSEQUENCES or predicate in _WIDE_CONSEQUENCES else _TOKENS
+    scoped_negative = any(m[0] in _PROHIBITION + _NEGATIVE or m[0] == "不许"
+                          for m in tokens.finditer(text, index, end))
     while index < end:
         if text[index].isspace():
             index += 1
@@ -1096,7 +1103,7 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
         elif marker:
             prefix.complete = False
             return prefix
-        elif match := _TOKENS.match(text, index, end):
+        elif match := tokens.match(text, index, end):
             word = match[0]
             if word in _NOT_NEGATION:
                 if not _NONNEG_PREFIX.fullmatch(word):
@@ -1984,7 +1991,8 @@ def _annotate(builder):
 
 def _rank_clause_question(clause):
     return (clause.separator in {"？", "?"}
-            or clause.separator in {"", "。", ".", "．"} and clause.text.endswith(tuple(_QUESTION_PARTICLES))
+            or clause.separator in {"", "。", ".", "．", "，", ",", "；", ";"}
+            and clause.text.endswith(tuple(_QUESTION_PARTICLES))
             or clause.text.startswith("是否") or _RANK_INQUIRY.search(clause.text) is not None)
 
 
@@ -1993,6 +2001,8 @@ def directly_denied(graph, action):
     clause = graph.clauses[action.clause]
     return (action.context in {Context.NEGATION, Context.QUESTION}
             and action.extent.start == clause.span.start and action.parent is None
+            and not action.retrospective
+            and (not action.timing or _RANK_EXEMPT_TIMING.fullmatch(action.timing) is not None)
             and local_direct_negation(graph, action))
 
 
@@ -2021,8 +2031,17 @@ def ranking_reversal(graph, action):
 def weak_ranking_context(graph, action):
     """后项须有明确的弱语境证据。全句问号只约束新增 P0。"""
     clause = graph.clauses[action.clause]
-    return (_rank_clause_question(clause) or action.retrospective
-            or action.context in {Context.QUOTE, Context.CONDITION})
+    if _rank_clause_question(clause) or action.retrospective or action.context == Context.CONDITION:
+        return True
+    if _RANK_REPORTED_TIME.match(_surface(clause), 0, action.span.start - clause.span.start):
+        return True
+    if action.context != Context.QUOTE:
+        return False
+    while clause.parent is not None:
+        clause = graph.clauses[clause.parent]
+        if _SOURCE.match(_surface(clause)):
+            return True
+    return clause.context == Context.QUOTE
 
 
 def ranking_target(graph, action):
@@ -2224,8 +2243,7 @@ def refusal_enforced(graph, clause, action):
     outer = _external_context(graph, clause)
     if outer in {Context.NEGATION, Context.GOVERNANCE, Context.REFUTATION} or _PROHIBITIVE_WRAPPER.match(clause.text):
         return False
-    if action.polarity == Polarity.NEGATIVE and _local_prohibition(graph, action) and (
-            action.school_agent or not action.agent and action.predicate not in _STUDENT_ACCESS):
+    if action.polarity == Polarity.NEGATIVE and action.predicate in _PUNITIVE_CONSEQUENCES:
         return False
     return bool(action.consequence and action.conditions and
                 action.binding not in {Binding.PROHIBITED, Binding.REJECTED, Binding.REFUTED, Binding.HISTORICAL})
