@@ -48,3 +48,8 @@
 {"id":"plan_b1_disapproval","text":"校务会驳回了以下提议：学校统一订购教辅资料。","stage":"义务教育","entry":"parents","rule":"JZ-006","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"按引导语及列表的范围绑定外层语境"}
 {"id":"plan_b1_bad_example","text":"以下为反面典型案例：全体学生必须购买校服。","stage":"义务教育","entry":"parents","rule":"JZ-006","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"按引导语及列表的范围绑定外层语境"}
 {"id":"plan_unknown_brother","text":"兄弟学校曾流传这样一种做法，全体学生必须购买校服，现已作为警示材料下发。","stage":"义务教育","entry":"parents","rule":"JZ-006","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"按引导语及列表的范围绑定外层语境"}
+{"id":"r1_b3_m2_g04_2","text":"王小明同学为留守儿童，每周义务辅导功课。","stage":"义务教育","entry":"general","rule":"K12-G04","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"该生施助而非本人留守；逗号使首版主动施助豁免边界未齐"}
+{"id":"r1_b3_m2_g04_2","text":"王小明同学为留守儿童，每周义务辅导功课。","stage":"高中","entry":"general","rule":"K12-G04","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"该生施助而非本人留守；逗号使首版主动施助豁免边界未齐"}
+{"id":"r1_b3_m2_g04_2","text":"王小明同学为留守儿童，每周义务辅导功课。","stage":"中职","entry":"general","rule":"K12-G04","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"该生施助而非本人留守；逗号使首版主动施助豁免边界未齐"}
+{"id":"archived_374","text":"没有[^，。；！？]{0,12}(?:考试)?排名","stage":"义务教育","entry":"parents","rule":"JZ-003","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"归档的检测正则片段没有公布排名的行为"}
+{"id":"R5_EDG_08","text":"学校统一订购练习册并非不可行。","stage":"义务教育","entry":"parents","rule":"JZ-006","line":1,"baseline_measured":"P0","disposition":"保留","basis":"§1 K1","reason":"并非不可行只说明可行性，未确认执行"}
