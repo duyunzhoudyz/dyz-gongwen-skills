@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.4"
+VERSION = "1.2.5"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -203,6 +203,7 @@ class Document:
     lines: List[str] = field(default_factory=list)          # 全部文本行（含 Markdown 表格行）
     tables: List[List[List[str]]] = field(default_factory=list)
     kind: str = "text"                                      # text / table / docx
+    table_after_paragraph: List[int] = field(default_factory=list)  # Word 表格前的正文段落数
 
 
 def load_document(path: Path) -> Document:
@@ -232,6 +233,12 @@ def load_document(path: Path) -> Document:
         except Exception as exc:  # 文件损坏或不是 docx
             raise InputError(f"无法读取 {path.name}：{exc}") from exc
         doc.lines = [p.text for p in d.paragraphs]
+        paragraphs = 0
+        for child in d.element.body.iterchildren():
+            if child.tag.endswith("}p"):
+                paragraphs += 1
+            elif child.tag.endswith("}tbl"):
+                doc.table_after_paragraph.append(paragraphs)
         for t in d.tables:
             rows = [[_cell(c.text) for c in r.cells] for r in t.rows]
             doc.tables.append([r for r in rows if any(r)])
@@ -297,12 +304,13 @@ def excerpt_of(text: str, start: int, end: int, radius: int = 10) -> str:
 
 ID_RE = re.compile(r"(?<![0-9A-Za-z])\d{17}[\dXx](?![0-9A-Za-z])")
 MOBILE_RE = re.compile(r"(?<![0-9])1[3-9]\d{9}(?![0-9])")
-STUDENT_NO_RE = re.compile(r"(学号|学籍号|考号|准考证号|学生卡号)\s*[：:为是]?\s*[A-Za-z0-9]{4,}")
+STUDENT_ID_HEADERS = ("学号", "学籍号", "考号", "准考证号", "学生卡号")
+STUDENT_NO_RE = re.compile(r"(学号|学籍号|考号|准考证号|学生卡号)\s*[：:为是]?\s*(?P<number>[A-Za-z0-9]{4,})")
 ADDRESS_RE = re.compile(r"(家庭住址|家庭地址|住址|居住地址)\s*[：:为是]?\s*[^，。；;,\s|]{2,}")
 SENSITIVE_HEADER_NAMES = ("学号", "学籍号", "身份证", "证件", "电话", "手机", "联系方式", "住址", "地址",
                           "家长姓名", "监护人", "父亲", "母亲")
 NAME_HEADER_NAMES = ("姓名", "学生姓名", "学生", "名字", "name", "Name")
-LABEL_HEADER_NAMES = ("编号", "代号", "代称", "学生", "姓名", "学生姓名", "序号", "座号", "学号")
+LABEL_HEADER_NAMES = ("编号", "代号", "代称", "学生", "姓名", "学生姓名", "序号", "座号", *STUDENT_ID_HEADERS)
 COMMENT_HEADER_NAMES = ("评语", "教师评语", "班主任评语", "寄语", "班主任寄语", "评价")
 
 FAMILY_RE = re.compile(r"单亲|离异|父母离婚|父母分居|留守|低保|贫困户|贫困家庭|建档立卡|困难家庭|家庭困难|家境贫寒|孤儿|事实无人抚养")
@@ -763,6 +771,42 @@ def summarize(issues: Sequence[Issue], marker_text: str) -> dict:
     return summary
 
 
+BASELINE_EXEMPTIONS = {
+    "JZ-003": "旧命中落在同分句直接否定的公布或排名动作内",
+    "K12-G01": "旧命中落在同分句直接否定的公布、张贴或排名动作内",
+    "JZ-008": "旧命中落在明确面向教师的受训动作内",
+    "K12-G04": "旧命中落在同一连续组织角色短语或本人确定主动施助的结构内",
+}
+
+
+def merge_rule_issues(baseline: Sequence[Issue], added: Sequence[Issue] = (),
+                      exemptions: Sequence[Issue] = ()) -> List[Issue]:
+    """合并同一入口的命中。豁免须点名已登记规则的一条原始命中。"""
+    if not added and not exemptions:
+        return list(baseline)
+
+    exempt = {id(item) for item in exemptions}
+    if exemptions:
+        eligible = {id(item) for item in baseline if item.id in BASELINE_EXEMPTIONS}
+        if not exempt <= eligible:
+            raise ValueError("基线豁免须指向已登记规则的一条原始命中")
+    baseline = [item for item in baseline if id(item) not in exempt]
+    levels = {}
+    for item in baseline:
+        key = (item.id, item.line)
+        rank = LEVELS.index(item.level)
+        levels[key] = min(rank, levels.get(key, rank))
+    upgrades = {}
+    for item in added:
+        key = (item.id, item.line)
+        rank = LEVELS.index(item.level)
+        if rank < levels.get(key, len(LEVELS)):
+            levels[key] = rank
+            upgrades[key] = item
+    # 已有同级命中优先，保留旧姓名分支同一行的不同历史告警。
+    return [item for item in baseline if (item.id, item.line) not in upgrades] + list(upgrades.values())
+
+
 # ---------------------------------------------------------------------------
 # comments：学生评语检查
 # ---------------------------------------------------------------------------
@@ -833,6 +877,78 @@ def normalize(text: str) -> str:
 def count_chars(text: str) -> int:
     """篇幅口径：含标点（与 Word 字数一致），不计空白和【待补】【待核实】标记。"""
     return len(re.sub(r"\s", "", MARKER_RE.sub("", text)))
+
+
+COMMENT_ID_HEADERS = (*STUDENT_ID_HEADERS, "身份证", "证件", "手机", "电话", "联系方式")
+COMMENT_TAGGED_ID_RE = re.compile(
+    r"(?:学号|学籍号|考号|准考证号|学生卡号|身份证号?|证件号|手机号?|电话号?)(?:码)?"
+    r"\s*(?:[：:]\s*|[为是]\s*)?(?P<number>[A-Za-z0-9]{4,})"
+)
+COMMENT_CELL_ID_RE = re.compile(r"[A-Za-z0-9]{4,}")
+COMMENT_RAW_LABEL_RE = re.compile(r"^\s*(?P<number>[A-Za-z0-9]{4,})\s*[：:]")
+COMMENT_MOBILE_RE = re.compile(r"(?<![0-9])1[3-9]\d[ -]?\d{4}[ -]?\d{4}(?![0-9])")
+COMMENT_LONG_ID_RE = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]*\d{6,}[A-Za-z0-9]*(?![A-Za-z0-9])")
+COMMENT_PLACEHOLDER_RE = re.compile(r"〔姓名\d+〕|【已(?:遮蔽|删除)】")
+COMMENT_TABLE_SEPARATOR_RE = re.compile(r"\|?\s*:?-{2,}:?(?:\s*\|\s*:?-{2,}:?)+\s*\|?")
+
+
+def _comment_tables(doc: Document) -> List[List[List[str]]]:
+    if doc.kind != "text":
+        return doc.tables
+    lines, _ = cut_at_boundary(doc.lines)
+    # 隐私扫描兼容省略行首竖线的 Markdown 表格，评语段落定位仍沿用原解析。
+    for index, line in enumerate(lines[:-1]):
+        if "|" not in line or not COMMENT_TABLE_SEPARATOR_RE.fullmatch(lines[index + 1].strip()):
+            continue
+        for row in range(index, len(lines)):
+            text = lines[row].strip()
+            if "|" not in text:
+                break
+            lines[row] = text if text.startswith("|") else "|" + text
+    return parse_md_tables(lines)
+
+
+def _comment_private_ids(docs: Sequence[Document], sources: Sequence[str]) -> set:
+    private_ids = {m["number"] for source in sources for m in COMMENT_TAGGED_ID_RE.finditer(source)}
+    for doc in docs:
+        for line in cut_at_boundary(doc.lines)[0]:
+            match = COMMENT_RAW_LABEL_RE.match(line)
+            if match and any(c.isdigit() for c in match["number"]) and not CODE_LIKE_RE.fullmatch(match["number"]):
+                private_ids.add(match["number"])
+        for table in _comment_tables(doc):
+            if not table:
+                continue
+            for col, header in enumerate(table[0]):
+                if find_column((header,), COMMENT_ID_HEADERS) is not None:
+                    for row in table[1:]:
+                        if col < len(row):
+                            private_ids.update(COMMENT_CELL_ID_RE.findall(row[col]))
+    return private_ids
+
+
+def _mask_comment_output(value: Any, pattern: re.Pattern) -> Any:
+    if isinstance(value, str):
+        return pattern.sub(lambda m: m[0] if COMMENT_PLACEHOLDER_RE.fullmatch(m[0]) else "【已遮蔽】", value)
+    if isinstance(value, dict):
+        return {key: _mask_comment_output(item, pattern) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_mask_comment_output(item, pattern) for item in value]
+    return value
+
+
+def _comment_table_names(doc: Document, gw: Any, lex: Any) -> list:
+    if doc.kind == "text":
+        return list(gw.find_table_names(cut_at_boundary(doc.lines)[0], lex, "k12").values())
+    return [row for cells in doc.tables
+            for row in gw.find_table_names(render_md_table(cells), lex, "k12").values()]
+
+
+def _load_comment_document(path: Path) -> Document:
+    try:
+        return load_document(path)
+    except (InputError, OSError, csv.Error) as exc:
+        # 读取失败时还没有可用于遮蔽的编号表，文件名和库报错可能包含输入。
+        raise InputError("无法读取评语或事实表，请核对文件路径、格式和编码") from exc
 
 
 def parse_comment_entries(doc: Document) -> List[Entry]:
@@ -940,8 +1056,7 @@ def fact_is_empty(text: str) -> bool:
     return len(rest) < 3
 
 
-def parse_facts(path: Path) -> Dict[str, str]:
-    doc = load_document(path)
+def parse_facts(doc: Document) -> Dict[str, str]:
     lines, _ = cut_at_boundary(doc.lines)
     tables = parse_md_tables(lines) if doc.kind == "text" else doc.tables
     for table in tables:
@@ -987,13 +1102,38 @@ def _window(text: str, start: int, end: int, before: int, after: int) -> str:
 def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "义务教育",
                    min_chars: int = 50, max_chars: int = 300, similarity: float = 0.6,
                    person: str = "second", shared_threshold: int = 3) -> dict:
-    """学生评语批量检查。Markdown 姓名列登记的实名在整个报告中遮蔽。其余评语保留教师本机定位标识；
-    只遮蔽 excerpt：label 里的姓名和评语正文里由敏感身份锚点识别出的姓名，在 excerpt 中换成〔姓名N〕。"""
+    """学生评语批量检查。表格姓名在整个报告中遮蔽，文本实名标签保留本机定位。"""
     gw, _lex = shared_names()
-    doc = load_document(path)
+    doc = _load_comment_document(path)
     entries = parse_comment_entries(doc)
     if not entries:
         raise InputError("没有识别到评语。请按“S01：评语”每行一名学生，或用带“评语”列的表格")
+    facts_doc = _load_comment_document(facts_path) if facts_path is not None else None
+    facts = parse_facts(facts_doc) if facts_doc is not None else {}
+    docs = [doc, facts_doc] if facts_doc is not None else [doc]
+    sources = [*(source.path.name for source in docs), *(e.label for e in entries), *(e.body for e in entries),
+               *facts, *facts.values()]
+    private_values = _comment_private_ids(docs, sources)
+    literals = "|".join(map(re.escape, sorted(private_values, key=lambda value: (-len(value), value))))
+    direct = f"{ID_RE.pattern}|{COMMENT_MOBILE_RE.pattern}"
+    # 对账只排除完整编号，报告还要遮住粘连在文件名或归一化摘录里的已知编号。
+    private_ids = re.compile(direct + (rf"|(?<![A-Za-z0-9])(?:{literals})(?![A-Za-z0-9])" if literals else ""))
+    output_checks = [COMMENT_PLACEHOLDER_RE.pattern, direct, COMMENT_LONG_ID_RE.pattern]
+    if literals:
+        output_checks.append(literals)
+    output_ids = re.compile("|".join(output_checks))
+
+    def excerpt(text: str, start: int, end: int, radius: int = 10) -> str:
+        left, right = max(0, start - radius), min(len(text), end + radius)
+        # 先保住完整编号边界，待共享姓名处理完成后再遮蔽整个编号。
+        for match in output_ids.finditer(text):
+            if match.start() >= right:
+                break
+            if match.end() > left:
+                left = min(left, match.start())
+                right = max(right, match.end())
+        return text[left:right].strip()
+
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
 
@@ -1013,19 +1153,19 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         if MARKER_RE.fullmatch(body.strip()) or (MARKER_RE.search(body) and len(normalize(body)) < 10):
             marker_only.add(e.label)
             add(e, "PY-013", "P2", "待补", "这条评语缺事实，待教师补充具体表现后再写",
-                "补充该生本学期两三件具体表现", B_GUARDRAIL_2, mask_digits(body[:30]))
+                "补充该生本学期两三件具体表现", B_GUARDRAIL_2, excerpt(body, 0, 30, 0))
             continue
         body = MARKER_RE.sub("", body)  # 【待补】【待核实】标记内的说明文字不参与下面的检查
         word_body = mask_ok_words(body)
         for m in INSULT_RE.finditer(word_body):
             add(e, "PY-001", "P0", "贬损用语", f"评语出现贬损性用语“{m.group(0)}”",
                 "删去，改写为具体行为和可操作的建议", B_MINOR + "（尊重未成年人人格尊严）；" + B_PROFILE_COMMENT,
-                excerpt_of(body, m.start(), m.end()))
+                excerpt(body, m.start(), m.end()))
             break
         for m in LABEL_RE.finditer(word_body):
             add(e, "PY-002", "P1", "标签化", f"评语给学生贴标签“{m.group(0)}”",
                 "改写为具体行为，如“这学期有三次值日没做完就先走了”", B_LABEL,
-                excerpt_of(body, m.start(), m.end()))
+                excerpt(body, m.start(), m.end()))
             break
         for m in RANK_RE.finditer(body):
             ctx = _window(body, m.start(), m.end(), 15, 8)
@@ -1035,34 +1175,34 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                 add(e, "PY-003", "P0" if compulsory else "P1", "考试排名",
                     "评语写了考试成绩排名" + ("；义务教育学校考试结果不排名、不公布" if compulsory else ""),
                     "删去排名，改写为学习习惯或进步的具体表现", B_EXAM if compulsory else B_LOCAL,
-                    excerpt_of(body, m.start(), m.end()))
+                    excerpt(body, m.start(), m.end()))
             else:
                 add(e, "PY-003", "P2", "疑似排名", "出现名次或排名表述，请确认不是考试排名",
                     "是比赛获奖的，写明比赛名称；是考试排名的，删去", B_EXAM,
-                    excerpt_of(body, m.start(), m.end()))
+                    excerpt(body, m.start(), m.end()))
             break
         m = SCORE_RE.search(body)
         if m:
             add(e, "PY-004", "P1" if compulsory else "P2", "考试分数",
                 "评语写了具体考试分数" + ("；义务教育学校考试实行等级评价" if compulsory else ""),
                 "改为等级或进步的具体表现，如“计算题的错误明显减少”", B_EXAM if compulsory else B_LOCAL,
-                excerpt_of(body, m.start(), m.end()))
+                excerpt(body, m.start(), m.end()))
         for regex, cat in ((ID_RE, "身份证号"), (MOBILE_RE, "手机号"), (STUDENT_NO_RE, "学号等编号")):
             m = regex.search(body)
             if m:
                 add(e, "PY-005", "P0", "个人信息", f"评语中出现{cat}", "删去", B_GUARDRAIL_1,
-                    excerpt_of(body, m.start(), m.end()))
+                    excerpt(body, m.start(), m.end()))
         for regex, cat in ((FAMILY_RE, "家庭情况"), (HEALTH_RE, "健康或特殊教育需求"), (DISCIPLINE_RE, "违纪处分")):
             m = regex.search(body)
             if m:
                 add(e, "PY-006", "P0", "敏感信息", f"评语写了{cat}（“{m.group(0)}”）",
                     "评语不写家庭经济、家庭结构、健康、处分等信息，删去或改为当面沟通",
                     B_MINOR + "（保护未成年人隐私权和个人信息）；" + B_PROFILE_PRIVACY,
-                    excerpt_of(body, m.start(), m.end()))
+                    excerpt(body, m.start(), m.end()))
         m = PROMISE_RE.search(body)
         if m:
             add(e, "PY-014", "P1", "承诺升学", "评语对升学结果作出承诺或预测",
-                "改为对学习方法和习惯的具体期望", B_PROMISE, excerpt_of(body, m.start(), m.end()))
+                "改为对学习方法和习惯的具体期望", B_PROMISE, excerpt(body, m.start(), m.end()))
         n_chars = count_chars(body)
         if (min_chars and n_chars < min_chars) or (max_chars and n_chars > max_chars):
             add(e, "PY-009", "P2", "篇幅", f"评语 {n_chars} 字（含标点），不在 {min_chars}～{max_chars} 字之间",
@@ -1077,7 +1217,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
             if m:
                 add(e, "PY-010", "P2", "人称", f"同一条评语中“你”和“{m.group(0)}”混用",
                     "统一为第二人称；“他”“她”指其他同学的，不必改", B_PROFILE,
-                    excerpt_of(body, m.start(), m.end()))
+                    excerpt(body, m.start(), m.end()))
         generic_len = sum(len(p) * body.count(p) for p in GENERIC_PHRASES)
         if n_chars >= 30 and generic_len / max(n_chars, 1) >= 0.35:
             add(e, "PY-011", "P2", "套话", "套话占比高，缺少只属于这名学生的具体表现",
@@ -1104,6 +1244,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                     label=entries[j].label, line=entries[j].line))
     # 共用套句
     sentence_owner: Dict[str, List[str]] = {}
+    sentence_excerpt: Dict[str, str] = {}
     for e in entries:
         seen = set()
         for sent in re.split(r"[。！？；!?;\n]", e.body):
@@ -1111,6 +1252,9 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
             if len(key) >= 8 and key not in seen:
                 seen.add(key)
                 sentence_owner.setdefault(key, []).append(e.label)
+                if key not in sentence_excerpt:
+                    # 归一化会去掉号码中的分隔符，保留原样供输出遮蔽。
+                    sentence_excerpt[key] = sent
     threshold = max(2, shared_threshold)
     for key, owners in sentence_owner.items():
         if len(owners) >= threshold:
@@ -1118,11 +1262,10 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                 id="PY-008", level="P2", category="共用套句",
                 message=f"同一句话出现在 {len(owners)} 条评语中：{'、'.join(owners[:8])}{'等' if len(owners) > 8 else ''}",
                 suggestion="最多保留两处，其余换成各自的具体期望", basis=B_PROFILE_COMMENT,
-                label=owners[0], excerpt=key[:30]))
+                label=owners[0], excerpt=excerpt(sentence_excerpt[key], 0, 30, 0)))
 
     # 与事实表对账
     if facts_path is not None:
-        facts = parse_facts(facts_path)
         labels = [re.sub(r"\s", "", e.label) for e in entries]
         for label in facts:
             if label not in labels:
@@ -1141,16 +1284,16 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
             if fact_is_empty(fact):
                 add(e, "PY-015", "P1", "对账", f"事实表中 {label} 没有具体表现，评语缺少依据",
                     "这条只写【待补：该生本学期两三件具体表现】，等教师补充事实后再写", B_GUARDRAIL_2,
-                    mask_digits(normalize(fact)[:20]))
+                    excerpt(fact, 0, 20, 0))
                 continue
             body = MARKER_RE.sub("", e.body)
-            known = fact_numbers(fact)
+            known = fact_numbers(private_ids.sub(" ", fact))
             missing_nums = set()
-            for num in numbers_in(body):
+            for num in numbers_in(private_ids.sub(" ", body)):
                 if num not in known:
                     missing_nums.add(num)
                     add(e, "PY-016", "P1", "对账", f"数字“{num}”在该生的事实表中找不到",
-                        "删去，或请教师补进事实表", B_GUARDRAIL_2, mask_digits(num))
+                        "删去，或请教师补进事实表", B_GUARDRAIL_2, num)
             fact_awards = award_tokens(fact)
             award_reported = False
             for key, raw in award_tokens(body).items():
@@ -1162,15 +1305,16 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
             m = AWARD_CLAIM_RE.search(body)
             if m and not award_reported and not re.search(r"奖|名|获|评|称号", fact):
                 add(e, "PY-017", "P1", "对账", "评语写了获奖或评选，该生的事实表中没有获奖记录",
-                    "删去，或请教师补进事实表", B_GUARDRAIL_2, excerpt_of(body, m.start(), m.end()))
+                    "删去，或请教师补进事实表", B_GUARDRAIL_2, excerpt(body, m.start(), m.end()))
             for q in re.findall(r"[《“]([^》”]{2,30})[》”]", body):
                 if q not in fact:
                     add(e, "PY-017", "P2", "对账", f"引号或书名号中的“{q}”在该生的事实表中找不到",
                         "核对作品、奖项、活动名称，事实表中没有的删去", B_GUARDRAIL_2, q)
 
     table = gw.NameTable()
-    table_rows = gw.find_table_names(cut_at_boundary(doc.lines)[0], _lex, "k12") if doc.kind == "text" else {}
-    for row in table_rows.values():
+    comment_rows = _comment_table_names(doc, gw, _lex)
+    table_rows = comment_rows + (_comment_table_names(facts_doc, gw, _lex) if facts_doc is not None else [])
+    for row in table_rows:
         table.add_hits(hit for hit in row.hits if not hit.table_only)
     for e in entries:
         label = re.sub(r"\s", "", e.label)
@@ -1178,7 +1322,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
             table.add(label)
         for _, name in _g04_analyze(e.body)[1]:
             table.add(name)
-    table.add_table_masks(table_rows.values())
+    table.add_table_masks(table_rows)
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
     marker_text = "\n".join(e.body for e in entries)
@@ -1193,7 +1337,18 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         "similar_pairs": pairs,
         "issues": [i.to_dict() for i in issues],
     }
-    return table.mask_output(result) if table_rows else result
+    if table_rows:
+        masked = table.mask_output(result)
+        if not comment_rows:
+            # 事实表姓名仍进入输出遮蔽，纯文本评语的本机定位标签保留。
+            labels = {e.label for e in entries}
+            for key in ("entries", "issues", "similar_pairs"):
+                for item, original in zip(masked[key], result[key]):
+                    for field in ("label", "a", "b"):
+                        if field in original and original[field] in labels:
+                            item[field] = original[field]
+        result = masked
+    return _mask_comment_output(result, output_ids)
 
 
 # ---------------------------------------------------------------------------
@@ -1412,6 +1567,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=rule.suggestion, basis=rule.basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+    issues = merge_rule_issues(issues)
     table.add_table_masks(table_rows.values())
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
@@ -1649,6 +1805,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                                     suggestion=sug, basis=basis, line=index,
                                     excerpt=excerpt_of(line, m.start(), m.end(), 12)))
                 break
+    issues = merge_rule_issues(issues)
     table.add_table_masks(table_rows.values())
     for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
         it.excerpt = mask_names(table, it.excerpt)
@@ -1665,6 +1822,78 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
 # ---------------------------------------------------------------------------
 # 输出
 # ---------------------------------------------------------------------------
+
+COMMENT_RULES = (
+    ("PY-001", ("P0",), "评语用语贬损学生"),
+    ("PY-002", ("P1",), "评语用标签代替对具体行为的描述"),
+    ("PY-003", ("P0", "P1", "P2"), "评语写出考试排名或疑似考试名次"),
+    ("PY-004", ("P1", "P2"), "评语写出考试分数"),
+    ("PY-005", ("P0",), "评语含身份证号、手机号或学号"),
+    ("PY-006", ("P0",), "评语提及家庭、健康或处分敏感信息"),
+    ("PY-007", ("P1",), "两条评语相似度达到指定阈值"),
+    ("PY-008", ("P2",), "同一句套话在多条评语中出现"),
+    ("PY-009", ("P2",), "评语篇幅超出指定字数范围"),
+    ("PY-010", ("P2",), "评语人称不合要求或混用人称"),
+    ("PY-011", ("P2",), "评语套话占比过高"),
+    ("PY-012", ("P1",), "只有标签，缺评语正文"),
+    ("PY-013", ("P2",), "评语只有或主要是待补、待核实占位"),
+    ("PY-014", ("P1",), "评语承诺或预测升学结果"),
+    ("PY-015", ("P1",), "对账时标签不对应，或事实表无具体表现"),
+    ("PY-016", ("P1",), "评语数字在事实表中找不到"),
+    ("PY-017", ("P1", "P2"), "评语奖项、名次或引号内名称在事实表中找不到"),
+)
+COMMENT_STAGE_LEVELS = {
+    "PY-003": (("P0", "P2"), ("P1", "P2"), ("P1", "P2")),
+    "PY-004": (("P1",), ("P2",), ("P2",)),
+}
+
+
+def rule_catalog() -> dict:
+    order = (*LEVELS, "skip")
+    rules: Dict[str, dict] = {}
+
+    def add(rid: str, command: str, stage_levels: Sequence[Sequence[str]], condition: str) -> None:
+        rule = rules.setdefault(rid, {"id": rid, "commands": [], "levels": set(), "stage_levels": {}, "condition": []})
+        if command not in rule["commands"]:
+            rule["commands"].append(command)
+        stages = rule["stage_levels"].setdefault(command, {})
+        for stage, levels in zip(STAGES, stage_levels):
+            stages.setdefault(stage, set()).update(levels)
+            rule["levels"].update(levels)
+        if condition not in rule["condition"]:
+            rule["condition"].append(condition)
+
+    for rid, levels, condition in COMMENT_RULES:
+        add(rid, "comments", COMMENT_STAGE_LEVELS.get(rid, (levels,) * len(STAGES)), condition)
+    for rule in PARENT_RULES:
+        add(rule.id, "parents", ((rule.level,), (rule.level_other,), (rule.level_other,)), rule.message)
+    for rid, lv_c, lv_o, _cat, pattern, message, _suggestion, _basis in GENERAL_RULES:
+        if pattern is None:  # G04 的低置信度候选和未识别表格值都可能给 P1
+            add(rid, "general", ((lv_c, "P1"), (lv_o, "P1"), (lv_o, "P1")), message)
+        else:
+            add(rid, "general", ((lv_c,), (lv_o,), (lv_o,)), message)
+    for command in ("parents", "general"):
+        add(G04_RULE[0], command, (("P0", "P1"),) * len(STAGES),
+            "表格姓名列含实名或需要人工核对的值")
+    for rule in rules.values():
+        rule["levels"] = sorted(rule["levels"], key=order.index)
+        rule["condition"] = "；".join(rule["condition"])
+        for stages in rule["stage_levels"].values():
+            for stage, levels in stages.items():
+                stages[stage] = sorted(levels, key=order.index)
+    return {"rules": [rules[rid] for rid in sorted(rules)]}
+
+
+def render_rule_catalog(catalog: dict) -> str:
+    lines = [f"中小学专检规则（{len(catalog['rules'])} 条，skip 表示该学段跳过）"]
+    for rule in catalog["rules"]:
+        stages = []
+        for command, levels in rule["stage_levels"].items():
+            stages.append(command + " " + " ".join(f"{stage}={'/'.join(levels[stage])}" for stage in STAGES))
+        lines.append(f"{rule['id']} | {', '.join(rule['commands'])} | {'/'.join(rule['levels'])} | "
+                     + "；".join(stages) + " | " + rule["condition"])
+    return "\n".join(lines)
+
 
 def render_check_text(report: dict) -> str:
     s = report["summary"]
@@ -1736,6 +1965,8 @@ def make_parser() -> argparse.ArgumentParser:
     parser._positionals.title = "参数"
     parser.add_argument("-h", "--help", action="help", help="显示本帮助信息并退出")
     parser.add_argument("--version", action="version", version=f"k12_check.py {VERSION}", help="显示版本号")
+    parser.add_argument("--list-rules", action="store_true", help="列出专检规则与学段级别")
+    parser.add_argument("--json", dest="list_json", action="store_true", help="配合 --list-rules 输出 JSON")
     sub = parser.add_subparsers(dest="command", title="子命令", metavar="子命令")
 
     p = _sub(sub, "mask", "学生名单或事实表本地脱敏：姓名换成 S01 等编号，另存脱敏稿和对照表")
@@ -1783,6 +2014,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         args = parser.parse_args(argv)
     except SystemExit as exc:
         return 0 if exc.code == 0 else 2
+    if args.list_rules and not args.command:
+        report = rule_catalog()
+        print(json.dumps(report, ensure_ascii=False, indent=2) if args.list_json else render_rule_catalog(report))
+        return 0
+    if args.list_rules or args.list_json:
+        print("错误：顶层 --list-rules [--json] 须单独运行", file=sys.stderr)
+        return 2
     if not args.command:
         parser.print_help()
         return 2
