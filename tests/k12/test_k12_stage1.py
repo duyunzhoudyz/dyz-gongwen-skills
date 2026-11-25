@@ -5,7 +5,7 @@ import json
 import unittest
 
 from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, REPO_ROOT, SAMPLES, k12_check
-from tests.k12.test_k12_comment_privacy import assert_hidden
+from tests.k12.test_k12_comment_privacy import assert_hidden, assert_prose_preserved, assert_py005, capture_prose
 
 
 REGRESSION = SAMPLES / "clause_regression"
@@ -46,6 +46,15 @@ def reference_documents():
 
 
 class K12Stage1Tests(K12TestCase):
+    def verify_number_privacy(self, args, originals, baseline=()):
+        with capture_prose() as bodies:
+            rc, rendered, err = self.run_main(*args)
+        self.assertEqual((rc, err), (0, ""))
+        report = self.run_json(*args)
+        assert_hidden(self, rendered, report, originals)
+        assert_py005(self, report, baseline)
+        assert_prose_preserved(self, bodies, originals)
+
     def test_all_probes_preserve_baseline_except_the_frozen_private_number_findings(self):
         runs = errors = 0
         deltas = read_jsonl(SAMPLES / "comment_privacy_baseline_deltas.jsonl")
@@ -98,6 +107,16 @@ class K12Stage1Tests(K12TestCase):
                                row["baseline_measured"], row["line"]), measured)
 
     def test_cli_output_probes_hide_private_values_and_keep_number_comparisons(self):
+        all_categories = ("身份证号", "手机号", "学号等编号")
+        baseline_lines = {
+            "R4-CLI_id18_mobile11_stu10": {line: all_categories for line in (2, 3, 4)},
+            # 原基线漏掉纯数字首标签行，已登记该行新增的 PY-005。
+            "R4-CLI_shared_sentence_and_missing_label": {line: all_categories for line in (1, 2, 3)},
+            "R4-CLI_short_stu5_and_alnum": {1: ("学号等编号",)},
+            "R5-CLI_R5_CMT_01_exact_header_short_alnum": {line: ("学号等编号",) for line in (2, 3, 4)},
+            "R5-CLI_R5_CMT_03_text_shared_py008_py016_py017": {line: ("学号等编号",) for line in (1, 2, 3)},
+            "R5-CLI_R5_CMT_06_code_s01_preserved_with_pii": {1: all_categories},
+        }
         for probe in read_jsonl(REGRESSION / "output_probes.jsonl"):
             if not probe.get("private"):
                 continue
@@ -117,6 +136,9 @@ class K12Stage1Tests(K12TestCase):
                     issues = [i for i in report["issues"] if i["id"] == "PY-016"]
                     self.assertEqual({i["line"] for i in issues}, set(expected["py016_allowed_quantity_lines"]))
                     self.assertTrue(all(i["excerpt"] not in expected["py016_forbidden_literals"] for i in issues))
+                    baseline = [[line, category] for line, categories in baseline_lines.get(probe["id"], {}).items()
+                                for category in categories]
+                    self.verify_number_privacy(args, expected["forbidden_literals"], baseline)
 
     def test_comments_join_table_name_masks_and_all_private_id_columns(self):
         for comment_format, facts_format in (("md", "csv"), ("csv", "md")):
@@ -151,6 +173,8 @@ class K12Stage1Tests(K12TestCase):
                 assert_hidden(self, self.run_main(*args)[1], report,
                               ("王小明", "李明", "赵小红", "Z98K76", "45123", "A55B01", "8324",
                                "B77C88", "45124", "A55B02", "8325", "XM405", "60789"))
+                self.verify_number_privacy(args, ("Z98K76", "45123", "A55B01", "8324", "B77C88",
+                                                  "45124", "A55B02", "8325", "XM405", "60789"))
 
     def test_same_label_cell_preserves_name_and_number_placeholders(self):
         path = self.write("王小明_Z98K76.md",
@@ -160,12 +184,14 @@ class K12Stage1Tests(K12TestCase):
         self.assertEqual(report["entries"][0]["label"], "〔姓名1〕 〔编号1〕")
         self.assertEqual(report["file"], "〔姓名1〕_〔编号1〕.md")
         self.assertIn("〔姓名1〕 〔编号1〕", self.run_main("comments", str(path))[1])
+        self.verify_number_privacy(("comments", str(path)), ("Z98K76",))
 
     def test_comments_keep_non_table_real_label_and_hide_file_error_details(self):
         path = self.write("notes.txt", "王小明：你很笨。")
         facts = self.write("facts.csv", "学生姓名,准考证号码,具体表现\n王小明,45123,参与劳动")
         report = self.run_json("comments", str(path), "--facts", str(facts))
         self.assertEqual(report["entries"][0]["label"], "王小明")
+        self.verify_number_privacy(("comments", str(path), "--facts", str(facts)), ("45123",))
         for args in (("comments", str(self.tmp / "45123_Z98K76.md")),
                      ("comments", str(path), "--facts", str(self.tmp / "45123_Z98K76.csv"))):
             rc, out, err = self.run_main(*args)
@@ -185,6 +211,9 @@ class K12Stage1Tests(K12TestCase):
         self.assertNotIn("PY-016", self.ids(report))
         assert_hidden(self, self.run_main("comments", str(path), "--facts", str(facts))[1], report,
                       ("Z98K76", "45123", "138-1234-5678", "8324"))
+        self.verify_number_privacy(("comments", str(path), "--facts", str(facts)),
+                                   ("Z98K76", "45123", "138-1234-5678", "8324"),
+                                   [[line, "学号等编号"] for line in (1, 2, 3)])
 
     def test_markdown_table_without_leading_pipe_still_registers_ids_for_privacy(self):
         path = self.write("课后记录_Z98K76.md",
@@ -193,6 +222,7 @@ class K12Stage1Tests(K12TestCase):
                           "Z98K76 | 45123 | 你很笨。")
         args = ("comments", str(path))
         assert_hidden(self, self.run_main(*args)[1], self.run_json(*args), ("Z98K76", "45123"))
+        self.verify_number_privacy(args, ("Z98K76", "45123"))
 
     def test_current_reference_documents_match_frozen_hits(self):
         data = read_jsonl(SAMPLES / "reference_baseline.jsonl")

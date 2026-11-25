@@ -1,8 +1,11 @@
-"""评语入口编号净化回归，包括两轮评审的复现输入。"""
+"""评语入口编号净化回归，包括三轮评审的复现输入。"""
 import csv
 import io
 import json
 import unittest
+from collections import Counter
+from contextlib import contextmanager
+from hashlib import sha256
 from unittest.mock import patch
 
 from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, REPO_ROOT, SAMPLES, k12_check
@@ -30,6 +33,8 @@ def assert_prose_preserved(test, bodies, originals, keep=()):
     test.assertTrue(bodies)
     for raw, clean, tokens in bodies:
         def restore(match):
+            if match[0] not in tokens:
+                return match[0]
             value = tokens[match[0]]
             test.assertIn(value, originals, f"正文被误替换：{raw!r}")
             return value
@@ -38,6 +43,21 @@ def assert_prose_preserved(test, bodies, originals, keep=()):
     cleaned = "\n".join(body for _, body, _ in bodies)
     for value in keep:
         test.assertIn(value, cleaned)
+
+
+@contextmanager
+def capture_prose():
+    bodies = []
+    clean = k12_check.CommentNumbers.clean_prose
+
+    def record(numbers, raw, *args):
+        safe = clean(numbers, raw, *args)
+        tokens = {token: value for value, token in numbers.forms.items() if token not in raw}
+        bodies.append((raw, safe, tokens))
+        return safe
+
+    with patch.object(k12_check.CommentNumbers, "clean_prose", record):
+        yield bodies
 
 
 TABLE_VARIANTS = (
@@ -90,6 +110,18 @@ INLINE_VARIANTS = (
 
 class CommentPrivacyTests(K12TestCase):
     def write_input(self, filename, source):
+        if filename.endswith(".xlsx"):
+            try:
+                import openpyxl
+            except ImportError:
+                self.skipTest("openpyxl unavailable")
+
+            path = self.tmp / filename
+            workbook = openpyxl.Workbook()
+            for row in source:
+                workbook.active.append(row)
+            workbook.save(path)
+            return path
         if filename.endswith(".docx"):
             import docx
 
@@ -110,28 +142,19 @@ class CommentPrivacyTests(K12TestCase):
                 source = buffer.getvalue()
         return self.write(filename, source)
 
-    def check_output(self, comments, facts, originals, *, static=(), baseline=(), keep_prose=()):
+    def check_output(self, comments, facts, originals, *, static=(), baseline=(), keep_prose=(), prose_ids=None):
         path = self.write_input(*comments) if isinstance(comments, (list, tuple)) else comments
         args = ("comments", str(path))
         if facts:
             fact_path = self.write_input(*facts) if isinstance(facts, (list, tuple)) else facts
             args += ("--facts", str(fact_path))
-        bodies = []
-        clean = k12_check.CommentNumbers.clean
-
-        def record(numbers, raw, **kwargs):
-            safe = clean(numbers, raw, **kwargs)
-            if kwargs.get("privacy_hits") is not None:
-                bodies.append((raw, safe, {token: value for value, token in numbers.forms.items()}))
-            return safe
-
-        with patch.object(k12_check.CommentNumbers, "clean", record):
+        with capture_prose() as bodies:
             rc, rendered, err = self.run_main(*args)
         self.assertEqual((rc, err), (0, ""))
         report = self.run_json(*args)
         assert_hidden(self, rendered, report, originals, static=static)
         assert_py005(self, report, baseline)
-        assert_prose_preserved(self, bodies, originals, keep_prose)
+        assert_prose_preserved(self, bodies, originals if prose_ids is None else prose_ids, keep_prose)
         return rendered, report
 
     def check_review_cases(self, *, word):
@@ -220,6 +243,55 @@ class CommentPrivacyTests(K12TestCase):
     @unittest.skipUnless(HAS_DOCX, "需要既有可选库 python-docx")
     def test_round2_review_word_cases(self):
         self.check_round2_cases(word=True)
+
+    def test_round3_review_and_ordinary_prose_against_baseline(self):
+        # 保存 cec4521 规则命中。普通输入同时冻结完整报告与文本，沿用第 2 轮
+        # 已验收的 PY-016 数量摘录格式（显示完整数字）。
+        path = SAMPLES / "comment_privacy_review_r3.jsonl"
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            case = json.loads(raw)
+            with self.subTest(case=case["id"]):
+                inputs = [case["comments"]] + ([case["facts"]] if case["facts"] else [])
+                if not HAS_DOCX and any(name.endswith(".docx") for name, _ in inputs):
+                    self.skipTest("python-docx unavailable")
+                rendered, report = self.check_output(
+                    case["comments"], case["facts"], case["hide"], static=case["static"],
+                    baseline=case["baseline_py005"], keep_prose=case["keep"],
+                    prose_ids=case["expected_prose_ids"],
+                )
+                previous = Counter(map(tuple, case["baseline_hits"]))
+                removed = Counter(map(tuple, case["remove"]))
+                added = Counter(map(tuple, case["add"]))
+                self.assertLessEqual(removed, previous)
+                current = Counter((i["id"], i["level"], i["line"], i["category"],
+                                   i["message"] if i["id"] in ("PY-005", "PY-016") else "")
+                                  for i in report["issues"])
+                self.assertEqual(current, previous - removed + added)
+                self.assertFalse(set(case.get("forbid_ids", ())) & set(self.ids(report)))
+                self.assertFalse(set(case.get("forbid_py016", ())) &
+                                 {i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"})
+                if case["id"].startswith("W10_"):
+                    self.assertEqual(report["file"], "w10.txt")
+                if case["id"].startswith("W31_"):
+                    self.assertEqual([e["label"] for e in report["entries"][:2]], ["S01", "S002"])
+                if case.get("ordinary_digest"):
+                    self.assertNotIn("〔编号", rendered)
+                    serialized = json.dumps([report, k12_check.render_check_text(report)], ensure_ascii=False,
+                                            sort_keys=True, separators=(",", ":"))
+                    self.assertEqual(sha256(serialized.encode("utf-8")).hexdigest(), case["ordinary_digest"])
+
+    def test_round3_independent_cell_members_and_explicit_number_list(self):
+        comments = ("notes.md", [
+            ["学生学号", "评语"],
+            ["主：45510 45512 / 备：XYA-561", "你很笨，记录45510、45512和XYA-561，读书7本。"],
+        ])
+        facts = ("facts.md", [
+            ["学生学号", "具体表现"],
+            ["主：45510 45512 / 备：XYA-561", "考号：2026-01、2026-02，读书3本。"],
+        ])
+        _, report = self.check_output(comments, facts, ("45510", "45512", "XYA-561", "2026-01", "2026-02"),
+                                      keep_prose=("读书7本", "读书3本"))
+        self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"7"})
 
     def test_round2_large_quantities_still_reconcile(self):
         for unit in ("字", "下", "步", "余元", "多本", "题", "道", "圈", "遍", "场", "天", "周", "万", "千", "位", "页",
