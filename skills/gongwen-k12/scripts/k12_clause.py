@@ -117,6 +117,7 @@ class Clause:
     tail: Tail | None = None
     malformed: bool = False
     unconsumed: Span | None = None
+    question: bool = False
 
 
 @dataclass
@@ -135,6 +136,7 @@ class Action:
     agent_inherited: bool = False
     object: str = ""
     object_span: Span | None = None
+    topic: str = ""
     recipient: str = ""
     recipient_span: Span | None = None
     project: int | None = None
@@ -202,9 +204,9 @@ _LIST = re.compile(r"(?P<indent>[ \t　]*)(?:(?P<major>[一二三四五六七八
                    r"(?P<bullet>[-+*][ \t]+|[•●▪·]))[ \t　]*")
 _LIST_LEVEL = {name: i for i, name in enumerate(("major", "chinese", "decimal", "right", "paired", "circled", "bullet"))}
 _HEADING = re.compile(r"\s*(?:#{1,6}\s|(?:第[一二三四五六七八九十\d]+[章节条])|【[^】]+】\s*$)")
-_JOIN = ("而是", "但是", "但", "另", "以及", "或者", "同时", "还", "并", "且", "和", "或", "、")
-_PARALLEL = {"并", "且", "及", "以及", "和", "、", "或", "或者"}
-_TURN = {"但", "但是", "另", "而是"}
+_JOIN = ("而是", "但是", "但", "而", "另", "以及", "或者", "同时", "还", "并", "且", "和", "或", "、", "/", "／")
+_PARALLEL = {"并", "且", "及", "以及", "和", "、", "或", "或者", "/", "／"}
+_TURN = {"但", "但是", "而", "另", "而是"}
 _ATOMIC_JOIN = ("并非", "并不", "并列", "同时期", "还款", "还原", "归还", "退款", "和谐",
                 "但凡", "另外", "另有", "另行", "另请", "另作", "另定", "另设", "另由")
 _ITEM_COLUMN = re.compile(r"(?:(?:收费|缴费|征订|购买|服务|费用)(?:的)?)?(?:项目|品名|名称|明细|科目)"
@@ -217,7 +219,7 @@ _SCHOOL = ("学校", "本校", "我校", "教师", "老师", "班主任", "副�
 _OTHER_AGENT = ("家长委员会", "家委会", "全体学生", "所有学生", "全体家长", "学生", "新生", "同学们", "同学", "家长",
                 "各班家长", "校外培训机构", "校外辅导机构", "财务会议", "教代会", "校务会",
                 "困难学生", "贫困学生", "留守学生", "残疾学生", "家庭", "财务室", "每生", "该生", "本人", "校方",
-                "教职工", "中小学校", "任何班级", "全班")
+                "教职工", "中小学校", "任何班级", "班级", "全班")
 _AGENT = re.compile(r"(?:本校|我校|任课|在职|各位|任何)?(?:" +
                     _alternatives(_SCHOOL + _OTHER_AGENT) + r")"
                     r"(?:(?:和|与)(?:任课|在职)?(?:班主任|老师|教师|年级组))?")
@@ -231,6 +233,7 @@ _PROHIBITION = ("严禁", "禁止", "不得", "不准", "切勿", "不可", "不
                 "坚决反对", "明确反对", "重申反对", "严厉杜绝", "反对", "杜绝", "绝不", "决不", "不同意",
                 "明确制止", "坚决制止", "劝阻")
 _NEGATIVE = ("不会", "不能", "未曾", "尚未", "不再", "没有", "不予", "拒绝", "拒不", "拒", "从未", "从不", "并不", "不", "未")
+_NOTICE_PROHIBITION = re.compile(r"(?:" + _AGENT.pattern + r")?(?:" + _alternatives(_PROHIBITION) + r")")
 _DOUBLE = ("绝非不", "并非不", "不得不", "不可能不", "不会不", "不能不", "无不", "没有不")
 _NOT_NEGATION = ("不断", "不同", "不理想", "不达标", "不少于", "不超过", "不低于", "不及", "不管", "不论",
                  "不便", "不足", "不仅", "不但", "不只", "不光", "不止", "不单", "不一", "不等", "不均", "不定期", "不定时")
@@ -253,7 +256,7 @@ _PREP = re.compile(
     r"(?P<value>" + _TIME
     + r"|(?:任何)?(?:校外|[\ufffc]+)?(?:培训机构|辅导机构|补习班)"
       r"|课后服务费收取(?:标准|流程|情况)"
-      r"|(?:任何)?(?:家长群|班群|班级群|微信群|群)(?:里|内|中)?"
+      r"|(?:年级微信群里|(?:任何)?(?:家长群|班群|班级群|微信群|群)(?:里|内|中)?)"
       r"|(?:本校|校内|校外|公告栏|宣传栏|课堂|学校|指定门店|教室(?:门口)?|家长会上|会议上|教代会上)"
       r"|(?:留守儿童|残疾学生|贫困学生|困难学生|单亲家庭|供电公司|每生)"
       r"|(?:已)?(?:交费|缴费|报名)的(?:家长|学生)"
@@ -265,14 +268,26 @@ _PREP = re.compile(
 _RECEIVER = re.compile(r"(?:家长群|班级群|班群|微信群|学生|家长|班主任|教师|老师|财务室|教务处|家委会|家长委员会|"
                        r"学校|本校|各班|供电公司|收费窗口|[^，。；、\s]{0,22}(?:培训机构|辅导机构|补习班|书店|机构|平台))")
 _CENTRE = re.compile(r"的(?:全体)?(?:困难|贫困|留守|残疾)?(?:学生|新生|同学|家长|家庭|班级|人员)(?!名单|姓名|电话|微信|信息|成绩)")
-_REFUSAL = re.compile(r"(?:(?:尚)?未|没有|拒不|不|拒)(?:统一|按期)?(?:缴纳|交纳|上交|交齐|缴齐|缴费|缴|交费|交款|"
-                      r"购买|订购|征订|订阅|办理保险|买|订)")
+_COLLECTION = {"收取", "代收", "收缴", "收齐"}
+_FEE_RECIPIENT = re.compile(r"向(?P<target>[^，；。]{0,32}?(?:学生|新生|同学们?|家长|家庭))"
+                            r"(?:\s*(?:每[人生位月次年日周]|每学[期年]))?"
+                            r"(?=\s*(?:收取|代收|收缴|收齐))")
+_REFUSAL = re.compile(r"(?:(?:尚)?未|没有|拒绝|拒不|不|拒)(?:统一|按期|按时)?(?:缴纳|交纳|上交|交齐|缴齐|缴费|缴|交费|交款|"
+                      r"购买|订购|征订|订阅|办理保险|买|订|交(?=[^\s，。；]{1,16}(?:费|款)))")
 _NON_COLLECTING = ("免收", "退费", "减免", "返还")
 _FEES = ("收取", "代收", "收缴", "缴纳", "交纳", "上交", "交齐", "缴齐", "购买", "订购", "征订", "订阅", "办理",
          "收费", "缴费", "交费", "付款", "缴", "买", "收", "订") + _NON_COLLECTING
+_COLLECTING_VERBS = _COLLECTION | {"缴纳", "交纳", "上交", "交齐", "缴齐", "收费", "缴费", "交费", "付款", "缴", "收"}
 _TEXTBOOK_CONSEQUENCES = ("发教材", "发放教材")
 _CONSEQUENCES = (*_TEXTBOOK_CONSEQUENCES, "发学习用品", "报名", "登记", "入校", "入班", "进入", "参加评优",
                  "参加", "参与", "领取", "进教室", "离校", "取消评先资格", "取消评优资格")
+_PUNITIVE_CONSEQUENCES = {"扣", "扣发", "扣分", "取消资格", "取消评先资格", "取消评优资格",
+                          "歧视", "区别对待", "点名", "催缴", "公示名单"}
+_WIDE_CONSEQUENCES = ({"注册", "入学登记", "安排座位", "发放课本", "发课本", "领取课本", "办理入学", "选课"}
+                      | (_PUNITIVE_CONSEQUENCES - set(_CONSEQUENCES)))
+_RESTRICTION = re.compile(r"(?:不予|不得|不准|不许|不能|不会|未|不)$")
+_CONSEQUENCE_TOKENS = re.compile(r"不许|" + _TOKENS.pattern)
+_PAYMENT_DELIVERY = {"交给", "交到", "交至", "转给", "收齐", "汇给", "转入", "交"}
 _IDENTITY = ("属于", "系", "是", "认定为", "登记为", "确诊为", "患有", "享受助学金",
              "受处分", "被处分", "被记过", "受到处分")
 _IDENTITY_OBJECT = re.compile(r"贫困|低保|资助|受助|留守|特困|单亲|残疾|残障|孤儿|患病|病|处分|家庭|随班就读")
@@ -283,24 +298,24 @@ _PREDICATES = re.compile(_alternatives(
      "泄露", "提供", "提供给", "发给", "发送", "发送给", "转交", "移交", "交给", "发到", "上传到", "上传",
      "到岗", "取消减免", "取消评优资格", "外出", "报送", "开展", "辅导", "培训", "培训学生", "咨询",
      "送去", "捐赠", "帮助", "讲解", "服务", "陪伴", "募集", "补习功课", "义务辅导", "执行", "支付",
-     "决定", "前往", "接收", "签收", "留存", "存档", "归档", "退还", "开具", "核算", "确认", "劝阻",
+     "决定", "前往", "接收", "签收", "留存", "存档", "归档", "退还", "开具", "核算", "确认", "劝阻", "进行",
      "提议", "否决", "采纳", "叫停", "查处", "整治", "制止", "追责", "处分", "立案查处", "调查", "缴款",
-     "摊派", "传到", "入学", "列为", "被警告处分")
+     "摊派", "传到", "入学", "列为", "被警告处分", *_WIDE_CONSEQUENCES, *_PAYMENT_DELIVERY)
 ))
 # 动词同形的名词复合词，见口径 §3。剔除词边界假命中。
 _NOUN_ENDINGS = {
-    "收": r"入|支|据|费|取|缴|款人|到", "缴": r"纳|费|齐", "收费": r"标准|依据|项目|方式|情况|行为|管理|通知|单位|窗口",
+    "收": r"入|支|据|费|取|缴|款人|到|件|文", "缴": r"纳|费|齐", "收费": r"标准|依据|项目|方式|情况|行为|管理|通知|单位|窗口",
     "代收": r"费(?:的|标准|流程|项目|$)", "收取": r"标准|流程|情况", "辅导": r"机构|班|中心|老师|教师|材料|资料|答疑",
     "服务": r"费|时间|项目|收费|工作|人员|中心|活动|情况|实行|自愿|[的：:]",
     "培训": r"机构|班|费|中心|学校|项目|活动|的", "排名": r"情况|名单|表|结果|数据",
     "参加": r"人数|人员|率", "报名": r"费|表|时间|流程|标准|条件|情况|人数",
     "购买": r"标准|方式|时间|的记录", "订": r"单|金|购|阅", "登记": r"栏|簿|表|类别|册", "处分": r"情况|决定",
     "决定": r"书|的", "公开": r"信息栏", "组织": r"机构|委员|者", "介绍": r"信", "发给": r"的",
-    "联系": r"方式|电话|人",
+    "联系": r"方式|电话|人", "交": r"接|流|易|通|付|由|涉|代|叉|换",
 }
 _NOUN_PREFIX = {"服务": ("课后", "志愿"), "培训": ("校外", "教育", "有偿", "免费", "教学", "师资", "能力", "集中"),
                 "排名": ("的", "考试", "学生", "班级", "成绩"),
-                "收费": ("校外", "非", "校内", "代"), "购买": ("的",)}
+                "收费": ("校外", "非", "校内", "代"), "购买": ("的",), "交费": ("提",), "缴": ("催",)}
 _NOUN_SUFFIX_RE = {verb: re.compile(pattern) for verb, pattern in _NOUN_ENDINGS.items()}
 _ACTION_CONTINUATION = re.compile(r"(?:的|者|之后|以后|后|随即|然后|再|便|则|由|交由|为|向|把|将|"
                                   r"学校|各班|班主任|不|未|没有|不得|不予|严禁|须|必须|一律|统一|已|过)")
@@ -308,13 +323,18 @@ _FIXED_PREFIX = re.compile(r"按自愿原则|以自愿原则|按期|完全自愿
                            r"(?:进行|搞)(?=成绩排名|排名)|上交前|每学期|每学月|每月|"
                            r"凡(?=未|已|自愿|组织|参加|购买)|可自行|可自由|可(?=自愿|购买|退出)|"
                            r"全体义务教育阶段(?=学生)")
-_TOPIC = re.compile(r"考试成绩(?:排名)?|期末考试|考试排名|成绩排名|成绩单|排名(?=不会不|不能不|不得不)|"
+_TUTOR_TOPIC = re.compile(r"校外(?:收费|有偿|付费)(?:补习|补课|辅导)活动(?=由)")
+_TOPIC = re.compile(_TUTOR_TOPIC.pattern + r"|考试成绩(?:排名)?|期末成绩|期末考试|考试排名|成绩排名|成绩单|排名(?=不会不|不能不|不得不)|"
                     r"课后服务(?:费)?|校服(?:费)?|教辅(?:资料)?|意外伤害保险(?:费)?|研学(?:费用|活动|费)?|"
                     r"报刊|本项目|本项|本次研学活动|资料费|班费|成绩|学生电话|学生名单|学生信息")
 _RANK_PREFIX = re.compile(r"(?:按(?:考试)?|(?:进行|搞|组织)(?:考试)?)成绩")
+_RANK_DENIAL_ADJUNCT = re.compile(r"始终|一直|坚持|历来|明确|严格|坚决|一贯|从来|确实|按照规定")
+_RANK_INQUIRY = re.compile(r"(?:询问|问)(?:是否|能否|可否|要不要|会不会)")
+_RANK_RHETORIC = re.compile(r"难道|岂能|岂可|怎么敢|怎么可能|哪里会|怎会|怎能|哪能|何尝")
 _JOIN_SIGNAL = re.compile(r"(?:现|须|应|必须|一律|统一|将|仍|已)")
 _EXIT = re.compile(r"不参加不收费|不参加不缴费|未报名不收费|不报名不收费|不购买不收费|"
                    r"可自行(?:购买|订购)|不作强制要求|不强制|可(?:自由)?退出|可自愿选择是否参加")
+_EXIT_WITHOUT_PAYMENT = re.compile(r"不参加不(?:收费|缴费)|(?:不|未)报名不收费|不购买不收费")
 _NON_COMPULSORY = re.compile(r"自愿|可以|可(?:自行|自由|购买|退出)")
 _PROJECT = re.compile(r"课后服务(?:费|收费)?|研学(?:活动|旅行|费|费用)?|意外伤害保险(?:费)?|"
                       r"校服(?:费)?|教辅(?:资料|材料|费)?|资料费|材料费|班费|活动费|报名费|"
@@ -323,17 +343,19 @@ _PROJECT_CELL = re.compile(r"(?:[^\d，；：|。]{1,18})(?:费|保险|手册|�
 _AMOUNT = re.compile(r"(?<!\d)\d+(?:,\d{3})*(?:\.\d+)?\s*元")
 _FREE = re.compile(r"免费|(?<![\d,，.．])[0０]+(?:[,，][0０]{3})*(?:[.．][0０]+)?\s*元")
 _POST_NEG = re.compile(r"(?:是)?(?:绝对)?(?:不可能|不行|根本不行|做不到)(?:的)?$|怎么行$")
-_PARTICLES = "吧啊呀吗呢"
+_QUESTION_PARTICLES = "吗么呢"
+_PARTICLES = "吧啊呀" + _QUESTION_PARTICLES
 _POST_FEASIBLE = re.compile(r"并非(?:不可行|不能|不可以|不可能)$|并不(?:可行|现实)$")
-_UNKNOWN_STANCE = re.compile(r"^(?:拟|拟议|提议|建议研究|考虑|有人建议|可能|疑似|据说|计划讨论|待定)")
+_UNKNOWN_STANCE = re.compile(r"^(?:拟|拟议|提议|建议研究|考虑|有人建议|可能|疑似|计划讨论|待定)")
 _STANCE_SUFFIX = re.compile(r"(?:只是|仅为|尚属)(?:提议|建议|设想|传闻)$|(?:尚待|有待)(?:讨论|研究|决定)$")
 _FRAME_SHAPE = re.compile(r"(?:须知|如下|下列|以下|这种做法|这种说法|一项提议|一项方案)$")
 _PRECONDITION = re.compile(r"^(?:如果|若(?:发现)?|如有|如发现|一旦|凡(?:发现|利用)|发现|假如)")
 _REFERRAL = re.compile(r"^(?:针对|对于|关于|就)(?=\S)")
-_SOURCE = re.compile(r"^(?:网传(?:谣言)?(?:称)?|传闻(?:称)?|据(?:反映|举报|传言)|匿名举报(?:称)?|"
-                     r"某外校曾发生|外校曾发生|他校曾发生|往年(?:曾)?|据报道|有人(?:称|说))")
+_SOURCE = re.compile(r"^(?:网传(?:谣言)?(?:称)?|传闻(?:称)?|据(?:反映|举报|传言|说|报道)|听说|匿名举报(?:称)?|"
+                     r"某外校曾发生|外校曾发生|他校曾发生|往年(?:曾)?|有人(?:称|说)|(?:某)?(?:文件|报道)(?:提到|称))")
 _GOVERNANCE = re.compile(r"(?:严肃查处|严查|专项(?:整治|督查|清查|治理|检查)|通报批评|展开排查|"
                          r"严肃追责|依法依规严肃追责|坚决制止|开展调查|予以处分|取消评优资格)")
+_CONDITIONAL_RESPONSE = re.compile(r"查实|查处|问责|追责|制止|举报|处分|通报批评|取消评优资格")
 _INTRO = (
     (Context.NEGATION, r"(?:(?:本校|我校|学校))?(?:严禁|禁止|不得)(?:(?:作出|实施|有|出现))?"
                        r"(?:以下|下列|如下|此类|下述)?(?:行为|情形|情况|规定|做法|事项|问题)?"),
@@ -345,7 +367,7 @@ _INTRO = (
 _INTRO_RE = tuple((context, re.compile(pattern)) for context, pattern in _INTRO)
 _BACKREF = re.compile(r"^(?:为其|对其|此|该|这|上述|这种做法|前述|传闻|谣言|说法|所述|全体学生一律执行)")
 _BACK_BIND = (
-    (Binding.REFUTED, r"(?:经(?:核实|核查|调查)(?:并)?不属实|查无实据)"),
+    (Binding.REFUTED, r"(?:经(?:核实|核查|调查)(?:并)?不属实|查无实据|(?:这是|纯属|实为)谣言)"),
     (Binding.PROHIBITED, r"(?:一律禁止|坚决反对|坚决零容忍|不允许|将制止)"),
     (Binding.ACCOUNTABILITY, r"(?:已(?:启动问责|遭处分|立案查处|被问责|被处分|开展调查|处分)|立案查处|查处了此事)"),
     (Binding.REJECTED, r"(?:已被否决|不予采纳|未予采纳|已否决|未获通过|未执行|不执行)"),
@@ -392,6 +414,7 @@ _FEE_OBJECT = re.compile(
 )
 _FEE_WITH_DETAIL = re.compile(r"(?P<object>" + _FEE_OBJECT.pattern + r")(?P<detail>" + _DETAIL.pattern + r")?")
 _RANK_OBJECT = re.compile(r"(?:(?:本班|全班|本次|学生|期末|考试|期末考试)?(?:考试成绩|成绩排名|成绩单|成绩|排名|名次|分数))")
+_WIDE_RANK_OBJECT = re.compile(r"[把将](?P<object>" + _RANK_OBJECT.pattern + r")$")
 _RANK_VERBS = {"排名", "分班", "排座", "公布", "张贴", "通报", "公示", "发布", "晒", "发成绩", "发到", "上传到", "上传"}
 _INFORMATION = re.compile(r"(?:学生和家长|学生|家长)(?:的)?(?:联系方式|电话(?:号码)?|微信号|学籍号|学号|名单|通讯录|信息)|生源")
 _INSTITUTION = re.compile(r"(?:校外|[“\"][^“”\"]+[”\"])?(?:培训机构|辅导机构|补习班)")
@@ -420,14 +443,67 @@ _RANK_VERBAL = re.compile(r"(?:按(?:考试)?|不(?:搞|进行|组织)(?:考试)
 _NONASSERTED_ADJUNCT = re.compile(
     r"以(?:家委会|班费|辅导答疑|调研)名义|以(?:辅导答疑|调研)为由|借研学名义|"
     r"以班主任身份|承诺|提醒|拍照|按学校规定|班会上|家长群|再|私自|"
-    r"按家委会群里的报价|向各户|另(?=由)"
+    r"按家委会群里的报价|向各户|另(?=由)|(?:义务教育|高中|中职)阶段|违规|面向家长"
+)
+_NEGATIVE_PREFIX_ADJUNCT = re.compile(r"(?:义务教育|高中|中职)阶段|家长群(?=[不未])|面向家长的材料|起草时|"
+                                      r"#{1,6}\s*(?:[一二三四五六七八九十]+、)?|[但而](?=仍?不)")
+_NEGATIVE_WRAPPER = re.compile(r"写(?:出|成)?|规定")
+_FREE_TAIL = re.compile(
+    r"(?:(?:每[人生]|费用|金额|收费(?:标准)?|价格)(?:为|是)?\s*)?"
+    r"(?:(?:全部|全程|完全|一律|均)?免费|[0０]+(?:[.．][0０]+)?\s*元)"
+    r"|(?:不|免)(?:向(?:全体|所有)?(?:学生|家长|监护人|家庭))?(?:收取|收|收费)(?:任何)?(?:费用|款项)?"
+    r"|(?:费用)?由(?:本校|我校|学校)(?:全额|全部)?承担"
+    r"|(?:费用)?由财政全额(?:拨款|负担|承担)"
+    r"|免费(?:发放|发给|提供给)(?:全体|所有)?(?:学生|同学|新生|家长)?"
+)
+_PROJECT_CHOICE = re.compile(r"(?:(?P<project>[^\s：:]{1,24}?)(?:实行|按)?)?自愿(?:参加|报名|选购|购买|订购)(?:原则)?")
+_VOLUNTARY_DETAIL = re.compile(r"(?:坚持|按|实行)自愿原则|完全自愿")
+_ENROLLED = re.compile(r"^(?:凡)?(?:已)?自愿(?:报名|参加)(?:的(?:学生|同学)|者)")
+_OPTIONAL_TOPIC = re.compile(r"(?P<project>[^\s：:]{1,24}?)由(?=(?:本校|我校|学校|学生|家长|监护人))")
+_TEACHERS = re.compile(r"(?:全体|各位|本校|在职|任课)?(?:教师|老师|教职工|班主任)")
+_TRAINING = r"(?:校外)?(?:免费|有偿|收费|付费)?(?:师德|教研|业务|继续教育|班主任工作|教学技能|急救)?(?:培训(?:班)?|研修(?:班)?|进修)"
+_TEACHER_TRAINING = re.compile(
+    rf"(?:{_AGENT.pattern})?(?P<head>组织|安排|动员)(?:{_TEACHERS.pattern})(?:参加|报名)(?:{_TRAINING})"
+    rf"|(?:{_AGENT.pattern})?(?:组织{_INSTITUTION.pattern})?为(?:{_TEACHERS.pattern})"
+    rf"(?P<delivery>组织|开展|举办|安排)(?:{_TRAINING})"
+    rf"|(?:{_AGENT.pattern})?(?P<direct>培训)(?:{_TEACHERS.pattern})"
+)
+_MONEY = re.compile(r"[^\W\d免退收缴交付浪公经消]费|费用|款(?:项|额)|(?:校服|教辅|教材|资料)款(?!式)|" + _AMOUNT.pattern)
+_PAYMENT_DISPOSAL = re.compile(r"[把将](?P<object>[^\s把将；，。]{1,32})$")
+_SCORE_PENALTY = re.compile(r"(?:除|减)?(?:[\d一二三四五六七八九十]+)?(?:操行|德育|考核|评比|综合)?分")
+_PAID_TUTORING_ACTIVITY = r"(?:校外)?(?:有偿|收费|付费)(?:补课|补习|辅导|培训)(?:班|活动|行为)?"
+_PAID_TUTORING = re.compile(_PAID_TUTORING_ACTIVITY)
+_UNDERTAKING = re.compile(r"(?:本校|我校|学校|教师|老师|班主任)?(?:坚决)?"
+                          r"(?:(?:自觉抵制|决定查处)|劝阻(?:教师|老师|班主任)(?:宣传|推介))" + _PAID_TUTORING_ACTIVITY +
+                          r"|(?:本校|我校|学校|教师|老师|班主任)?(?:可以|应|须)举报(?:上述行为|该行为)?"
+                          r"|(?:本校|我校|学校|教育局)对\S+(?:行为)?实行零容忍")
+_REPORT_CONTACT = re.compile(r"举报(?:电话|邮箱)(?:为|是)?\s*(?:\d[\d-]*|[^\s@]+@[^\s@]+)")
+_PUBLISH_CONTACT = re.compile(r"(?:本校|我校|学校|教师|班主任)(?:按(?:照)?(?:上级|有关)要求)?"
+                              r"(?:公布|公示|公开|提供)[^\s，；。！？]{0,28}举报(?:电话|邮箱)(?:为?[\d-]+)?")
+_COMMITTEES = {"家委会", "家长委员会"}
+_COMMITTEE_ROLE = re.compile(r"(?:以)?(?:家委会|家长委员会)(?:名义|决定|决议|通过|商议|收取|收缴|代收|筹集|核定|配合|登记)")
+_COMMITTEE_HANDOFF = re.compile(r"由(?:家委会|家长委员会)(?:负责)?(?:落实|办理|收取|筹集|代收)")
+_COMMITTEE_DELEGATE = re.compile(r"委托(?P<agent>家委会|家长委员会)(?:负责)?$")
+_COMMITTEE_HEARING = re.compile(r"(?:家委会|家长委员会)(?:就\S+)?听取\S+")
+_COMMITTEE_ACTOR = re.compile(r"(?:家委会|家长委员会)(?=先|随后|已|将|须)")
+_CHARGE_LABEL = re.compile(r"^(?:的|标准|流程|情况|依据|要求|统一管理|办法|费等|与|及)|使用情况|核算|归档|公示明细")
+_REVERSED_REFUSAL = re.compile(
+    r"的(?:都|均)?(?:是|为)(?P<condition>(?:" + _REFUSAL.pattern + r")[^的]+)的(?:学生|同学|新生|家长)$"
+)
+_PROHIBITIVE_WRAPPER = re.compile(r"^(?:起草时)?不写|^(?:(?:义务教育|高中|中职)阶段)?(?:学校|本校|我校)?"
+                                  r"(?:严禁|禁止|切勿|不得)(?:规定|把|将|作出|实施)")
+_SCORE_FRAGMENT = re.compile(r"[^，。；！？!?]{0,16}(?:平均分|均分|考了|总分)[^，。；！？!?\d]{0,4}\d")
+_LINKED_DENIAL = re.compile(r"^(?:(?:学校|本校|我校))?不向\S{1,18}(?:介绍|提供)")
+_RANK_WIDE_TIME = re.compile(r"本学期|本学年|本月|本年度|今年|今后|今起|今日|今天|明天|明年|下学期|下学年|从今以后")
+_AUTONOMOUS_ENROLMENT = re.compile(
+    r"(?:家长|监护人)自行(?:给孩子)?(?:报(?:名|读)?|选择|联系)(?:校外|周末|假期)\S+"
 )
 _NEUTRAL_ASIDE = re.compile(r"(?:以任何名义|按标准)(?:[，、]按标准)?")
 _LEXICAL_OBJECTS = (_FEE_OBJECT, _RANK_OBJECT, _TUTOR_OBJECT, _INFORMATION, _IDENTITY_SLOT, _INSTITUTION)
 _ASSISTANCE_OBJECT = re.compile(r"(?:课外)?(?:书籍|绘本|文具|作业|功课|雨具)")
 _FINANCE_OBJECT = re.compile(r"(?:电费(?:" + _AMOUNT.pattern + r")?|余额|(?:费用)?收支(?:情况)?)")
 # 口径 §3.2、§3.4。账务和帮扶动词留宽层证据。
-_WIDE_ONLY_ACTIONS = {"支付", "捐赠", "送去", "帮助", "陪伴"}
+_WIDE_ONLY_ACTIONS = {"支付", "捐赠", "送去", "帮助", "陪伴"} | _WIDE_CONSEQUENCES | _PAYMENT_DELIVERY
 _INSURANCE_TITLES = {"《意外伤害保险》", "“意外伤害保险”"}
 _RECORDED = re.compile(r"(?:已(?:经)?(?:统一|实际)?(?:实施|执行|组织|开展|购买|订购|收取|缴纳)|"
                        r"实施后|执行后|发生后|已实际)")
@@ -517,6 +593,8 @@ def _verb_matches(text):
             continue
         if verb in _IDENTITY and verb in {"系", "是", "属于"} and not _IDENTITY_OBJECT.search(text, match.end()):
             continue
+        if verb == "进行" and not _PAID_TUTORING.match(text, match.end()):
+            continue
         yield match
 
 
@@ -529,7 +607,9 @@ def _closed_left(text, start, end, verbs):
     verb = _PREDICATES.match(text, verbs[last], end)
     suffix = text[verb.end():end].strip()
     return any(pattern.fullmatch(suffix) for pattern in _LEXICAL_OBJECTS) or (
-        not suffix and (verb[0] in _IDENTITY_NO_OBJECT or _TOPIC.match(text, start, verb.start()) is not None)
+        not suffix and (verb[0] in _IDENTITY_NO_OBJECT or _TOPIC.match(text, start, verb.start()) is not None
+                        or verb[0] in {"排名", "分班", "排座"} and
+                        _RANK_VERBAL.search(text, start, verb.start()))
     )
 
 
@@ -551,6 +631,9 @@ def _connector(text, index, start, end, verbs, breaks, in_island, prior):
         left_verb = bisect_left(verbs, start)
         right_verb = bisect_left(verbs, right)
         next_break = breaks[bisect_left(breaks, right)]
+        if (join in {"且", "同时", "还", "并"} and left_verb < len(verbs) and verbs[left_verb] < index
+                and _SCORE_FRAGMENT.match(text, right, next_break)):
+            return join
         if (left_verb < len(verbs) and verbs[left_verb] < index
                 and right_verb < len(verbs) and verbs[right_verb] < next_break):
             if join == "、":
@@ -588,7 +671,7 @@ def _parts(text, start, end, pairs, escaped):
             yield start, index, char, previous
             prior = (start, index) if char not in _SENTENCE_END else None
             start, previous = index + 1, ""
-        elif char in "而但另以或同还并且和、":
+        elif char in "而但另以或同还并且和、/／":
             while active and index >= active[1]:
                 active = next(island, None)
             join = _connector(text, index, start, end, verbs, breaks, active and active[0] <= index, prior)
@@ -713,6 +796,8 @@ class _Builder:
                 clause = self.clause(left + offset, right + offset, separator, connector, frames=active,
                                      parent=parent, groups=groups,
                                      malformed=any(left <= index < right for index in bad), **position)
+                if separator in ("", "。", ".", "．", "？", "?") and clause.text.endswith(tuple(_QUESTION_PARTICLES)):
+                    self.questions.add(self.sentence)
                 saved = self.open_frame
                 containing_sentence = self.sentence
                 self.open_frame = None
@@ -968,7 +1053,9 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
     index = start
     if linked:
         index = _LINK_TRANSITION.match(text, index, end).end()
-    scoped_negative = any(m[0] in _PROHIBITION + _NEGATIVE for m in _TOKENS.finditer(text, index, end))
+    tokens = _CONSEQUENCE_TOKENS if predicate in _CONSEQUENCES or predicate in _WIDE_CONSEQUENCES else _TOKENS
+    scoped_negative = any(m[0] in _PROHIBITION + _NEGATIVE or m[0] == "不许"
+                          for m in tokens.finditer(text, index, end))
     while index < end:
         if text[index].isspace():
             index += 1
@@ -983,7 +1070,19 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
                 prefix.arguments[text[index]] = inherited.span()
                 index = inherited.end()
                 continue
-        if match:
+        if (predicate in _COLLECTION and (recipient := _FEE_RECIPIENT.match(text, index))
+                and (not match or match.end() != recipient.end())):
+            match = recipient
+            prefix.arguments["向"] = recipient.span("target")
+            prefix.wide_only = True
+        elif scoped_negative and (adjunct := _NEGATIVE_PREFIX_ADJUNCT.match(text, index, end)):
+            prefix.wide_only = True
+            match = adjunct
+        elif prefix.negation and prefix.negation[0] in _PROHIBITION + _NEGATIVE and (
+                wrapper := _NEGATIVE_WRAPPER.match(text, index, end)):
+            prefix.wide_only = True
+            match = wrapper
+        elif match:
             key = match["marker"]
             # “将”加已识别受事时是处置槽，孤立的“将”交给模态。
             if key in prefix.arguments:
@@ -1001,7 +1100,7 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
         elif marker:
             prefix.complete = False
             return prefix
-        elif match := _TOKENS.match(text, index, end):
+        elif match := tokens.match(text, index, end):
             word = match[0]
             if word in _NOT_NEGATION:
                 if not _NONNEG_PREFIX.fullmatch(word):
@@ -1020,6 +1119,10 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
             prefix.arguments.setdefault("topic", topic)
         elif match := _TIME_RE.match(text, index, end):
             prefix.timing = match[0]
+        elif predicate in _RANK_VERBS and (match := _RANK_WIDE_TIME.match(text, index, end)):
+            prefix.wide_only = True
+        elif scoped_negative and predicate in _RANK_VERBS and (match := _RANK_DENIAL_ADJUNCT.match(text, index, end)):
+            prefix.wide_only = True
         elif scoped_negative and (match := _NONASSERTED_ADJUNCT.match(text, index, end)):
             prefix.wide_only = True
         else:
@@ -1034,18 +1137,27 @@ def _consume_prefix(text, start, end, *, linked=False, predicate=""):
 def _events(surface):
     """同一分句可含控制链、条件与后果、或局部动作结束后的新谓词。"""
     events = []
+    recipient = _FEE_RECIPIENT.search(surface)
     for verb in _verb_matches(surface):
+        if recipient and recipient.start("target") <= verb.start() < recipient.end("target"):
+            continue
         if events:
             previous = events[-1]
             between = surface[previous.end():verb.start()].strip()
-            if previous[0] not in _BRIDGE | {"查处", "立案查处", "制止", "劝阻"} and not _EVENT_TRANSITION.search(between):
+            complement = (previous[0] in {"提议", "提出建议"} and verb[0] in _RANK_VERBS
+                          or previous[0] == "告知" and _NOTICE_PROHIBITION.fullmatch(between)
+                          or previous[0] == "决定" and verb[0] in _COLLECTION and
+                          _AGENT.match(surface) and _AGENT.match(surface)[0] in _COMMITTEES)
+            if not complement and previous[0] not in _BRIDGE | {"查处", "立案查处", "制止", "劝阻"} and not _EVENT_TRANSITION.search(between):
                 continue
         events.append(verb)
     return events
 
 
 def _leading_context(text):
-    if _PRECONDITION.match(text):
+    if _PROHIBITIVE_WRAPPER.match(text):
+        return Context.NEGATION
+    if _PRECONDITION.match(text) or re.match(r"^凡(?=组织|安排|推荐|提供|动员)", text):
         return Context.CONDITION
     if _SOURCE.match(text):
         return Context.QUOTE
@@ -1053,7 +1165,7 @@ def _leading_context(text):
         return Context.UNKNOWN
     if _GOVERNANCE.search(text):
         return Context.GOVERNANCE
-    if text.startswith(("是否", "难道")) or text.endswith("吗"):
+    if text.startswith(("是否", "难道")):
         return Context.QUESTION
     return None
 
@@ -1107,7 +1219,8 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
     local, reason = Polarity.UNKNOWN, ""
     negation = prefix.negation
     word = negation[0] if negation else ""
-    if (word == "不是不" or word == "没有不" and not text[:end].rstrip(_PARTICLES).endswith("的")
+    if (word == "不是不" and verb_text not in _PUNITIVE_CONSEQUENCES
+            or word == "没有不" and not text[:end].rstrip(_PARTICLES).endswith("的")
             or word in _DOUBLE and not text[verb.end():end].strip() and verb_text in {"是", "决定"}):
         reason = "反转后项待核"
     elif ambiguous:
@@ -1116,7 +1229,7 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
         reason = "未消费前置"
     elif forced_negative or verb_text == "免收":
         local = Polarity.NEGATIVE
-    elif post_reverse or word in _DOUBLE:
+    elif post_reverse or word in _DOUBLE or word == "不是不":
         local = Polarity.POSITIVE
     elif negation:
         local = Polarity.NEGATIVE
@@ -1153,14 +1266,21 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
                     context, polarity, local, extent=_position(builder, clause, (start, end)),
                     agent=agent, agent_span=agent_span, school_agent=_is_school(agent),
                     agent_inherited=agent_inherited, object=obj, object_span=object_span,
+                    topic=_argument(builder, clause, prefix.arguments.get("topic"))[0],
                     recipient=receiver, recipient_span=recipient_span, timing=prefix.timing,
                     mandatory=bool(prefix.signals & _MANDATORY) or verb_text in {"强迫", "强制"},
                     uniform="统一" in prefix.signals,
                     voluntary=verb_text == "允许" or any(_NON_COMPULSORY.search(signal) for signal in prefix.signals)
                     or bool(parent and parent.voluntary), exit=bool(_EXIT.search(text)),
-                    refusal=verb_text in _FEES and bool(_REFUSAL.match(text[negation[1]:] if negation else "")),
-                    consequence=verb_text in _CONSEQUENCES and
-                    (local == Polarity.NEGATIVE or verb_text.startswith("取消")),
+                    refusal=(verb_text in _FEES or verb_text == "交")
+                    and bool(_REFUSAL.match(text[negation[1]:] if negation else "")),
+                    consequence=bool((verb_text in _CONSEQUENCES or verb_text in _WIDE_CONSEQUENCES) and
+                    (local == Polarity.NEGATIVE or local == Polarity.UNKNOWN and negation
+                     and _RESTRICTION.fullmatch(word) and negation[2] == verb.start()
+                      or verb_text.startswith("取消")
+                      or verb_text in _PUNITIVE_CONSEQUENCES and verb_text != "扣"
+                      and (not negation or word in _DOUBLE or word == "不是不")
+                      or verb_text == "扣" and _SCORE_PENALTY.fullmatch(obj))),
                     parent=parent.id if parent else None, attributive=attributive,
                     fixed_notice=bool(_FIXED_NOTICE.match(text) and verb_text in _FEES),
                     negation=_position(builder, clause, negation[1:] if negation else None), reason=reason)
@@ -1178,6 +1298,9 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
 
 
 def _project_islands(builder, clause, visible):
+    if _REVERSED_REFUSAL.search(visible):
+        # “受限者都是未缴者”先保留两个关系槽，最后取反向条件。
+        return visible, [], {}, True
     projected = list(visible)
     antecedents = []
     island_arguments = {}
@@ -1225,11 +1348,12 @@ def _clause_actions(builder, clause, outer, question):
             clause.context = Context.CONDITION
         return [], None
     tail = raw.rstrip().rstrip(_PARTICLES)
-    post = bool(_POST_NEG.search(tail) and len(events) == 1)
+    post = bool(_POST_NEG.search(tail) and (len(events) == 1 or
+                len(events) == 2 and events[0][0] in _BRIDGE and events[1][0] == "参加"))
     feasible = bool(_POST_FEASIBLE.search(tail))
-    if (question or stance == Context.QUESTION) and not post and outer is None:
+    if (question or stance == Context.QUESTION) and outer is None:
         outer = Context.QUESTION
-    outer = outer if outer is not None else stance if not (post and stance == Context.QUESTION) else None
+    outer = outer if outer is not None else stance
 
     actions = []
     prefixes = []
@@ -1242,7 +1366,7 @@ def _clause_actions(builder, clause, outer, question):
         if not previous:
             prefix.arguments.update(island_arguments)
         word = prefix.negation[0] if prefix.negation else ""
-        if post and not (word and word in _NEGATIVE):
+        if i == 0 and post and not (word and word in _NEGATIVE):
             post = False
             if question and outer is None:
                 outer = Context.QUESTION
@@ -1276,7 +1400,17 @@ def _clause_actions(builder, clause, outer, question):
         start = verb.end() if bridge or verb[0] in _BRIDGE else end
     if actions and clause.context == Context.UNKNOWN:
         clause.context = outer if outer is not None else actions[0].context
-    return actions, _explain(builder, clause, actions, prefixes, post, unknown_island)
+    proof = _explain(builder, clause, actions, prefixes, post, unknown_island)
+    if len(actions) == 1 and actions[0].consequence and (relation := _REVERSED_REFUSAL.search(raw)):
+        left, right = relation.span("condition")
+        verb = next((m for m in _verb_matches(visible[:right]) if m.start() >= left), None)
+        if verb:
+            prefix = _consume_prefix(visible, left, verb.start())
+            condition = _record_action(builder, clause, verb, right, prefix, outer=Context.CONDITION,
+                                       attributive=True, forced_negative=True, start=left)
+            condition.refusal = True
+            actions[0].conditions = (condition.id,)
+    return actions, proof
 
 def _local_prohibition(graph, action):
     return action.negation and graph.text[action.negation.start:action.negation.end] in _PROHIBITION
@@ -1329,6 +1463,8 @@ def _terminal_slot(clause, action, prefix, post):
         pattern = _INFORMATION
     elif verb in _TUTOR_VERBS:
         pattern = _TUTOR_OBJECT
+    elif verb == "报名" and _TUTOR_TOPIC.match(text) and action.parent is not None and not tail:
+        return None, None, start
     elif verb in _IDENTITY:
         if verb in _IDENTITY_NO_OBJECT and not tail:
             return None, None, start
@@ -1388,8 +1524,10 @@ def _explain(builder, clause, actions, prefixes, post, unknown_island):
     parsed_controls = all(not action.object or _AGENT_TARGET.fullmatch(action.object) for action in actions[:-1])
     terminal = bool(obj or recipient or last.predicate in _IDENTITY_NO_OBJECT or
                     _FEE_VOLUNTARY.fullmatch(raw))
+    terminal |= bool(head.school_agent and head.predicate == "动员" and last.predicate == "报名"
+                     and _TUTOR_TOPIC.match(raw) and end == len(raw))
     terminal |= last.predicate == "参加" and _CHOICE.fullmatch(raw) is not None
-    known_prefix = (all(prefix.complete and not prefix.wide_only for prefix in prefixes) and not unknown_island
+    known_prefix = (all(prefix.complete for prefix in prefixes) and not unknown_island
                     and all(len(prefix.agents) <= 1 or len(prefix.agents) == 2 and prefix.agents[-1][3]
                             for prefix in prefixes)
                     and all(action.local_polarity != Polarity.UNKNOWN for action in actions))
@@ -1404,20 +1542,21 @@ def _explain(builder, clause, actions, prefixes, post, unknown_island):
     if end < len(raw) and (post and _POST_NEG.fullmatch(suffix.rstrip(_PARTICLES)) or
                            suffix == "的" and "没有不" in raw[:end]):
         suffix = ""
-    complete = (chain and parsed_controls and terminal and known_prefix and groups
+    closed = (chain and parsed_controls and terminal and known_prefix and groups
                 and (not suffix or _execution_detail(suffix)))
+    complete = closed and not any(prefix.wide_only for prefix in prefixes)
     school = any(a.school_agent and not a.agent_inherited for a in actions)
     special = (head.fixed_notice or last.predicate in _IDENTITY and bool(head.agent)
                or last.predicate in _RANK_VERBS and bool(head.negation))
     if clause.malformed:
-        complete = False
+        complete = closed = False
     if not complete:
         clause.unconsumed = _position(builder, clause, (end, len(raw))) if suffix else clause.span
     if last.predicate in _IDENTITY and _IDENTITY_ROLE.fullmatch(last.object):
         special = False
     if last.predicate in _WIDE_ONLY_ACTIONS or _FINANCE_OBJECT.fullmatch(last.object):
         school = False
-    return _Explanation(tuple(actions), school or special, complete, suffix)
+    return _Explanation(tuple(actions), school or special, complete, "" if post else suffix)
 
 
 def _chain_head(graph, action):
@@ -1557,7 +1696,7 @@ def _parallel_subject(graph, before, clause, explanation, candidates):
 def _grant_sentence(graph, clauses, explanations):
     """先验证全句，再一次性提交准入。失败时没有先前已放行的动作。"""
     if any(c.tail in {Tail.EVALUATION, Tail.CHOICE} or _EXIT.search(c.text)
-           or _NON_COMPULSORY.search(c.text) or _FREE.search(c.text) for c in clauses):
+           or _NON_COMPULSORY.search(c.text) or _FREE.search(c.text) or _FREE_TAIL.fullmatch(c.text) for c in clauses):
         return
     candidates = {}
     grants = []
@@ -1651,8 +1790,13 @@ def _split_scope(graph, before, clause, inherited):
     subject = _AGENT.match(clause.text)
     if subject and _JOIN_SIGNAL.match(clause.text, subject.end()):
         return None
+    if before.context == Context.NEGATION and _PROHIBITIVE_WRAPPER.match(before.text):
+        return next(iter(graph.actions_for(before.id)), None)
     for action in graph.actions_for(before.id):
-        if _local_prohibition(graph, action):
+        if _local_prohibition(graph, action) or (
+                clause.connector in {"、", "/", "／"} and local_direct_negation(graph, action)
+                and (action.predicate in {"组织", "推荐", "安排", "动员", "介绍"}
+                     or action.predicate in _RANK_VERBS and not action.object)):
             return action
     return inherited
 
@@ -1664,6 +1808,15 @@ def _resolve_tail(graph, clause, actions, history, same_sentence, question, proo
     if not prior:
         return False
     raw = clause.text
+    if (actions and clause.context == Context.QUOTE and _SOURCE.match(raw)
+            and all(action.polarity == Polarity.NEGATIVE for action in prior)):
+        # 新闻来源引入一个独立动作，不把前项的直接否定翻成后置待核。
+        return False
+    if (_rank_clause_question(clause)
+            and any(action.predicate in _RANK_VERBS for action in actions)
+            and all(action.predicate in _RANK_VERBS and action.local_polarity == Polarity.NEGATIVE
+                    for action in prior)):
+        return False
     ref = bool(_BACKREF.match(raw))
     binding = _tail_binding(raw, question and not any(action.polarity == Polarity.POSITIVE for action in actions))
     if binding == Binding.QUESTION and not raw.startswith("是否") and any(
@@ -1753,17 +1906,19 @@ def _apply_explanation(graph, clause, proof):
 
 
 def _link_project_evidence(graph, clause, actions, before, history):
-    if before and not clause.connector:
+    if before and (not clause.connector or clause.connector in {"并", "且"}):
         refusals = [item for item in graph.actions_for(before.id) if item.refusal]
         if len(refusals) == 1:
             for item in actions:
-                if item.consequence and not item.conditions and (
-                    item.project in (None, refusals[0].project) or item.predicate in _TEXTBOOK_CONSEQUENCES
-                ):
+                if item.consequence and not item.conditions:
                     item.conditions = (refusals[0].id,)
-                    item.project = refusals[0].project
+                    if item.project is None:
+                        item.project = refusals[0].project
                     if item.project is not None and clause.id not in graph.projects[item.project].clauses:
                         graph.projects[item.project].clauses.append(clause.id)
+                    if (refusals[0].project is not None and item.predicate in _TEXTBOOK_CONSEQUENCES
+                            and clause.id not in graph.projects[refusals[0].project].clauses):
+                        graph.projects[refusals[0].project].clauses.append(clause.id)
     if clause.project is None:
         return
     if before and _EXIT.fullmatch(clause.text.removeprefix("也")):
@@ -1784,6 +1939,7 @@ def _annotate(builder):
     prohibition, explanations = {}, {}
     sentences = defaultdict(list)
     for clause in graph.clauses:
+        clause.question = clause.sentence in builder.questions
         if clause.table_header:
             continue
         before = graph.clauses[clause.previous] if clause.previous is not None else None
@@ -1831,6 +1987,337 @@ def _annotate(builder):
     for sentence, clauses in sentences.items():
         if sentence not in builder.questions:
             _grant_sentence(graph, clauses, explanations)
+
+
+def _rank_clause_question(clause):
+    return (clause.separator in {"？", "?"}
+            or clause.separator in {"", "。", ".", "．", "，", ",", "；", ";"}
+            and clause.text.endswith(tuple(_QUESTION_PARTICLES))
+            or clause.text.startswith("是否") or _RANK_INQUIRY.search(clause.text) is not None)
+
+
+def local_direct_negation(graph, action):
+    """局部否定可定位后续动作。"""
+    clause = graph.clauses[action.clause]
+    return (not clause.malformed and not _rank_clause_question(clause) and action.binding is None
+            and not action.attributive and action.local_polarity == Polarity.NEGATIVE
+            and action.negation is not None and clause.span.start <= action.negation.start < action.span.start
+            and not ranking_reversal(graph, action))
+
+
+def ranking_reversal(graph, action):
+    """留下反转、反问和后置否定供人工复核。"""
+    clause = graph.clauses[action.clause]
+    if not action.negation:
+        return False
+    word = graph.text[action.negation.start:action.negation.end]
+    tail = clause.text.rstrip(_PARTICLES)
+    prefix = clause.text[:action.negation.start - clause.span.start]
+    return (word in _DOUBLE or word == "不是不" or
+            _RANK_RHETORIC.search(prefix) is not None or
+            _POST_NEG.search(tail) is not None or tail.endswith(("不可以", "不能")))
+
+
+def ranking_target(graph, action):
+    """未消费的前置仍可含紧邻谓词的处置对象，只供宽层取证。"""
+    clause = graph.clauses[action.clause]
+    prefix = _surface(clause)[:action.span.start - clause.span.start]
+    disposal = _WIDE_RANK_OBJECT.search(prefix)
+    return disposal["object"] if disposal else action.object + action.topic
+
+
+def paid_tutoring_delivery(action):
+    return action.predicate in {"开展", "进行"} and _PAID_TUTORING.match(action.object) is not None
+
+
+def teacher_training(graph, action):
+    """整句必须是封闭的教师受训构式，且返回与基线相交的首动作。"""
+    clause = graph.clauses[action.clause]
+    if (action.attributive or clause.malformed or clause.question or clause.parent is not None
+            or clause.groups or not _TEACHER_TRAINING.fullmatch(clause.text)):
+        return None
+    for neighbor in (clause.previous, clause.following):
+        if neighbor is not None and graph.clauses[neighbor].sentence == clause.sentence:
+            return None
+    return _chain_head(graph, action)
+
+
+def visible_evidence(clause):
+    """屏蔽文件全称，保留原始偏移。文件名内的词不是正文行为证据。"""
+    text = list(clause.text)
+    for group in clause.groups:
+        if group.kind != "title":
+            continue
+        start, end = group.span.start - clause.span.start, group.span.end - clause.span.start
+        if re.search(r"意见|办法|规定|规则|通知|承诺书|工作方案|管理细则", clause.text[start:end]):
+            text[start:end] = " " * (end - start)
+    return "".join(text)
+
+
+def _governance_holds(graph, clause, action):
+    if any(graph.frames[i].context == Context.GOVERNANCE for i in clause.frames):
+        return True
+    text = _surface(clause)
+    signal = _GOVERNANCE.search(text)
+    if not signal or _RECORDED.search(text):
+        return False
+    subject = _AGENT.match(text)
+    after_subject = subject.end() if subject else 0
+    if (text.startswith(("对", "开展"), after_subject)
+            and text[signal.end():] in ("", "工作", "行动", "活动")):
+        return True
+    prefix = _consume_prefix(text, 0, signal.start())
+    if not prefix.complete or prefix.negation:
+        return False
+    if action:
+        for governor in graph.actions_for(clause.id):
+            if governor.span.start < clause.span.start + signal.end() <= governor.span.end:
+                end = (governor.object_span or governor.span).end - clause.span.start
+                if action.span.start > governor.span.start and re.match(r"(?:之后|以后|后|随即|然后|再|便|则)",
+                        text[end:action.span.start - clause.span.start]):
+                    return False
+                break
+    return True
+
+
+def wide_suppressed(graph, clause, action=None):
+    """决议、禁令、条件式治理等只屏蔽自身所辖候选。"""
+    context = action.context if action else clause.context
+    if action:
+        if action.binding == Binding.ACCOUNTABILITY:
+            return False
+        if action.polarity == Polarity.NEGATIVE:
+            return True
+    if context in {Context.NEGATION, Context.REFUTATION}:
+        return True
+    head = _leading_context(clause.text)
+    if head == Context.NEGATION:
+        return True
+    if clause.parent is not None:
+        parent = graph.clauses[clause.parent]
+        if _leading_context(parent.text) == Context.NEGATION:
+            return True
+    if clause.previous is not None:
+        before = graph.clauses[clause.previous]
+        if (before.separator in _PARALLEL and
+                not any(a.agent or a.mandatory for a in graph.actions_for(clause.id)) and
+                _LINKED_DENIAL.match(before.text) and not _POST_NEG.search(before.text.rstrip(_PARTICLES))):
+            return True
+    if context == Context.GOVERNANCE and _governance_holds(graph, clause, action):
+        return True
+    following = graph.clauses[clause.following] if clause.following is not None else None
+    if context == Context.CONDITION or _leading_context(clause.text) == Context.CONDITION:
+        if _CONDITIONAL_RESPONSE.search(clause.text) or following and _CONDITIONAL_RESPONSE.search(following.text):
+            return True
+    if _UNDERTAKING.fullmatch(clause.text) or _PUBLISH_CONTACT.fullmatch(clause.text):
+        return True
+    if (_REFERRAL.match(clause.text) and following and
+            (_REPORT_CONTACT.fullmatch(following.text) or _UNDERTAKING.fullmatch(following.text))):
+        return True
+    if _AUTONOMOUS_ENROLMENT.fullmatch(clause.text):
+        return True
+    if _REFERRAL.match(clause.text) and any(
+            child.parent == clause.id and child.context == Context.REFUTATION for child in graph.clauses):
+        return True
+    return False
+
+
+def free_project(graph, clause, action=None):
+    """免费证据取收款槽、数量槽或当前项目直接相邻的独立细化。"""
+    if _FREE_TAIL.fullmatch(clause.text):
+        return True
+    if action and action.object_span and not action.attributive:
+        obj = action.object
+        if (_FREE.fullmatch(obj) or re.fullmatch(r"[^零0０\s]{0,24}?" + _FREE.pattern, obj)
+                and not _MONEY.search(_FREE.sub("", obj))):
+            return True
+        if _forced_collection(graph, action):
+            return False
+        if (re.fullmatch(r"(?:校内|校外)?免费[^的]{1,22}", obj)
+                and not _MONEY.search(_FREE.sub("", obj))):
+            return True
+    following = graph.clauses[clause.following] if clause.following is not None else None
+    project = action.project if action else clause.project
+    local_projects = {item.project for item in graph.actions_for(clause.id) if item.project is not None}
+    if local_projects and local_projects != {project}:
+        return False
+    if (action is None and any(_forced_collection(graph, item) for item in graph.actions_for(clause.id))):
+        return False
+    if (following and project is not None and following.sentence == clause.sentence
+            and not following.connector and following.parent == clause.parent
+            and (following.table, following.row, following.column) == (clause.table, clause.row, clause.column)
+            and _FREE_TAIL.fullmatch(following.text)):
+        return True
+    return any(group.kind == "bracket" and _FREE_TAIL.fullmatch(
+        graph.text[group.content.start:group.content.end]) for group in clause.groups)
+
+
+def optional_charge(graph, clause, action, related):
+    """退出细化只有唯一项目先行项时才可绑定。"""
+    candidates = [action] if action else graph.actions_for(clause.id)
+    related = [c for c in related if c.parent == clause.parent and c.sentence == clause.sentence]
+    project = action.project if action else clause.project
+    def key_for(part, project_id):
+        if project_id is not None:
+            return _canonical_project(graph.projects[project_id].label)
+        if topic := _OPTIONAL_TOPIC.match(part.text):
+            return _canonical_project(topic["project"])
+        return None
+
+    key = key_for(clause, project)
+    choices, exits, waived = set(), set(), set()
+    current = None
+    leading_exit = False
+    leading_waiver = False
+    for part in related:
+        current = key_for(part, part.project) or current
+        choice = _PROJECT_CHOICE.fullmatch(part.text)
+        if choice and choice["project"] and not _AGENT.fullmatch(choice["project"]):
+            current = _canonical_project(choice["project"])
+        voluntary = choice or _VOLUNTARY_DETAIL.fullmatch(part.text) or _ENROLLED.match(part.text)
+        if not voluntary:
+            voluntary = any(item.voluntary or any(
+                _VOLUNTARY_DETAIL.fullmatch(item.object[match.end():]) for match in _PROJECT.finditer(item.object)
+            ) for item in graph.actions_for(part.id))
+        if voluntary:
+            choices.add(current)
+        details = [part.text.removeprefix("也"), *(graph.text[group.content.start:group.content.end]
+                   for group in part.groups if group.kind == "bracket")]
+        if any(_EXIT.fullmatch(detail) for detail in details):
+            without_payment = any(_EXIT_WITHOUT_PAYMENT.fullmatch(detail) for detail in details)
+            if current:
+                exits.add(current)
+                if without_payment:
+                    waived.add(current)
+            else:
+                leading_exit = True
+                leading_waiver |= without_payment
+    names = {label for part in related if (label := key_for(part, part.project))}
+    if leading_exit and choices == {None} and len(names) == 1:
+        choices = exits = names
+        if leading_waiver:
+            waived.update(names)
+    elif leading_exit and len(choices) == 1 and None not in choices:
+        exits.update(choices)
+        if leading_waiver:
+            waived.update(choices)
+    if key not in choices & exits:
+        return False
+    if key in waived and action and _enrolled_payer(clause, action):
+        return True
+    if any(_forced_collection(graph, item, voluntary_agency=key in waived) for item in candidates):
+        return False
+    if action and any(item.mandatory or item.predicate == "要求" for item in (action, _chain_head(graph, action))):
+        return bool(action.voluntary and action.exit)
+    return True
+
+
+def refusal_enforced(graph, clause, action):
+    """拒缴后果自身常带否定，检查外围语境和实际执行的回绑。"""
+    outer = _external_context(graph, clause)
+    if outer in {Context.NEGATION, Context.GOVERNANCE, Context.REFUTATION} or _PROHIBITIVE_WRAPPER.match(clause.text):
+        return False
+    if action.polarity == Polarity.NEGATIVE and action.predicate in _PUNITIVE_CONSEQUENCES:
+        return False
+    return bool(action.consequence and action.conditions and
+                action.binding not in {Binding.PROHIBITED, Binding.REJECTED, Binding.REFUTED, Binding.HISTORICAL})
+
+
+def monetary_object(clause, action=None):
+    """缴收动作需要金额或费用对象，金额细化须在当前分句。"""
+    if action and _MONEY.search(action.object):
+        return True
+    text = _surface(clause)
+    if action and action.predicate in _PAYMENT_DELIVERY:
+        disposal = _PAYMENT_DISPOSAL.search(text, 0, action.span.start - clause.span.start)
+        if disposal and _MONEY.search(disposal["object"]):
+            return True
+    if action and action.object:
+        return bool(_AMOUNT.search(text[action.span.end - clause.span.start:]))
+    return bool(_MONEY.search(text))
+
+
+def referenced_charge(graph, clause):
+    """省略宾语的缴交指令取紧邻前项的费用槽。"""
+    if clause.previous is None or clause.connector:
+        return False
+    before = graph.clauses[clause.previous]
+    return (monetary_object(before) or before.project is not None
+            and _MONEY.search(graph.projects[before.project].label) is not None)
+
+
+def implements_charge(graph, clause):
+    if clause.previous is None:
+        return False
+    before = graph.clauses[clause.previous]
+    return (before.project is not None and any(
+                item.predicate in _FEES and item.predicate != "办理" for item in graph.actions_for(before.id))
+            and any(item.predicate == "执行" for item in graph.actions_for(clause.id))
+            and not wide_suppressed(graph, before))
+
+
+def requests_payment_delivery(graph, action):
+    prefix = graph.text[graph.clauses[action.clause].span.start:action.span.start].lstrip()
+    return action.predicate in _PAYMENT_DELIVERY and prefix.startswith("请")
+
+
+def _enrolled_payer(clause, action):
+    subject = _ENROLLED.match(clause.text)
+    if not subject or not action.mandatory or action.predicate not in _COLLECTING_VERBS:
+        return False
+    prefix = clause.text[subject.end():action.span.start - clause.span.start].strip()
+    return prefix in _MANDATORY and action.local_polarity == Polarity.POSITIVE
+
+
+def _forced_collection(graph, action, *, voluntary_agency=False):
+    if action.predicate not in _COLLECTING_VERBS:
+        return False
+    return any(item.mandatory or item.predicate == "要求" or
+               item.uniform and not (voluntary_agency and action.predicate == "代收")
+               for item in (action, _chain_head(graph, action)))
+
+
+def addressed_collection(action):
+    """带收款方、收款对象及费用证据的直接收费，宽层核实。"""
+    return (action.predicate in _COLLECTION and action.school_agent
+            and action.local_polarity != Polarity.NEGATIVE and action.recipient
+            and action.recipient.endswith(("学生", "新生", "同学", "同学们", "家长", "家庭"))
+            and _MONEY.search(action.object) is not None)
+
+
+def incidental_charge_object(text):
+    """费用谓词后接规程、明细等时，取到的是费用元数据。"""
+    return bool(_CHARGE_LABEL.search(text))
+
+
+def committee_charge(graph, related, action=None):
+    """家委会作为收款方、代办方或议事主体。"""
+    if action and (action.agent in _COMMITTEES or action.recipient in _COMMITTEES):
+        return True
+    if action and action.predicate in _COLLECTION:
+        clause = graph.clauses[action.clause]
+        prefix = clause.text[:action.span.start - clause.span.start]
+        if _COMMITTEE_DELEGATE.search(prefix):
+            return True
+    actors = [item for part in related for item in graph.actions_for(part.id)]
+    mandates = any(_COMMITTEE_ROLE.match(part.text) for part in related)
+    committee = (mandates or any(_COMMITTEE_ACTOR.match(part.text) for part in related)
+                 or any(item.agent in _COMMITTEES or item.recipient in _COMMITTEES for item in actors))
+    if action is None:
+        return committee
+    return (action.predicate in _FEES and _COMMITTEE_HANDOFF.search(action.object) is not None
+            or committee and (action.predicate in {"代收", "收缴", "募集", "缴款", "摊派"}
+            or (mandates or any(item.agent in _COMMITTEES and item.predicate == "决定" for item in actors))
+            and (action.predicate in {"收取", "收"} or "代收" in action.object)
+            or action.predicate == "上交" and any(item.agent in _COMMITTEES and item.predicate == "办理"
+                                                for item in actors)))
+
+
+def committee_discussion(graph, clause):
+    return (_COMMITTEE_HEARING.fullmatch(clause.text) is not None and monetary_object(clause) or
+            any(item.agent in _COMMITTEES and item.predicate in _DISCUSSION
+               and re.search(r"(?:收取|收费)(?:标准|流程|情况)", item.object)
+               for item in graph.actions_for(clause.id)))
 
 
 def split_clauses(text: str, *, paragraph_starts: tuple[int, ...] = ()) -> ClauseGraph:

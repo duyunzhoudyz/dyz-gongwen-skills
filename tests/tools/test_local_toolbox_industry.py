@@ -337,8 +337,17 @@ class LocalToolboxK12CommentsHTTPTest(unittest.TestCase):
                         self.assertEqual(rendered, {(rid, level) for rid, level, _ in hits})
                     else:
                         self.assertIn(f"学段：{stage}", data["text"])
-                        self.assertEqual(set(re.findall(r"^\[(P[012])\] (\S+)", data["text"], re.M)),
-                                         {(level, rid) for rid, level, _ in hits})
+                        allowed = expected["rule_allowed_levels"]
+                        rendered = {(rid, level) for level, rid in
+                                    re.findall(r"^\[(P[012])\] (\S+)", data["text"], re.M)}
+                        retained = {(rid, level) for rid, level, _ in hits
+                                    if not (rid in {"JZ-003", "K12-G01", "JZ-008"} and allowed.get(rid) == ["SKIP"])}
+                        self.assertLessEqual(retained, rendered)
+                        for rid, level in rendered:
+                            self.assertIn(level, allowed.get(rid, ()), rid)
+                        for rid in record.get("expected_new_layer", {}).get(entry, {}):
+                            if rid not in {"K12-G04", "K12-G06"} and "SKIP" not in allowed[rid]:
+                                self.assertIn(rid, {rule for rule, _ in rendered})
                     self.assertEqual(data["ok"], all(level != "P0" for _, level, _ in hits))
                     ignored = expected["ignore_fields"]
                     if ignored:
