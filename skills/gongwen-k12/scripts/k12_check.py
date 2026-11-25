@@ -55,6 +55,11 @@
 输入：.txt、.md、.csv；.docx 需要 python-docx，.xlsx 需要 openpyxl，未安装时给出安装提示并返回 2。
 comments、parents 只检查【起草说明】之前的内容。
 
+收费、补课与排名宽层的已知局限：
+    无明确强制信号的缴付请托（如扫码支付、补交、汇款）、口语拒缴及未识别的后果（如欠缴、停发作业本），
+    校外非典型班名与信息移交表达（如衔接班、强化班、特训班、共享花名册）可能漏报。
+    句尾“吧、呀”加句号仍可在完整消费的反转构式中产生新增 P0。
+
 退出码：0 正常；--strict 时存在 P0 返回 1；输入错误、缺少共享模块返回 2。
 只用标准库，不联网；文件一律按 UTF-8 读写；输出文件已存在时加 -v2、-v3，不覆盖。
 规则依据见 references/redlines.md 和 references/sources.md。
@@ -1932,7 +1937,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                 if key in seen:
                     continue
                 sentence = evidence.rank_match_sentence(rule.id, index, m)
-                if sentence in denied_sentences:
+                if sentence in denied_sentences and evidence.weak_rank_match(index, m):
                     continue
                 who = m.groupdict().get("who")
                 if who is not None:
@@ -1944,14 +1949,12 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                              excerpt=excerpt_of(line, m.start(), m.end(), 12))
                 issues.append(item)
                 if evidence.exempt(rule.id, index, m):
-                    if replacement := evidence.retained_rank(index, m, sentence):
-                        item.excerpt = replacement
-                        seen.add(key)
-                        break
                     if sentence is not None:
                         denied_sentences.add(sentence)
                     exemptions.append(item)
                 else:
+                    if replacement := evidence.retained_rank(index, m, sentence):
+                        item.excerpt = replacement
                     seen.add(key)
                     break
     added = evidence.added("parents", stage)
@@ -2192,21 +2195,19 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                 if key in seen:
                     continue
                 sentence = evidence.rank_match_sentence(rid, index, m)
-                if sentence in denied_sentences:
+                if sentence in denied_sentences and evidence.weak_rank_match(index, m):
                     continue
                 item = Issue(id=rid, level=level, category=cat, message=msg,
                              suggestion=sug, basis=basis, line=index,
                              excerpt=excerpt_of(line, m.start(), m.end(), 12))
                 issues.append(item)
                 if evidence.exempt(rid, index, m):
-                    if replacement := evidence.retained_rank(index, m, sentence):
-                        item.excerpt = replacement
-                        seen.add(key)
-                        break
                     if sentence is not None:
                         denied_sentences.add(sentence)
                     exemptions.append(item)
                 else:
+                    if replacement := evidence.retained_rank(index, m, sentence):
+                        item.excerpt = replacement
                     seen.add(key)
                     break
     added = []
@@ -2260,6 +2261,7 @@ _STUDENTS = re.compile(r"学生|同学|新生|毕业生|学员|孩子")
 _SCHOOL = re.compile(r"学校|本校|我校|校方|各班|教务处|教研组|年级组|教师|老师|班主任")
 _DATA_OBJECT = re.compile(r"(?:学生|家长|毕业生|监护人|各班).{0,10}(?:电话|微信号|学籍号|学号|名单|名册|通讯录|联系|信息)"
                           r"|生源|联系方式|电话表|通讯录|名册|(?:分组|报名)名单")
+_WIDE_DATA_OBJECT = re.compile(_DATA_OBJECT.pattern + r"|(?:学生|家长|监护人)(?:的)?手机号")
 _RANK_ACTS = {"排名", "分班", "排座", "公布", "张贴", "通报", "公示", "发布", "晒", "公开",
               "发成绩", "发到", "上传", "上传到"}
 _RANK_TARGET = re.compile(r"成绩|分数|排名|名次|期末考试")
@@ -2328,8 +2330,15 @@ class _ClauseEvidence:
         self.graph = self.module.analyze("\n".join(lines), paragraph_starts=(
             tuple(range(1, len(lines) + 1)) if doc.kind == "docx" else ()))
         self.by_line = defaultdict(list)
+        self.rank_by_sentence = defaultdict(list)
+        self.containing_sentence = {}
+        for part in self.graph.clauses:
+            self.containing_sentence[part.id] = (part.sentence if part.parent is None
+                                                 else self.containing_sentence[part.parent])
         for action in self.graph.actions:
             self.by_line[bisect_right(self.offsets, action.span.start)].append(action)
+            if action.predicate in _RANK_ACTS and not action.attributive:
+                self.rank_by_sentence[self.containing_sentence[action.clause]].append(action)
         self.sources = []
         if doc.kind != "table":
             self.sources.append((self.graph, self.offsets, 0))
@@ -2348,8 +2357,11 @@ class _ClauseEvidence:
                 row_offset += len(table)
 
     def exempt(self, rule, line, match):
+        return self.exemption_action(rule, line, match) is not None
+
+    def exemption_action(self, rule, line, match):
         if rule not in {"JZ-003", "K12-G01", "JZ-008"}:
-            return False
+            return None
         graph = self.graph
         start, end = (self.offsets[line - 1] + index for index in match.span())
         for action in self.by_line[line]:
@@ -2359,14 +2371,11 @@ class _ClauseEvidence:
             if rule == "JZ-008":
                 head = self.module.teacher_training(graph, action)
                 if head and start <= head.span.start < end:
-                    return True
+                    return head
             elif action.predicate in _RANK_ACTS and start <= action.span.start < end:
-                if self.module.directly_denied(graph, action) and not any(
-                    other.id != action.id and other.predicate in _RANK_ACTS and start <= other.span.start < end
-                    and not self.module.directly_denied(graph, other) for other in self.by_line[line]
-                ):
-                    return True
-        return False
+                if self.module.directly_denied(graph, action) and not any(self._rank_blockers(action)):
+                    return action
+        return None
 
     def rank_match_sentence(self, rule, line, match):
         if rule in {"JZ-003", "K12-G01"}:
@@ -2378,19 +2387,36 @@ class _ClauseEvidence:
                     return clause.sentence
         return None
 
+    def weak_rank_match(self, line, match):
+        graph = self.graph
+        start, end = (self.offsets[line - 1] + i for i in match.span())
+        candidates = [a for a in self.by_line[line] if a.predicate in _RANK_ACTS and not a.attributive
+                      and any(span and span.start < end and start < span.end
+                              for span in (a.span, a.object_span))]
+        return bool(candidates and all(self.module.weak_ranking_context(graph, a) for a in candidates))
+
     def retained_rank(self, line, match, sentence):
         """原有同行命中的肯定后项改写摘录，原级别随基线保留。"""
         if sentence is None:
             return ""
         graph = self.graph
+        start = self.offsets[line - 1] + match.start()
         end = self.offsets[line - 1] + match.end()
         for action in self.by_line[line]:
             clause = graph.clauses[action.clause]
-            if (clause.sentence == sentence and clause.span.start >= end
-                    and self.module.asserted_ranking(graph, action)
-                    and action.predicate in _RANK_ACTS and _RANK_TARGET.search(action.object + action.topic)):
-                return clause.text
+            if (clause.sentence == sentence and action.predicate in _RANK_ACTS
+                    and start <= action.span.start < end and self.module.directly_denied(graph, action)):
+                for other in self._rank_blockers(action):
+                    if other.span.start >= end:
+                        return graph.clauses[other.clause].text
         return ""
+
+    def _rank_blockers(self, action):
+        graph = self.graph
+        for other in self.rank_by_sentence[self.containing_sentence[action.clause]]:
+            if (action.id != other.id and not self.module.directly_denied(graph, other)
+                    and not self.module.weak_ranking_context(graph, other)):
+                yield other
 
     def added(self, entry, stage):
         fee, tutor, rank = ("JZ-006", "JZ-008", "JZ-003") if entry == "parents" else (
@@ -2482,14 +2508,17 @@ class _ClauseEvidence:
             return False
         service = bool(_TUTOR_SERVICE.search(raw) or _TUTOR_EXTRACURRICULAR.search(raw) or _PAID_OFFSITE_CLASS.search(raw))
         destination = _TUTOR_INSTITUTION.search(combined)
-        relation = bool(destination and _DATA_OBJECT.search(combined) and _TRANSFER_WORDS.search(combined)
-                        and (_TRANSFER_WORDS.search(raw) or _DATA_OBJECT.search(raw) or _TUTOR_INSTITUTION.search(raw)))
+        relation = bool(destination and _WIDE_DATA_OBJECT.search(combined) and _TRANSFER_WORDS.search(combined)
+                        and (_TRANSFER_WORDS.search(raw) or _WIDE_DATA_OBJECT.search(raw) or _TUTOR_INSTITUTION.search(raw)))
         tutoring = service and (destination or "校外" in raw or _TUTOR_PAID.search(raw)) and (
-            bool(_TUTOR_WORDS.search(raw)) or bool(re.search(r"有偿补课事项", raw)))
+            _TUTOR_WORDS.search(raw) or re.search(r"有偿补课事项", raw)
+            or any(self.module.paid_tutoring_delivery(a) for a in local))
         cross_clause = bool(
             destination and _SCHOOL.search(combined) and re.search(r"报读|报名|参加|协助|前往", combined)
             and (service or re.search(r"报读|报名|参加|协助|前往", raw))
-            or service and _TUTOR_PAID.search(raw) and re.search(r"(?:老师|班主任|教师)[^。]{0,18}参加", combined))
+            or service and _TUTOR_PAID.search(raw) and any(
+                a.school_agent and a.predicate == "参加" and not a.attributive
+                and not self.module.wide_suppressed(graph, graph.clauses[a.clause], a) for a in actions))
         if not relation and not tutoring and not cross_clause:
             return False
         if not (_SCHOOL.search(combined) or _STUDENTS.search(combined) or _DATA_OBJECT.search(combined)
@@ -2506,13 +2535,13 @@ class _ClauseEvidence:
 
     def _ranking(self, graph, clause, local, actions, rid, level, line):
         general = rid == "K12-G01"
-        negated = [a for a in actions if a.predicate in _RANK_ACTS and self.module.directly_denied(graph, a)]
+        negated = [a for a in actions if a.predicate in _RANK_ACTS and self.module.local_direct_negation(graph, a)]
         for a in local:
             if (a.predicate not in _RANK_ACTS or self.module.directly_denied(graph, a)
                     or self.module.wide_suppressed(graph, clause, a) and not clause.question):
                 continue
             targets = self.module.ranking_target(graph, a)
-            follows_denial = any(item.clause != a.clause and item.span.start < a.span.start for item in negated)
+            follows_denial = (not a.negation and any(item.span.start < a.span.start for item in negated))
             reversal = self.module.ranking_reversal(graph, a)
             if not (follows_denial or reversal):
                 continue

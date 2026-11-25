@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from tests.k12.stage3a_checks import (
-    PAIRS, RULES, assert_noise, assert_preserved, assert_probe_additions,
+    PAIRS, RANK, RULES, assert_noise, assert_preserved, assert_probe_additions,
     document_exemptions, hits, noise_mirrors, probe_exemptions,
 )
 from tests.k12.test_k12_stage1 import REGRESSION, REPO_ROOT, SAMPLES, k12_check, read_jsonl, run_entry
@@ -43,7 +43,7 @@ def document_deltas(records):
 def fresh_cases():
     cases = json.loads((SAMPLES / "stage3a_adversarial.json").read_text(encoding="utf8"))
     for category, texts in cases.items():
-        if category == "review_round_1":
+        if category.startswith("review_round_"):
             continue
         for index, original in enumerate(texts, 1):
             yield category, index, original
@@ -61,6 +61,37 @@ def run_candidate(path, original, stage):
         new = sorted({(i.id, i.level, i.line) for i in evidence.added(entry, stage)})
         result[entry] = {"final": final, "new": new}
     return result
+
+
+def baseline_losses(before, after):
+    current = {}
+    for r, lv, n in hits(after):
+        current[r, n] = min(current.get((r, n), len(RANK)), RANK[lv])
+    return sorted((r, lv, n) for r, lv, n in hits(before) if current.get((r, n), len(RANK)) > RANK[lv])
+
+
+def baseline_exemption_witness(evidence, rule, line):
+    """定位被冻结的第一条命中，返回实际许可豁免的分句动作。"""
+    if not 1 <= line < len(evidence.offsets):
+        return None
+    text = evidence.graph.text[evidence.offsets[line - 1]:evidence.offsets[line] - 1]
+    if rule in {"JZ-003", "JZ-008"}:
+        spec = next(rule_spec for rule_spec in k12_check.PARENT_RULES if rule_spec.id == rule)
+        match = next(k12_check._parent_matches(spec, text), None)
+    elif rule == "K12-G01":
+        pattern = next(item[4] for item in k12_check.GENERAL_RULES if item[0] == rule)
+        match = next((m for m in pattern.finditer(text) if not k12_check.NEG_RE.search(
+            k12_check.re.split(r"[。！？；!?;，,]", text[:m.start()])[-1][-12:] + m[0])), None)
+    else:
+        return None
+    return evidence.exemption_action(rule, line, match) if match else None
+
+
+def clause_evidence(path):
+    doc = k12_check.load_document(path)
+    lines = ([" ".join(row) for table in doc.tables for row in table]
+             if doc.kind == "table" else k12_check.cut_at_boundary(doc.lines)[0])
+    return k12_check._ClauseEvidence(doc, lines)
 
 
 class Stage3aTests(unittest.TestCase):
@@ -241,7 +272,7 @@ class Stage3aTests(unittest.TestCase):
             self.assertFalse(any(r["final"] for r in result.values()))
             result = run_candidate(path, "学校组织校外培训机构为教师开展免费急救培训；"
                                          "学校组织学生参加校外有偿补课。", "义务教育")
-            self.assertIn(("JZ-008", "P1", 1), result["parents"]["final"])
+            self.assertIn(("JZ-008", "P0", 1), result["parents"]["final"])
             self.assertIn(("K12-G09", "P1", 1), result["general"]["final"])
 
     def test_sixty_new_adversarial_cases(self):
@@ -316,6 +347,8 @@ class Stage3aReviewTests(unittest.TestCase):
                                 expected_excerpt = text.split("，但", 1)[1].removesuffix("。")
                                 self.assertEqual([item["excerpt"] for item in issues if item["id"] == rule],
                                                  [expected_excerpt])
+                            elif goal == "baseline_rank":
+                                self.assertEqual({item for item in old if item[0] == rule}, family)
                             elif goal == "free":
                                 self.assertFalse(any(item.id == rule for item in evidence.added(entry, stage)))
                             if goal == "keep_student":
@@ -370,3 +403,138 @@ class Stage3aReviewTests(unittest.TestCase):
                             relevant = [item for item in report["issues"] if item["id"] == rule]
                             self.assertEqual([(item["level"], item["line"], item["excerpt"]) for item in relevant],
                                              [("P1", 3, case["body"])])
+
+
+class Stage3aPositiveAdmissionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.fixture = json.loads((SAMPLES / "stage3a_adversarial.json").read_text(encoding="utf8"))
+        cls.round2 = cls.fixture["review_round_2"]
+
+    def assert_preserved_with_witness(self, path, stage, base):
+        evidence = None
+        after = {entry: run_entry(k12_check, entry, path, stage) for entry in RULES}
+        for entry, before in base.items():
+            if entry not in RULES:
+                continue
+            self.assertEqual(before.get("error"), after[entry].get("error"))
+            for rule, level, line in baseline_losses(before, after[entry]):
+                if evidence is None:
+                    evidence = clause_evidence(path)
+                witness = baseline_exemption_witness(evidence, rule, line)
+                self.assertIsNotNone(witness, (entry, stage, rule, level, line, evidence.graph.text))
+        return after
+
+    def test_baseline_preservation_across_regression_and_documents(self):
+        extra = {(id_, stage, entry): report for id_, stage, entry, report in self.round2["unlabelled_baseline"]}
+        self.assertEqual(len(extra), len(self.round2["unlabelled_baseline"]))
+        total = 0
+        with TemporaryDirectory() as folder:
+            directory = Path(folder)
+            for probe in regression_probes():
+                path = directory / probe.get("filename", "probe.txt")
+                path.write_bytes(probe["text"].encode("utf8"))
+                for stage in k12_check.STAGES:
+                    with self.subTest(probe=probe["id"], stage=stage):
+                        data = probe["by_stage"].get(stage, {})
+                        base = {entry: report for entry, report in data.get("baseline_measured", {}).items()
+                                if entry in RULES}
+                        missing = RULES.keys() - base
+                        base.update({entry: extra.pop((probe["id"], stage, entry)) for entry in missing})
+                        after = self.assert_preserved_with_witness(path, stage, base)
+                        for entry in missing:
+                            self.assertFalse(any(level == "P0" for _, level, _ in hits(after[entry]) - hits(base[entry])))
+                        total += len(base)
+        self.assertFalse(extra)
+        self.assertEqual(total, 761 * 3 * 2)
+        external = {row["file"] for row in self.round2["external"]}
+        sources = {*REPO_ROOT.glob("tests/industry_corpus/*/*.txt"), *REPO_ROOT.glob("examples/*/*"),
+                   *SAMPLES.iterdir()}
+        self.assertEqual(external, {path.relative_to(REPO_ROOT).as_posix() for path in sources
+                                    if path.is_file() and path.suffix in k12_check.SUPPORTED_SUFFIXES})
+        for record in self.round2["external"]:
+            for stage, before in record["base"].items():
+                with self.subTest(file=record["file"], stage=stage):
+                    self.assert_preserved_with_witness(REPO_ROOT / record["file"], stage, before)
+
+    def test_review_and_variant_text(self):
+        self.assertEqual(len(self.round2["text"]), 338)
+        variants = Counter(case["id"].rsplit("-", 1)[0] for case in self.round2["variants"])
+        for key in ("rank", "teacher", "free", "voluntary"):
+            for side in ("pass", "reject"):
+                self.assertGreaterEqual(variants[f"{key}-{side}"], 15)
+        self.assertGreaterEqual(variants["voluntary-same-collection"], 5)
+        pair = {"fee": ("JZ-006", "K12-G05"), "tutor": ("JZ-008", "K12-G09"), "rank": ("JZ-003", "K12-G01")}
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "review.txt"
+            for case in (*self.round2["text"], *self.round2["variants"], *self.round2["prior_text"]):
+                path.write_text(case["text"], encoding="utf8")
+                self.assert_variant_structure(path, case)
+                for stage, before in case["base"].items():
+                    with self.subTest(id=case["id"], stage=stage):
+                        after = self.assert_preserved_with_witness(path, stage, before)
+                        for index, entry in enumerate(RULES):
+                            rule = pair.get(case["family"], (None, None))[index]
+                            actual = hits(after[entry])
+                            new = actual - hits(before[entry])
+                            levels = {level for r, level, _ in actual if r == rule}
+                            goal = case["goal"]
+                            if goal in {"hit", "wide", "weak"}:
+                                self.assertTrue(levels, (entry, rule, actual))
+                            if goal in {"wide", "weak"}:
+                                self.assertEqual(levels, {"P1"}, (entry, rule, actual))
+                            if goal == "none":
+                                self.assertFalse(levels, (entry, rule, actual))
+                            if goal in {"none", "no_new_p0", "free_wide", "weak", "wide"}:
+                                self.assertFalse(any(level == "P0" for _, level, _ in new), (entry, new))
+                            if goal == "keep":
+                                assert_preserved(self, before[entry], after[entry], set())
+                            if goal == "free_wide":
+                                evidence = clause_evidence(path)
+                                self.assertFalse(any(issue.id == rule for issue in evidence.added(entry, stage)))
+
+    def assert_variant_structure(self, path, case):
+        name = case["id"]
+        if not name.startswith(("rank-pass-", "teacher-pass-", "free-pass-", "voluntary-pass-")):
+            return
+        evidence = clause_evidence(path)
+        graph, module = evidence.graph, evidence.module
+        if name.startswith("rank-pass-"):
+            qualified = any(module.directly_denied(graph, a) for actions in evidence.rank_by_sentence.values()
+                            for a in actions)
+        elif name.startswith("teacher-pass-"):
+            qualified = any(module.teacher_training(graph, a) for a in graph.actions)
+        elif name.startswith("free-pass-"):
+            qualified = any(module.free_project(graph, graph.clauses[a.clause], a)
+                            for a in graph.actions if a.predicate in {"购买", "订购"})
+        else:
+            qualified = any(module.optional_charge(graph, graph.clauses[a.clause], a, graph.clauses)
+                            for a in graph.actions if a.predicate == "代收")
+        self.assertTrue(qualified, case)
+
+    def test_review_word_blocks(self):
+        try:
+            from docx import Document
+        except ImportError:
+            self.skipTest("python-docx 未安装")
+        self.assertEqual(len(self.round2["docx"]), 22)
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "review.docx"
+            for case in (*self.round2["docx"], *self.round2["prior_docx"]):
+                doc = Document()
+                for kind, values in case["blocks"]:
+                    if kind == "p":
+                        doc.add_paragraph(values)
+                    else:
+                        table = doc.add_table(rows=len(values), cols=len(values[0]))
+                        for row, cells in zip(table.rows, values):
+                            for cell, text in zip(row.cells, cells):
+                                cell.text = text
+                doc.save(path)
+                for stage, before in case["base"].items():
+                    with self.subTest(id=case["id"], stage=stage):
+                        self.assert_preserved_with_witness(path, stage, before)
+                for entry, expected in case.get("table_body", {}).items():
+                    issues = getattr(k12_check, f"check_{entry}")(path, "义务教育")["issues"]
+                    self.assertEqual([[i[k] for k in ("id", "level", "line", "excerpt")] for i in issues],
+                                     expected, (case["id"], entry))
