@@ -43,6 +43,8 @@ def document_deltas(records):
 def fresh_cases():
     cases = json.loads((SAMPLES / "stage3a_adversarial.json").read_text(encoding="utf8"))
     for category, texts in cases.items():
+        if category == "review_round_1":
+            continue
         for index, original in enumerate(texts, 1):
             yield category, index, original
 
@@ -266,3 +268,105 @@ class Stage3aTests(unittest.TestCase):
                             else:
                                 self.assertTrue(any(r == rule and lv in {"P0", "P1"} and n == 1
                                                     for r, lv, n in result[entry]["final"]), result)
+
+
+class Stage3aReviewTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        fixture = SAMPLES / "stage3a_adversarial.json"
+        cls.cases = json.loads(fixture.read_text(encoding="utf8"))["review_round_1"]
+
+    def test_review_text_and_reworded_cases(self):
+        pair = {"fee": ("JZ-006", "K12-G05"), "tutor": ("JZ-008", "K12-G09"), "rank": ("JZ-003", "K12-G01")}
+        self.assertEqual(len(self.cases["text"]), 444)
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "review.txt"
+            for case in self.cases["text"]:
+                text, goal = case["text"], case["goal"]
+                path.write_text(text, encoding="utf8")
+                doc = k12_check.load_document(path)
+                evidence = k12_check._ClauseEvidence(doc, doc.lines)
+                if goal == "question":
+                    with self.subTest(case=case["id"]):
+                        self.assertTrue(any(c.question for c in evidence.graph.clauses))
+                        self.assertFalse(any(a.admission for a in evidence.graph.actions))
+                for stage, entries in case["base"].items():
+                    for index, entry in enumerate(RULES):
+                        with self.subTest(case=case["id"], stage=stage, entry=entry):
+                            old = {tuple(hit) for hit in entries[entry]}
+                            issues = getattr(k12_check, f"check_{entry}")(path, stage)["issues"]
+                            actual = {(item["id"], item["level"], item["line"]) for item in issues}
+                            rule = pair[case["family"]][index] if case["family"] else None
+                            family = {item for item in actual if item[0] == rule}
+                            added = actual - old
+                            if goal not in {"hit", "no_exempt", "keep_second", "keep_student",
+                                            "jz014_keep"}:
+                                self.assertFalse(any(level == "P0" for _, level, _ in added), added)
+                            if goal in {"hit", "wide"}:
+                                self.assertTrue(family, actual)
+                            elif goal == "none":
+                                self.assertFalse(family & added)
+                            elif goal == "p1":
+                                self.assertEqual({level for _, level, _ in family}, {"P1"})
+                                if case["id"].startswith("B6-new"):
+                                    self.assertFalse(any(item[0] == rule for item in old))
+                            elif goal == "retained":
+                                self.assertTrue(family)
+                                self.assertEqual({item for item in old if item[0] == rule}, family)
+                                expected_excerpt = text.split("，但", 1)[1].removesuffix("。")
+                                self.assertEqual([item["excerpt"] for item in issues if item["id"] == rule],
+                                                 [expected_excerpt])
+                            elif goal == "free":
+                                self.assertFalse(any(item.id == rule for item in evidence.added(entry, stage)))
+                            if goal == "keep_student":
+                                tutor = "JZ-008" if entry == "parents" else "K12-G09"
+                                self.assertTrue(any(item[0] == tutor for item in actual))
+                            if goal in {"wide", "no_exempt", "jz014_keep", "keep_student"}:
+                                self.assertLessEqual(old, actual)
+                            for rid, level, line in old - actual:
+                                self.assertTrue(self._named_exemption(evidence, rid, line), (rid, level, line))
+
+    def _named_exemption(self, evidence, rule, line):
+        text = evidence.graph.text.splitlines()[line - 1]
+        if rule in {"JZ-003", "JZ-008"}:
+            candidates = (match for item in k12_check.PARENT_RULES if item.id == rule
+                          for match in k12_check._parent_matches(item, text))
+        elif rule == "K12-G01":
+            pattern = next(item[4] for item in k12_check.GENERAL_RULES if item[0] == rule)
+            candidates = (match for match in pattern.finditer(text) if not k12_check.NEG_RE.search(
+                k12_check.re.split(r"[。！？；!?;，,]", text[:match.start()])[-1][-12:] + match[0]))
+        else:
+            return False
+        match = next(candidates, None)
+        return match is not None and evidence.exempt(rule, line, match)
+
+    def test_word_body_table_precedes_drafting_note(self):
+        try:
+            from docx import Document
+        except ImportError:
+            self.skipTest("python-docx 未安装")
+        self.assertEqual(len(self.cases["docx"]), 16)
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "review.docx"
+            for case in self.cases["docx"]:
+                doc = Document()
+                doc.add_paragraph(case["paragraph"])
+                first = doc.add_table(rows=2, cols=2)
+                for row, values in zip(first.rows, (("项目", "说明"), (case["item"], case["body"]))):
+                    for cell, value in zip(row.cells, values):
+                        cell.text = value
+                doc.add_paragraph("【起草说明】")
+                second = doc.add_table(rows=2, cols=2)
+                for row, values in zip(second.rows, (("合规反例", "示例"), ("收费", case["note"]))):
+                    for cell, value in zip(row.cells, values):
+                        cell.text = value
+                for paragraph in case["after"]:
+                    doc.add_paragraph(paragraph)
+                doc.save(path)
+                for stage in k12_check.STAGES:
+                    for entry, rule in (("parents", "JZ-006"), ("general", "K12-G05")):
+                        with self.subTest(case=case["id"], stage=stage, entry=entry):
+                            report = getattr(k12_check, f"check_{entry}")(path, stage)
+                            relevant = [item for item in report["issues"] if item["id"] == rule]
+                            self.assertEqual([(item["level"], item["line"], item["excerpt"]) for item in relevant],
+                                             [("P1", 3, case["body"])])
