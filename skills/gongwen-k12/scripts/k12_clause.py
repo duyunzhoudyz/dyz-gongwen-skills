@@ -157,7 +157,6 @@ class Action:
     binding: Binding | None = None
     binding_clause: int | None = None
     reason: str = ""
-    retrospective: bool = False
 
 
 @dataclass
@@ -417,6 +416,20 @@ _FEE_WITH_DETAIL = re.compile(r"(?P<object>" + _FEE_OBJECT.pattern + r")(?P<deta
 _RANK_OBJECT = re.compile(r"(?:(?:本班|全班|本次|学生|期末|考试|期末考试)?(?:考试成绩|成绩排名|成绩单|成绩|排名|名次|分数))")
 _WIDE_RANK_OBJECT = re.compile(r"[把将](?P<object>" + _RANK_OBJECT.pattern + r")$")
 _RANK_VERBS = {"排名", "分班", "排座", "公布", "张贴", "通报", "公示", "发布", "晒", "发成绩", "发到", "上传到", "上传"}
+_RANK_DENIAL_SUBJECT = ("学校", "我校", "本校", "校方", "各班", "各年级", "班主任", "副班主任",
+                        "教师", "任课教师", "老师", "年级组", "各年级组", "教务处", "教研组")
+_RANK_DENIAL_ADVERB = ("坚持", "始终", "一直", "一律", "严格", "坚决", "历来", "明确")
+_RANK_DENIAL_WORD = ("不", "不得", "不准", "不许", "禁止", "严禁")
+_RANK_DENIAL_PART = (
+    rf"(?:{_alternatives(_RANK_DENIAL_SUBJECT)})?(?:{_alternatives(_RANK_DENIAL_ADVERB)})*"
+    rf"(?:{_alternatives(_RANK_DENIAL_WORD)})"
+    rf"(?:(?:{_RANK_PREFIX.pattern})?(?:排名|排行|分班|排座)|"
+    rf"(?:{_alternatives(_RANK_VERBS - {'排名', '分班', '排座'} | {'公开'})}))"
+    rf"(?:学生的{_RANK_OBJECT.pattern}|{_RANK_OBJECT.pattern})?"
+)
+_RANK_DENIAL_SENTENCE = re.compile(
+    rf"{_RANK_DENIAL_PART}(?:[，,、；;](?:也|并|且|同时)?{_RANK_DENIAL_PART})*"
+)
 _INFORMATION = re.compile(r"(?:学生和家长|学生|家长)(?:的)?(?:联系方式|电话(?:号码)?|微信号|学籍号|学号|名单|通讯录|信息)|生源")
 _INSTITUTION = re.compile(r"(?:校外|[“\"][^“”\"]+[”\"])?(?:培训机构|辅导机构|补习班)")
 _TRANSFER = {"提供", "提供给", "发给", "发送", "发送给", "透露", "泄露", "转交", "移交", "推荐", "输送"}
@@ -496,8 +509,6 @@ _PROHIBITIVE_WRAPPER = re.compile(r"^(?:起草时)?不写|^(?:(?:义务教育|�
 _SCORE_FRAGMENT = re.compile(r"[^，。；！？!?]{0,16}(?:平均分|均分|考了|总分)[^，。；！？!?\d]{0,4}\d")
 _LINKED_DENIAL = re.compile(r"^(?:(?:学校|本校|我校))?不向\S{1,18}(?:介绍|提供)")
 _RANK_WIDE_TIME = re.compile(r"本学期|本学年|本月|本年度|今年|今后|今起|今日|今天|明天|明年|下学期|下学年|从今以后")
-_RANK_EXEMPT_TIMING = re.compile(r"(?:本|下|每)(?:(?:星期|周)[一二三四五六日天末]|周)(?:前|后|起|之前|之后)?")
-_RANK_REPORTED_TIME = re.compile(r"(?:" + _AGENT.pattern + r")?(?:去年|前年|上一学年)曾")
 _AUTONOMOUS_ENROLMENT = re.compile(
     r"(?:家长|监护人)自行(?:给孩子)?(?:报(?:名|读)?|选择|联系)(?:校外|周末|假期)\S+"
 )
@@ -1222,7 +1233,8 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
     local, reason = Polarity.UNKNOWN, ""
     negation = prefix.negation
     word = negation[0] if negation else ""
-    if (word == "不是不" or word == "没有不" and not text[:end].rstrip(_PARTICLES).endswith("的")
+    if (word == "不是不" and verb_text not in _PUNITIVE_CONSEQUENCES
+            or word == "没有不" and not text[:end].rstrip(_PARTICLES).endswith("的")
             or word in _DOUBLE and not text[verb.end():end].strip() and verb_text in {"是", "决定"}):
         reason = "反转后项待核"
     elif ambiguous:
@@ -1231,7 +1243,7 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
         reason = "未消费前置"
     elif forced_negative or verb_text == "免收":
         local = Polarity.NEGATIVE
-    elif post_reverse or word in _DOUBLE:
+    elif post_reverse or word in _DOUBLE or word == "不是不":
         local = Polarity.POSITIVE
     elif negation:
         local = Polarity.NEGATIVE
@@ -1279,11 +1291,13 @@ def _record_action(builder, clause, verb, end, prefix, *, outer=None, parent=Non
                     consequence=bool((verb_text in _CONSEQUENCES or verb_text in _WIDE_CONSEQUENCES) and
                     (local == Polarity.NEGATIVE or local == Polarity.UNKNOWN and negation
                      and _RESTRICTION.fullmatch(word) and negation[2] == verb.start()
-                     or verb_text.startswith("取消") or verb_text == "扣" and _SCORE_PENALTY.fullmatch(obj))),
+                      or verb_text.startswith("取消")
+                      or verb_text in _PUNITIVE_CONSEQUENCES and verb_text != "扣"
+                      and (not negation or word in _DOUBLE or word == "不是不")
+                      or verb_text == "扣" and _SCORE_PENALTY.fullmatch(obj))),
                     parent=parent.id if parent else None, attributive=attributive,
                     fixed_notice=bool(_FIXED_NOTICE.match(text) and verb_text in _FEES),
-                    negation=_position(builder, clause, negation[1:] if negation else None), reason=reason,
-                    retrospective=prefix.complete and "曾" in prefix.signals)
+                    negation=_position(builder, clause, negation[1:] if negation else None), reason=reason)
     if parent and local == Polarity.POSITIVE and parent.polarity != Polarity.POSITIVE:
         if parent.polarity == Polarity.NEGATIVE and (parent.negation or outer == Context.NEGATION):
             action.negation = action.negation or parent.negation
@@ -1996,18 +2010,28 @@ def _rank_clause_question(clause):
             or clause.text.startswith("是否") or _RANK_INQUIRY.search(clause.text) is not None)
 
 
-def directly_denied(graph, action):
-    """直接否定只取完整消费的前置，排除本分句的疑问和后置回绑。"""
-    clause = graph.clauses[action.clause]
-    return (action.context in {Context.NEGATION, Context.QUESTION}
-            and action.extent.start == clause.span.start and action.parent is None
-            and not action.retrospective
-            and (not action.timing or _RANK_EXEMPT_TIMING.fullmatch(action.timing) is not None)
-            and local_direct_negation(graph, action))
+def ranking_denial_spans(line):
+    """返回完整匹配排名豁免文法的原文句子区间。"""
+    pairs, bad, escaped = _pairs(line)
+    # 未闭合的括注或引号无法证明其中的句号是句界。
+    limit = min((i for i in bad if line[i] in _PAIRS or line[i] in "\"'"), default=len(line))
+    start = stop = 0
+    for index in _visible_positions(0, limit, pairs):
+        if index < stop or index in escaped or line[index] not in _SENTENCE_END or _number_separator(line, index):
+            continue
+        stop = index + 1
+        while stop < len(line) and line[stop] in _SENTENCE_END:
+            stop += 1
+        if line[index:stop] in {"。", ".", "．"} and _RANK_DENIAL_SENTENCE.fullmatch(line, start, index):
+            yield start, stop
+        start = stop
+    end = len(line) - int(line.endswith(("；", ";")))
+    if limit == len(line) and start < end and _RANK_DENIAL_SENTENCE.fullmatch(line, start, end):
+        yield start, len(line)
 
 
 def local_direct_negation(graph, action):
-    """局部否定可定位后续动作。整句豁免还需要明确的否定语境。"""
+    """局部否定可定位后续动作。"""
     clause = graph.clauses[action.clause]
     return (not clause.malformed and not _rank_clause_question(clause) and action.binding is None
             and not action.attributive and action.local_polarity == Polarity.NEGATIVE
@@ -2026,22 +2050,6 @@ def ranking_reversal(graph, action):
     return (word in _DOUBLE or word == "不是不" or
             _RANK_RHETORIC.search(prefix) is not None or
             _POST_NEG.search(tail) is not None or tail.endswith(("不可以", "不能")))
-
-
-def weak_ranking_context(graph, action):
-    """后项须有明确的弱语境证据。全句问号只约束新增 P0。"""
-    clause = graph.clauses[action.clause]
-    if _rank_clause_question(clause) or action.retrospective or action.context == Context.CONDITION:
-        return True
-    if _RANK_REPORTED_TIME.match(_surface(clause), 0, action.span.start - clause.span.start):
-        return True
-    if action.context != Context.QUOTE:
-        return False
-    while clause.parent is not None:
-        clause = graph.clauses[clause.parent]
-        if _SOURCE.match(_surface(clause)):
-            return True
-    return clause.context == Context.QUOTE
 
 
 def ranking_target(graph, action):
