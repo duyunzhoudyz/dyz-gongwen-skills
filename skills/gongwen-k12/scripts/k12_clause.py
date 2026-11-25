@@ -9,6 +9,7 @@ from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from functools import lru_cache
 from itertools import groupby
 from pathlib import Path
 
@@ -175,6 +176,7 @@ class ClauseGraph:
     frames: list[Frame] = field(default_factory=list)
     actions: list[Action] = field(default_factory=list)
     projects: list[Project] = field(default_factory=list)
+    line_offsets: list[int] = field(default_factory=lambda: [0], repr=False)
     _by_clause: dict[int, list[Action]] = field(default_factory=dict, repr=False)
 
     def actions_for(self, clause: int) -> tuple[Action, ...]:
@@ -669,9 +671,13 @@ def _parts(text, start, end, pairs, escaped):
             continue
         char = text[index]
         if char in _BREAKS and not _number_separator(text, index):
-            yield start, index, char, previous
+            stop = index + 1
+            if char in _SENTENCE_END:
+                while stop < end and text[stop] in _SENTENCE_END and stop not in escaped:
+                    stop += 1
+            yield start, index, text[index:stop], previous
             prior = (start, index) if char not in _SENTENCE_END else None
-            start, previous = index + 1, ""
+            start, previous = stop, ""
         elif char in "而但另以或同还并且和、/／":
             while active and index >= active[1]:
                 active = next(island, None)
@@ -725,7 +731,7 @@ class _Builder:
     def __init__(self, text):
         self.graph = ClauseGraph(text)
         self.lines = text.splitlines(keepends=True)
-        self.offsets = [0]
+        self.offsets = self.graph.line_offsets
         for line in self.lines:
             self.offsets.append(self.offsets[-1] + len(line))
         self.paragraph = 0
@@ -797,7 +803,7 @@ class _Builder:
                 clause = self.clause(left + offset, right + offset, separator, connector, frames=active,
                                      parent=parent, groups=groups,
                                      malformed=any(left <= index < right for index in bad), **position)
-                if separator in ("", "。", ".", "．", "？", "?") and clause.text.endswith(tuple(_QUESTION_PARTICLES)):
+                if separator[:1] in ("", "。", ".", "．", "？", "?") and clause.text.endswith(tuple(_QUESTION_PARTICLES)):
                     self.questions.add(self.sentence)
                 saved = self.open_frame
                 containing_sentence = self.sentence
@@ -823,8 +829,8 @@ class _Builder:
                     last_header = self.open_frame
                 else:
                     last_header = None
-            if separator and separator in _SENTENCE_END:
-                if separator in "？?":
+            if separator and separator[0] in _SENTENCE_END:
+                if "？" in separator or "?" in separator:
                     self.questions.add(self.sentence)
                 self.next_sentence()
                 self.open_frame = None
@@ -1991,8 +1997,8 @@ def _annotate(builder):
 
 
 def _rank_clause_question(clause):
-    return (clause.separator in {"？", "?"}
-            or clause.separator in {"", "。", ".", "．", "，", ",", "；", ";"}
+    return ("？" in clause.separator or "?" in clause.separator
+            or clause.separator[:1] in {"", "。", ".", "．", "，", ",", "；", ";"}
             and clause.text.endswith(tuple(_QUESTION_PARTICLES))
             or clause.text.startswith("是否") or _RANK_INQUIRY.search(clause.text) is not None)
 
@@ -2360,14 +2366,34 @@ _IDENTITY_WIDE = tuple(map(re.compile, (
     _PREFIX_STATUS + _PERSON_SLOT + r"(?:需要特别照顾|已到校|由(?:外婆|祖父母)照料)",
 )))
 _IDENTITY_SIGNAL = re.compile(_PREFIX_STATUS + "|" + _STATUS + "|" + _HEALTH + r"|助学金|患病|处分|记过|随班就读")
-_NAME_ROSTER = re.compile(_PREFIX_STATUS + r"名单(?:如下|为)?[：:]" + _PERSON_SLOT)
 _PERSON_REFERENCE = re.compile(_PUPIL + r"[，,][^。；]*?本人(?:患有|确诊为)" + _HEALTH)
 _CONTRAST_STATUS = re.compile(_PUPIL + r"(?:未|不曾)(?:被处分|被记过)但" + _STATEMENT)
 
 
-def identity_relations(graph):
+_DISCIPLINE = r"(?:警告|严重警告|记过|记大过|留校察看|开除学籍)"
+_DISEASE = r"(?:[\u3400-\u9fff]{1,9}(?:症|病|障碍)|" + _HEALTH + r")"
+_ROSTER_ACTION = r"(?:已)?(?:列入|纳入)(?:[\u3400-\u9fff]{0,15}(?:名册|名单))|(?:已)?获得助学金"
+
+
+@lru_cache(maxsize=2)
+def _wide_identity_patterns(baseline_status):
+    status = "(?:" + baseline_status + r"|贫困家庭|受助|留守|残疾|残障)"
+    membership = status + r"(?:家庭)?(?:人员|学生|儿童|子女|成员|户)?"
+    predicate = (r"(?:属于|系|是|登记为|认定为)" + membership
+                 + r"|(?:被给予|受到|被)" + _DISCIPLINE + r"(?:处分)?"
+                 + r"|(?:患有|确诊为)" + _DISEASE + r"|为" + _DISEASE + r"(?:儿童|学生)")
+    signal = re.compile(_IDENTITY_SIGNAL.pattern + "|" + baseline_status + r"|处分|记大过|留校察看|患有|确诊为|障碍|症")
+    roster = re.compile("(?:" + status + r"(?:家庭)?(?:学生|儿童|子女)|" + _PREFIX_STATUS
+                        + r")名单(?:如下|为)?[：:]" + _PERSON_SLOT + r"$")
+    return signal, roster, (re.compile(_PUPIL + "(?:" + predicate + r")(?:吗|呢)?$"),
+            re.compile(status + r"(?:家庭)?的?" + _CLASSROOM + r"(?:学生|儿童)" + _PERSON_SLOT
+                       + "(?:" + _ROSTER_ACTION + ")$"))
+
+
+def identity_relations(graph, *, baseline_status="(?!)"):
     """直接关系须消费完整语句。名单继承、跨分句本人回指及不明外层只给关系证据。"""
-    if not _IDENTITY_SIGNAL.search(graph.text):
+    signal, roster, wide_patterns = _wide_identity_patterns(baseline_status)
+    if not signal.search(graph.text):
         return
     sentences = defaultdict(list)
     for clause in graph.clauses:
@@ -2376,24 +2402,23 @@ def identity_relations(graph):
     for clauses in sentences.values():
         first, last = clauses[0], clauses[-1]
         value = graph.text[first.span.start:last.span.end]
-        if not _IDENTITY_SIGNAL.search(value):
+        if not signal.search(value):
             continue
         exact = next((m for pattern in _IDENTITY_PRECISE if (m := pattern.fullmatch(value))), None)
         if exact:
             # 任何未消费的句首（例如列表、引述）、问句或表格均不授予直接陈述资格。
-            line_start = graph.text.rfind("\n", 0, first.span.start) + 1
+            line_start = graph.line_offsets[first.span.line - 1]
             clean_start = not graph.text[line_start:first.span.start].strip()
             admit = (clean_start and all(not (c.frames or c.malformed or c.question or c.table is not None
                                               or c.list_block is not None) for c in clauses))
             yield IdentityRelation(first.id, tuple(exact["names"].split("、")), Admission.MAIN if admit else None,
                                    exact.re in _IDENTITY_PRECISE[-2:])
             continue
-        for pattern in (_NAME_ROSTER, _PERSON_REFERENCE, _CONTRAST_STATUS):
-            m = pattern.fullmatch(value)
+        for m in (roster.search(value), _PERSON_REFERENCE.fullmatch(value), _CONTRAST_STATUS.fullmatch(value)):
             if m:
                 yield IdentityRelation(first.id, tuple(m["names"].split("、")), None)
         for clause in clauses:
-            for pattern in _IDENTITY_WIDE:
+            for pattern in (*_IDENTITY_WIDE, *wide_patterns):
                 for m in pattern.finditer(visible_evidence(clause)):
                     yield IdentityRelation(clause.id, tuple(m["names"].split("、")), None)
 
@@ -2452,7 +2477,7 @@ class UnsupportedAmount:
 
 def table_heading(cells):
     return any(_ITEM_COLUMN.fullmatch(label) or _BASIS_STANDARD.fullmatch(label)
-               or "姓名" in "".join(label.split()) or label in {"收费项目", "费用名称", "事项", "内容"} for label in cells)
+               or "姓名" in "".join(label.split()) or label in {"收费项目", "费用名称", "事项", "内容", "费用", "金额", "单价"} for label in cells)
 
 
 def unsupported_amounts(graph, *, word_lines=()):
@@ -2460,8 +2485,8 @@ def unsupported_amounts(graph, *, word_lines=()):
         return
     paragraphs = []
     paragraph = 0
-    for line in graph.text.split("\n"):
-        if not line.strip():
+    for start, end in zip(graph.line_offsets, graph.line_offsets[1:]):
+        if not graph.text[start:end].strip():
             paragraph += 1
         paragraphs.append(paragraph)
     def block_key(clause):
@@ -2483,6 +2508,7 @@ def unsupported_amounts(graph, *, word_lines=()):
         by_sentence = defaultdict(list)
         for c in clauses:
             by_sentence[c.sentence].append(c)
+        positions = {c.id: i for i, c in enumerate(clauses)}
         for sentence in by_sentence.values():
             active = []
             for c in sentence:
@@ -2500,19 +2526,39 @@ def unsupported_amounts(graph, *, word_lines=()):
                         or c.connector == "还" and c.previous is not None
                         and graph.clauses[c.previous].text.endswith("退")):
                     continue
-                header = table is not None and (_BASIS_STANDARD.fullmatch(c.column_header)
-                          or c.column_header == "标准" and any(s.column_header == "收费项目" for s in clauses))
+                header = table is not None and (
+                    _BASIS_STANDARD.fullmatch(c.column_header) or c.column_header in {"金额", "费用", "单价", "标准"}
+                ) and any(s.column != c.column and (_ITEM_COLUMN.fullmatch(s.column_header)
+                          or s.column_header == "费用") and s.text.strip() for s in clauses)
                 related = [a for a in active if a is c or table is not None and a.project == c.project
                            or a.previous == c.id and _basis_projects(raw)
-                           or c.previous == a.id and _BASIS_STANDARD.search(a.text)]
+                           or c.previous == a.id and _BASIS_STANDARD.search(_BASIS_TITLE.sub("", a.text))]
                 # 本句明确以“项目费＋每生／每月……金额”陈列单价。
                 standard = re.search(r"费(?:每生|每人)(?:每月|每学期|每年)?\s*$", raw[:amount.start()])
                 if not (header or related or standard):
                     continue
-                projects = _basis_projects(raw) or set().union(*(_basis_projects(a.text) for a in related))
+                projects = _basis_projects(_BASIS_TITLE.sub("", raw)) or set().union(
+                    *(_basis_projects(_BASIS_TITLE.sub("", a.text)) for a in related))
                 if table is not None and c.project is not None and not projects:
                     projects = _basis_projects(graph.projects[c.project].label)
-                if sources and (not projects or any(projects <= keys for keys in sources)):
+                if sources and not projects and table is None:
+                    # 光杆金额紧邻“按《文件》”或“依据：《文件》”时，项目来自直接修饰它的依据。
+                    if re.fullmatch(r"(?:收费标准[：:]\s*)?(?:每[生人]\s*)?(?:收取|收费|缴纳)?\s*" +
+                                    _BASIS_AMOUNT.pattern, raw):
+                        idx = positions[c.id]
+                        before = clauses[idx-1].text if idx else ""
+                        after = "".join(s.text for s in clauses[idx+1:idx+3])
+                        title = _BASIS_TITLE.search(before)
+                        if (title and before.startswith(("按", "根据", "依据"))
+                                and not before[title.end():].strip()
+                                and clauses[idx - 1].separator in ("，", ",")):
+                            projects = _basis_projects(title[1])
+                        elif after.startswith("依据《") and all(
+                                part is c or _BASIS_STANDARD.fullmatch(part.text) for part in sentence):
+                            title = _BASIS_TITLE.search(after)
+                            if title:
+                                projects = _basis_projects(title[1])
+                if projects and any(projects <= keys for keys in sources):
                     continue
                 yield UnsupportedAmount(c.span.line, c.text)
 
@@ -2522,10 +2568,12 @@ def split_clauses(text: str, *, paragraph_starts: tuple[int, ...] = ()) -> Claus
     return _Builder(text).split(set(paragraph_starts))
 
 
-def analyze(text: str, *, paragraph_starts: tuple[int, ...] = ()) -> ClauseGraph:
-    """构建文档级分句图。Word 导入方可传真实段落起始行号（1 基）。"""
+def analyze(text: str, *, paragraph_starts: tuple[int, ...] = (), paragraph_offsets=()) -> ClauseGraph:
+    """构建文档级分句图。Word 导入方可传真实段落的字符偏移；也接受 1 基物理行号。"""
     builder = _Builder(text)
-    graph = builder.split(set(paragraph_starts))
+    starts = set(paragraph_starts)
+    starts.update(bisect_left(builder.offsets, offset) + 1 for offset in paragraph_offsets)
+    graph = builder.split(starts)
     _annotate(builder)
     return graph
 

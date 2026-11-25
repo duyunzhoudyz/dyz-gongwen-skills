@@ -31,9 +31,9 @@
     general、parents 的 excerpt（含 JZ-012“点名批评”）会把识别出的姓名换成〔姓名1〕〔姓名2〕，文本和 --json 输出都生效。
     “、”并列的后项（“周梓涵、吴雨桐等5人”）由共享模块一律登记并遮蔽，即使自身分数不足；宁可多遮，个别非姓名词（单亲、杜鹃花）可能被遮成〔姓名N〕。
     comments 的 label 是教师在本机定位用的标识（编号或姓名），原样保留；只遮蔽 excerpt。
-    文件名回显：general、parents、comments 的报告头和 --json 的 file 字段，会把文件名里与正文已识别姓名相同的部分遮蔽
+    文件名回显：general、parents 的报告头和 --json 的 file 字段，会把文件名里与正文已识别姓名相同的部分遮蔽
     （“马小明家访记录.txt”显示为“〔姓名1〕家访记录.txt”）。文件名里有、正文没有识别出来的姓名遮不住，
-    请在把报告发给别人之前自行改文件名。
+    comments 沿用评语姓名与编号遮蔽，含学生姓名的文件名可能原样显示。
     K12-G04 敏感身份词除“低保家庭”“特困”等外，还含“受到（警告、记过等）处分的”后接“学生、同学”的写法
     （“受到警告处分的学生孙浩宇”）；“受到处分的学生名单已按规定报送”这类没有姓名的汇总写法不报。
     已知局限：
@@ -42,10 +42,9 @@
     3. 与常用词同形的姓名（刘海、林海、黎明、高峰）只在有强证据时识别（姓名后紧跟“同学”等）；其余写法漏报。
     4. 两字少见姓或歧义姓的姓名、名字里含“会”“山”等非名用字的姓名、名字用字不在常见名用字表里的三字名，
        在词表外的后续动词下可能漏报；全文遮蔽是整串替换，可能多遮。
-    5. 带“·”的姓名、外文名、昵称识别不了；“受到处分”的写法只覆盖后接“学生、同学”的情形，
-       “该生因打架受到处分”这类写法不报。
-    6. 敏感身份词是固定清单：残疾、受助、留守学生、被记过的学生、患病学生、“学生 + 姓名 + 的 + 亲属 + 敏感事件”等不在内，不报。
-    7. Markdown 表格中姓名列默认报 P1、有困难类型或心理等敏感列时报 P0，无姓名类表头或非 Markdown 表格的姓名仍可能漏报。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+    5. 带“·”的姓名、外文名和昵称依赖共享姓名识别能力。
+    6. 正文支持本人家庭、资助、健康和处分关系；亲属身份和跨分句指代仍需人工核对。
+    7. Markdown 姓名列按共享模块分级。Word 姓名列宽层报 P1；仅有“名字”表头和 CSV、XLSX 姓名列可能漏报。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
     缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 评语编号遮蔽的已知局限：
@@ -69,6 +68,7 @@ comments、parents 只检查【起草说明】之前的内容。
     复合或按期计费单位（如每生每月、按学期）可能漏报；非后果动词用“不许”或带引号的部分
     条文引用可能报 P1。教师受训的修饰语或地点超出封闭清单时，仍可能保留基线 P0 或报 P1。
     无发布动词的隐性排名（如全班第一名、倒数第三名）只由 parents 基线检查。
+    无序号的冒号禁令只覆盖首个非列表独立段。Word 同格命中可能有两个行号：3a 沿用插入位置，3b 按正文末尾加表行计算。
     “学校不按成绩排名”这类直接否定的合规表述，仍与此前版本一样按排名规则报出，需人工排除。
 
 退出码：0 正常；--strict 时存在 P0 返回 1；输入错误、缺少共享模块返回 2。
@@ -814,6 +814,7 @@ def summarize(issues: Sequence[Issue], marker_text: str) -> dict:
 
 BASELINE_EXEMPTIONS = {
     "JZ-008": "旧命中落在明确面向教师的受训动作内",
+    # 仅供合并机制的历史单测引用，生产入口没有 G04 豁免。
     "K12-G04": "旧命中落在同一连续组织角色短语或本人确定主动施助的结构内",
 }
 
@@ -2390,8 +2391,8 @@ class _ClauseEvidence:
         self.offsets = [0]
         for line in lines:
             self.offsets.append(self.offsets[-1] + len(line) + 1)
-        self.graph = self.module.analyze("\n".join(lines), paragraph_starts=(
-            tuple(range(1, len(lines) + 1)) if doc.kind == "docx" else ()))
+        self.graph = self.module.analyze("\n".join(lines), paragraph_offsets=(
+            self.offsets[:-1] if doc.kind == "docx" else ()))
         self.by_line = defaultdict(list)
         for action in self.graph.actions:
             self.by_line[bisect_right(self.offsets, action.span.start)].append(action)
@@ -2422,7 +2423,7 @@ class _ClauseEvidence:
         names = defaultdict(list)
         issues = []
         for graph, line_map in self._document_sources(doc, lines):
-            for relation in self.module.identity_relations(graph):
+            for relation in self.module.identity_relations(graph, baseline_status=K12_SENS):
                 clause = graph.clauses[relation.clause]
                 line = line_map[clause.span.line - 1]
                 scores = []
@@ -2449,10 +2450,14 @@ class _ClauseEvidence:
 
     def _document_sources(self, doc, lines):
         if doc.kind != "table":
-            line_map = [index for index, line in enumerate(lines, 1) for _ in line.split("\n")]
+            line_map = [bisect_right(self.offsets, start) for start in self.graph.line_offsets[:-1]]
             yield self.graph, line_map
         for rendered, row_numbers in _review_tables(doc, lines):
-            yield self.module.analyze("\n".join(rendered)), row_numbers
+            graph = self.module.analyze("\n".join(rendered))
+            row_starts = [0]
+            for row in rendered:
+                row_starts.append(row_starts[-1] + len(row) + 1)
+            yield graph, [row_numbers[bisect_right(row_starts, start) - 1] for start in graph.line_offsets[:-1]]
 
     def exempt(self, rule, line, match):
         return self.exemption_witness(rule, line, match) is not None
