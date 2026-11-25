@@ -1,4 +1,4 @@
-"""评语入口编号净化回归，包括五轮评审的复现输入。"""
+"""评语入口编号净化回归，包括六轮评审的复现输入。"""
 import csv
 import io
 import json
@@ -399,14 +399,46 @@ class CommentPrivacyTests(K12TestCase):
                 if "baseline_ratios" in case:
                     self.assertEqual([pair["ratio"] for pair in report["similar_pairs"]], case["baseline_ratios"])
 
-    def test_explicit_labels_stop_at_full_stop_with_no_date_or_fraction_exception(self):
+    def test_round6_paired_boundaries_decimal_and_compact_aliases(self):
+        path = SAMPLES / "comment_privacy_review_r6.jsonl"
+        cases = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(Counter(case["id"][0] for case in cases),
+                         {"Q": 36, "U": 36, "S": 34, "V": 12, "B": 9, "A": 53})
+        for case in cases:
+            with self.subTest(case=case["id"]):
+                inputs = [case["comments"]] + ([case["facts"]] if case["facts"] else [])
+                if not HAS_DOCX and any(name.endswith(".docx") for name, _ in inputs):
+                    self.skipTest("python-docx unavailable")
+                rendered, report = self.check_output(
+                    case["comments"], case["facts"], case["hide"], baseline=case["baseline_py005"],
+                    keep_prose=case["keep"], prose_ids=case["prose_ids"], exact_prose=True,
+                    stage=case.get("stage", "义务教育"), person=case.get("person", "second"))
+                if "ordinary_digest" in case:
+                    self.assertEqual(case["prose_ids"], [])
+                    self.assert_frozen_report(rendered, report, case["ordinary_digest"])
+                    if "baseline_name_mask" in case:
+                        original, token = case["baseline_name_mask"]
+                        assert_hidden(self, rendered, report, [original])
+                        self.assertTrue(any(i["id"] == "PY-015" and i["label"] == token
+                                            for i in report["issues"]))
+                else:
+                    self.assert_frozen_hits(report, case)
+                quantities = py016_numbers(report)
+                self.assertLessEqual(set(case.get("expect_py016", ())), quantities)
+                self.assertTrue(set(case.get("forbid_py016", ())).isdisjoint(quantities))
+                ids = set(self.ids(report))
+                self.assertLessEqual(set(case.get("expect_ids", ())), ids)
+                self.assertTrue(set(case.get("forbid_ids", ())).isdisjoint(ids))
+
+    def test_explicit_labels_mask_dotted_values_and_fractions(self):
         comments = ("notes.txt", "S01：你很笨，考号：A117C3 2026/03/15参加比赛，"
                     "工号：45376 3/5，编号：67139 19.5元。")
         facts = ("facts.txt", "S01：2026/03/14参赛，跑2/5，花12.5元。")
         _, report = self.check_output(comments, facts, ("A117C3", "45376", "67139", "19.5"),
                                       baseline=[[1, "学号等编号"]],
-                                      keep_prose=(".5元", "2026/03/14参赛", "跑2/5", "12.5元"),
-                                      prose_ids=("A117C3 2026", "03", "15", "45376 3", "5", "67139 19"))
+                                      keep_prose=("2026/03/14参赛", "跑2/5", "12.5元"),
+                                      prose_ids=("A117C3 2026", "03", "15", "45376 3", "5", "67139 19.5"),
+                                      exact_prose=True)
         self.assertEqual(py016_numbers(report), set())
 
     def test_short_explicit_value_with_label_at_paragraph_start(self):

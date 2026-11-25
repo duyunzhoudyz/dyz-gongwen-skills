@@ -52,7 +52,8 @@
     没有确认依据的裸学号、考号可能原样回显。请放入表格的编号列，或写成“学号：……”。
     长度小于 5 的确认编号只在确认位置遮蔽，正文重复的短编号可能原样回显。
     长度不少于 5 且含数字的确认编号会全文遮蔽，即使同值也出现在年月、次数等普通数量里。
-    带标签的编号后面，同一段内汉字或逗号之前的数字会一并遮蔽。想保留的数量请用逗号隔开或写在汉字之后。
+    带标签的编号后面，取值区间内的数字会一并遮蔽，包括作为整体处理的小数和点分编号。
+    想保留的数量请用逗号隔开或写在汉字之后。
     全角数字、QQ 号或微信号等未约定的标签、用等号分隔的短编号、拆在两列再连写的超短编号可能无法识别。
     真实学号或考号形如 S 加 2～4 位数字时，会按本机脱敏定位码保留。只出现在文件名里的手机号也可能原样回显。
 
@@ -916,16 +917,22 @@ def count_chars(text: str) -> int:
 COMMENT_ID_KEYWORDS = ("学号", "考号", "考生号", "准考证", "学籍", "学生卡号", "校园卡号", "一卡通号",
                        "证件", "身份证", "手机", "电话", "联系方式", "工号", "编号")
 COMMENT_ID_ANNOTATION = r"[（(][^（）()\r\n]{1,20}[）)]"
-COMMENT_ID_VALUE = r"[A-Za-z0-9]+(?:(?:[ \t]*[-－–_]+[ \t]*|[ \t]+)[A-Za-z0-9]+)*"
-COMMENT_ID_PART_RE = re.compile(r"[A-Za-z0-9]+(?:[-－–_]+[A-Za-z0-9]+)*")
+COMMENT_ID_LINK = r"[ \t]*[-－–_]+[ \t]*"
+COMMENT_ID_VALUE = rf"[A-Za-z0-9]+(?:(?:{COMMENT_ID_LINK}|[ \t]+)[A-Za-z0-9]+)*"
+COMMENT_ID_PART_RE = re.compile(rf"[A-Za-z0-9]+(?:{COMMENT_ID_LINK}[A-Za-z0-9]+)*")
 COMMENT_ID_LABEL = "(?:" + "|".join(COMMENT_ID_KEYWORDS) + r")(?:号码|号|码)?"
 COMMENT_TAGGED_ID_RE = re.compile(
     rf"(?<!〔){COMMENT_ID_LABEL}[ \t]*(?:{COMMENT_ID_ANNOTATION}[ \t]*)?"
     rf"(?:[为是][ \t]*[：:]?|[：:])[ \t]*"
 )
 COMMENT_TAG_END_RE = re.compile(
-    r"[,，.．。;；:：?？!！)）\r\n\v\f\x1c-\x1e\x85\u2028\u2029〇"
+    r"[,，．。;；:：?？!！()（）\[\]［］【】〔〕〖〗《》〈〉「」『』“”‘’\"'＂＇|｜—"
+    r"\r\n\v\f\x1c-\x1e\x85\u2028\u2029〇"
     r"\u3400-\u9fff\uf900-\ufaff\U00020000-\U000323af]"
+    r"|(?<![0-9])\.|\.(?![0-9])"
+)
+COMMENT_TAG_PART_RE = re.compile(
+    rf"[A-Za-z0-9]+(?:(?:{COMMENT_ID_LINK}|(?<=[0-9])\.(?=[0-9]))[A-Za-z0-9]+)*"
 )
 COMMENT_TAG_NEXT_PART_RE = re.compile(r"[ \t]*[A-Za-z0-9]")
 COMMENT_ID_JOIN_RE = re.compile(r"[-－–_ \t]+")
@@ -1017,7 +1024,7 @@ def _comment_tag_interval(text: str, start: int, end: int):
         end = stop.start()
         break
     pending = None
-    for part in COMMENT_ID_PART_RE.finditer(text, start, end):
+    for part in COMMENT_TAG_PART_RE.finditer(text, start, end):
         if not any(c.isdigit() for c in part[0]) or COMMENT_LOCAL_CODE_RE.fullmatch(part[0]):
             continue
         if pending and COMMENT_ID_JOIN_RE.fullmatch(text, pending[1], part.start()):
@@ -1100,10 +1107,20 @@ class CommentNumbers:
             return value
         return self.forms.setdefault(value, f"〔编号{len(self.forms) + 1}〕")
 
-    def register_value(self, value: str) -> None:
+    def register_value(self, value: str) -> str:
         token = self.token(value)
         if _comment_alias(value):
             self.alias_values[value] = token
+        self.register_compact(value, token)
+        # 证件号和手机号的固定形态能区分仅用空格分隔的多个分段号码。
+        for start, end in _comment_certain_ids(value):
+            self.register_compact(value[start:end], token)
+        return token
+
+    def register_compact(self, value: str, token: str) -> None:
+        compact = COMMENT_ID_JOIN_RE.sub("", value)
+        if compact != value and _comment_alias(compact):
+            self.alias_values.setdefault(compact, token)
 
     def register_cell(self, value: str) -> None:
         self.register_value(value)
@@ -1121,15 +1138,14 @@ class CommentNumbers:
             if any(left <= start and end <= right for left, right in registered):
                 continue
             value = text[start:end]
-            self.register_value(value)
-            compact = COMMENT_ID_JOIN_RE.sub("", value)
-            if compact != value and _comment_alias(compact):
-                self.alias_values.setdefault(compact, self.token(value))
-            for match in COMMENT_ID_PART_RE.finditer(value):
+            token = self.register_value(value)
+            part_re = COMMENT_TAG_PART_RE if (start, end) in tagged else COMMENT_ID_PART_RE
+            for match in part_re.finditer(value):
                 if _comment_alias(match[0]):
-                    self.filename_parts.setdefault(match[0], self.token(value))
+                    self.filename_parts.setdefault(match[0], token)
                     if (start, end) in tagged:
-                        self.alias_values.setdefault(match[0], self.token(value))
+                        self.alias_values.setdefault(match[0], token)
+                        self.register_compact(match[0], token)
             registered.append((start, end))
 
     def recognizes_label(self, value: str) -> bool:
