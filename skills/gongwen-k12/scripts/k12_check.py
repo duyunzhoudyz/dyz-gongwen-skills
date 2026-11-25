@@ -49,7 +49,10 @@
     缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 评语编号遮蔽的已知局限：
-    全角数字、QQ 号或微信号等未约定的标签、用等号分隔的短编号、拆在两列再连写的超短编号可能无法识别。
+    没有确认依据的裸学号、考号可能原样回显。请放入表格的编号列，或写成“学号：……”。
+    长度小于 5 的确认编号只在确认位置遮蔽，正文重复的短编号可能原样回显。
+    长度不少于 5 且含数字的确认编号会全文遮蔽，即使同值也出现在年月、次数等普通数量里。
+    全角数字、QQ 号或微信号等未约定的标签、用等号分隔的短编号、拆在两列再连写的超短编号、顿号并列的异形编号可能无法识别。
     真实学号或考号形如 S 加 2～4 位数字时，会按本机脱敏定位码保留。只出现在文件名里的手机号也可能原样回显。
 
 输入：.txt、.md、.csv；.docx 需要 python-docx，.xlsx 需要 openpyxl，未安装时给出安装提示并返回 2。
@@ -911,25 +914,25 @@ def count_chars(text: str) -> int:
 
 COMMENT_ID_KEYWORDS = ("学号", "考号", "考生号", "准考证", "学籍", "学生卡号", "校园卡号", "一卡通号",
                        "证件", "身份证", "手机", "电话", "联系方式", "工号", "编号")
-COMMENT_EXPLICIT_LABELS = {"手机", "电话", "编号", "联系方式"}
-COMMENT_ID_ANNOTATION = r"[（(][^（）()\r\n]+[）)]"
+COMMENT_ID_ANNOTATION = r"[（(][^（）()\r\n]{1,20}[）)]"
 COMMENT_ID_VALUE = r"[A-Za-z0-9]+(?:(?:[ \t]*[-－–_]+[ \t]*|[ \t]+)[A-Za-z0-9]+)*"
 COMMENT_ID_PART_RE = re.compile(r"[A-Za-z0-9]+(?:[-－–_]+[A-Za-z0-9]+)*")
 COMMENT_ID_LIST_SEPARATOR = r"[ \t]*[、,，和与/及][ \t]*"
-COMMENT_ID_LABEL = "(?P<keyword>" + "|".join(COMMENT_ID_KEYWORDS) + r")(?:号码|号|码)?"
+COMMENT_ID_LABEL = "(?:" + "|".join(COMMENT_ID_KEYWORDS) + r")(?:号码|号|码)?"
 COMMENT_TAGGED_ID_RE = re.compile(
     rf"(?<!〔){COMMENT_ID_LABEL}[ \t]*(?:{COMMENT_ID_ANNOTATION}[ \t]*)?"
-    rf"(?P<link>[为是][ \t]*[：:]?|[：:])?[ \t]*"
+    rf"(?:[为是][ \t]*[：:]?|[：:])[ \t]*"
     rf"(?P<values>{COMMENT_ID_VALUE}(?:{COMMENT_ID_LIST_SEPARATOR}{COMMENT_ID_VALUE})*)"
 )
 COMMENT_ID_SPLIT_RE = re.compile(COMMENT_ID_LIST_SEPARATOR)
 COMMENT_RAW_LABEL_RE = re.compile(rf"^\s*(?P<number>{COMMENT_ID_VALUE})[ \t]*[：:]")
 COMMENT_NUMBER_GAP = r"(?:[ \t]*[-－–][ \t]*|[ \t]+)?"
 COMMENT_FORMATTED_ID_RE = re.compile(
-    rf"(?<![A-Za-z0-9])[GLgl]?\d{{6}}{COMMENT_NUMBER_GAP}\d{{8}}{COMMENT_NUMBER_GAP}\d{{3}}[\dXx](?![A-Za-z0-9])"
+    rf"(?<![A-Za-z0-9])[GLgl]?[0-9]{{6}}{COMMENT_NUMBER_GAP}"
+    rf"[0-9]{{4}}{COMMENT_NUMBER_GAP}[0-9]{{2}}{COMMENT_NUMBER_GAP}[0-9]{{2}}"
+    rf"{COMMENT_NUMBER_GAP}[0-9]{{3}}[0-9Xx](?![A-Za-z0-9])"
 )
-COMMENT_MOBILE_RE = re.compile(rf"(?<!\d)1[3-9]\d{COMMENT_NUMBER_GAP}\d{{4}}{COMMENT_NUMBER_GAP}\d{{4}}(?!\d)")
-COMMENT_LONG_ID_RE = re.compile(r"(?<![A-Za-z0-9])(?:[A-Za-z]{1,2}\d{6,}[A-Za-z0-9]*|\d{6,})(?![A-Za-z0-9])")
+COMMENT_MOBILE_RE = re.compile(rf"(?<![0-9])1[3-9][0-9]{COMMENT_NUMBER_GAP}[0-9]{{4}}{COMMENT_NUMBER_GAP}[0-9]{{4}}(?![0-9])")
 COMMENT_LOCAL_CODE_RE = re.compile(r"S[0-9]{2,4}")
 COMMENT_NUMBER_TOKEN_RE = re.compile(r"〔编号\d+〕")
 COMMENT_OUTPUT_TOKEN_RE = re.compile(r"(〔(?:编号|姓名)\d+〕)")
@@ -937,17 +940,10 @@ COMMENT_COMPARE_CHARS = str.maketrans({
     ch: chr(0xE000 + ord(ch)) for ch in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 })
 COMMENT_TABLE_SEPARATOR_RE = re.compile(r"\|?\s*:?-{2,}:?(?:\s*\|\s*:?-{2,}:?)+\s*\|?")
-COMMENT_QUANTITY_UNIT_RE = re.compile(
-    r"[ \t]*(?:\.\d|公里|公斤|小时|分钟|秒钟|平方米|厘米|毫米|毫升|左右|以上|以下|单元|"
-    r"本(?!人|学期|班|校|周|月|年|次|身)|多(?!次|人|位|项|少|方)|周(?![一二三四五六日天末测])|"
-    r"下(?!学期|周|次|班|午)|期(?!末|中|间)|回(?!电|复|校)|张(?!老师|同学)|人(?!员|格)|"
-    r"年(?!级|度)|班(?!主任|级)|名(?!单|次)|分(?!组|班)|"
-    r"[%％元块角月日时秒次篇项个位米克升字步余题道圈遍场天万千百"
-    r"件页册份条段节课届首幅枚套组队瓶支斤吨倍岁点颗层户宗级行词句棵只台辆双把度])"
-)
-COMMENT_DATE_RE = re.compile(r"(?<!\d)\d{4}[-/]\d{1,2}[-/]\d{1,2}(?!\d)")
-COMMENT_YEAR_MONTH_RANGE_RE = re.compile(r"(?<!\d)(?:19|20)\d{2}(?:0[1-9]|1[0-2])[-－–~～至到]"
-                                         r"(?:19|20)\d{2}(?:0[1-9]|1[0-2])(?!\d)")
+COMMENT_DATE_RE = re.compile(r"(?<!\d)[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}(?!\d)")
+COMMENT_HAN_RE = re.compile(r"[ \t]*[\u3400-\u9fff]")
+COMMENT_NUMBER_SUFFIX_RE = re.compile(r"(?:\.[0-9]|[ \t]*[％%]|[ \t]*[/~～][ \t]*[0-9])")
+COMMENT_RANGE_RE = re.compile(r"[0-9]+[ \t]*[-－–~～至到][ \t]*[0-9]+")
 COMMENT_MIXED_VALUE_RE = re.compile(rf"(?<!\d)\d{{4}}/\d{{1,2}}/\d{{1,2}}(?!\d)|{COMMENT_ID_VALUE}")
 COMMENT_PRIVACY_RULES = ((ID_RE, "身份证号"), (MOBILE_RE, "手机号"), (STUDENT_NO_RE, "学号等编号"))
 
@@ -979,8 +975,8 @@ def _comment_mixed_id_column(header: str) -> bool:
     header = re.sub(r"\s", "", header)
     if ("姓名" in header or "名字" in header) and _comment_id_column(header):
         return True
-    parts = re.split(r"[/／、与和及（()）]+", header)
-    people = ("姓名", "名字", "学生", "同学", "考生", "学生信息")
+    parts = re.split(r"[/／、与和及（()）－—+，,\-]+", header)
+    people = ("姓名", "名字", "学生", "同学", "考生", "学生信息", "名单")
     return any(part.endswith(people) and not _comment_id_column(part)
                and any(other != index and _comment_id_column(value) for other, value in enumerate(parts))
                for index, part in enumerate(parts))
@@ -995,16 +991,24 @@ def _comment_label_column(header: Sequence[str]) -> Optional[int]:
 
 def _comment_tagged_values(text: str):
     for match in COMMENT_TAGGED_ID_RE.finditer(text):
-        if match["keyword"] in COMMENT_EXPLICIT_LABELS and not match["link"]:
-            continue
-        start = match.start("values")
-        end = match.end("values")
+        start, end = match.span("values")
         separators = list(COMMENT_ID_SPLIT_RE.finditer(text, start, end))
         first_end = separators[0].start() if separators else end
         first = text[start:first_end]
+        # 空格可出现在编号内。末尾另起的纯数字紧邻汉字，或本身是日期，
+        # 则保留后面的正文；不判断汉字属于哪一种单位。
+        tail = re.search(r"[ \t]+([0-9]+(?:[-/][0-9]+)*)$", first)
+        if tail and any(c.isdigit() for c in first[:tail.start()]) and (
+                _comment_date(tail[1]) or COMMENT_HAN_RE.match(text, first_end)
+                or COMMENT_NUMBER_SUFFIX_RE.match(text, first_end)
+        ):
+            first_end = start + tail.start()
+            first = text[start:first_end]
         if not any(c.isdigit() for c in first):
             continue
         yield start, first_end
+        if first_end < (separators[0].start() if separators else end):
+            continue
         shape = _comment_id_shape(first)
         for index, separator in enumerate(separators):
             start = separator.end()
@@ -1013,10 +1017,13 @@ def _comment_tagged_values(text: str):
             letters, digits = _comment_id_shape(value)
             if (not digits or bool(letters) != bool(shape[0]) or abs(letters + digits - sum(shape)) > 2
                     or _comment_date(value) or COMMENT_DATE_RE.match(text, start)
-                    or re.fullmatch(r"(?:19|20)\d{2}|\d{1,3}[-－–]\d{1,3}", value)
-                    or re.match(r"\d{1,3}[ \t]*/[ \t]*\d{1,3}(?!\d)", text[start:])
-                    or re.match(r"[ \t]*(?:至|到)\d", text[stop:])
-                    or (value.isdigit() and COMMENT_QUANTITY_UNIT_RE.match(text, stop))):
+                    or re.fullmatch(r"(?:19|20)[0-9]{2}", value)
+                    or (COMMENT_RANGE_RE.fullmatch(value)
+                        and (re.fullmatch(r"[0-9]{1,3}[-－–][0-9]{1,3}", value)
+                             or COMMENT_HAN_RE.match(text, stop)))
+                    or re.match(r"[0-9]{1,3}[ \t]*/[ \t]*[0-9]{1,3}(?![0-9])", text[start:])
+                    or re.match(r"[ \t]*(?:至|到)[0-9]", text[stop:])
+                    or (value.isdigit() and COMMENT_HAN_RE.match(text, stop))):
                 break
             yield start, stop
 
@@ -1027,18 +1034,8 @@ def _comment_id_shape(value: str) -> Tuple[int, int]:
 
 def _comment_mixed_values(text: str):
     for match in COMMENT_MIXED_VALUE_RE.finditer(text):
-        if not (match[0].isdigit() and COMMENT_QUANTITY_UNIT_RE.match(text, match.end())):
+        if any(c.isdigit() for c in match[0]):
             yield match.span()
-
-
-def _comment_raw_label(text: str):
-    match = COMMENT_RAW_LABEL_RE.match(text)
-    if match:
-        value = match["number"]
-        if (len(re.sub(r"\s", "", value)) >= 4 and any(c.isdigit() for c in value)
-                and not CODE_LIKE_RE.fullmatch(value) and not COMMENT_DATE_RE.fullmatch(value)):
-            return match
-    return None
 
 
 def _comment_date(value: str) -> bool:
@@ -1053,34 +1050,14 @@ def _comment_date(value: str) -> bool:
     return True
 
 
-def _comment_bare_ids(text: str):
-    # 由调用方优先采用较长的跨度，避免把完整学籍号或分段号拆开。
+def _comment_certain_ids(text: str):
     for regex in (COMMENT_FORMATTED_ID_RE, COMMENT_MOBILE_RE):
         yield from (m.span() for m in regex.finditer(text))
-    school_years = [m.span() for m in COMMENT_YEAR_MONTH_RANGE_RE.finditer(text)]
-    for match in COMMENT_LONG_ID_RE.finditer(text):
-        if match[0].isdigit() and (
-            _comment_date(match[0])
-            or COMMENT_QUANTITY_UNIT_RE.match(text, match.end())
-            or any(left <= match.start() and match.end() <= right for left, right in school_years)
-            or re.search(r"\d\.$", text[max(0, match.start() - 2):match.start()])
-        ):
-            continue
-        yield match.span()
 
 
-def _comment_alias(value: str) -> bool:
-    return (not COMMENT_LOCAL_CODE_RE.fullmatch(value)
-            and (any(c.isdigit() for c in value) or bool(re.fullmatch(r"[A-Za-z0-9]{4,}", value))))
-
-
-def _comment_filename_alias(value: str) -> bool:
-    return len(value) >= 4 and any(c.isdigit() for c in value) and not COMMENT_LOCAL_CODE_RE.fullmatch(value)
-
-
-def _comment_privacy_evidence(text: str):
-    """按基线先删待补标记，再用原三条正则取证。映射回输入供净化后摘录定位。"""
-    marker_spans = [m.span() for m in MARKER_RE.finditer(text)]
+def _comment_privacy_matches(text: str, *, omit_markers: bool = True):
+    """返回原三条正则在待补标记之外的命中，以及映射回输入的范围。"""
+    marker_spans = [m.span() for m in MARKER_RE.finditer(text)] if omit_markers else []
     body = MARKER_RE.sub("", text) if marker_spans else text
 
     def original(index: int) -> int:
@@ -1091,9 +1068,31 @@ def _comment_privacy_evidence(text: str):
         return index
 
     for regex, category in COMMENT_PRIVACY_RULES:
-        match = regex.search(body)
-        if match:
-            yield category, original(match.start()), original(match.end() - 1) + 1
+        for match in regex.finditer(body):
+            start = match.start()
+            value_start = match.end(1) if regex is STUDENT_NO_RE else start
+            if regex is STUDENT_NO_RE:
+                value_start += re.match(r"[\s：:为是]*", body[value_start:]).end()
+            yield (category, original(start), original(value_start), original(match.end() - 1) + 1)
+
+
+def _comment_baseline_ids(text: str):
+    # 待补标记不参与判定，但它仍可能原样进入 PY-013 摘录。
+    yield from ((start, end) for _, _, start, end in _comment_privacy_matches(text, omit_markers=False))
+    markers = [m.span() for m in MARKER_RE.finditer(text)]
+    if markers:
+        for _, _, start, end in _comment_privacy_matches(text):
+            for left, right in markers:
+                if start < left < end:
+                    yield start, left
+                    start = right
+            if start < end:
+                yield start, end
+
+
+def _comment_alias(value: str) -> bool:
+    return (len(value) >= 5 and any(c.isdigit() for c in value)
+            and not COMMENT_LOCAL_CODE_RE.fullmatch(value))
 
 
 class CommentNumbers:
@@ -1101,49 +1100,56 @@ class CommentNumbers:
 
     def __init__(self) -> None:
         self.forms: Dict[str, str] = {}
-        self.cell_parts: Dict[str, None] = {}
+        self.alias_values: Dict[str, str] = {}
         self.filename_parts: Dict[str, str] = {}
         self.aliases: Optional[re.Pattern] = None
 
-    def token(self, value: str, *, structured: bool = False) -> str:
+    def token(self, value: str) -> str:
         if COMMENT_LOCAL_CODE_RE.fullmatch(value):
             return value
-        token = self.forms.setdefault(value, f"〔编号{len(self.forms) + 1}〕")
-        if structured and _comment_alias(value):
-            for match in COMMENT_ID_PART_RE.finditer(value):
-                part = match[0]
-                if part != value and _comment_filename_alias(part):
-                    self.filename_parts.setdefault(part, token)
-        return token
+        return self.forms.setdefault(value, f"〔编号{len(self.forms) + 1}〕")
+
+    def register_value(self, value: str) -> None:
+        token = self.token(value)
+        if _comment_alias(value):
+            self.alias_values[value] = token
 
     def register_cell(self, value: str) -> None:
-        self.token(value, structured=True)
+        self.register_value(value)
         for regex in (COMMENT_MIXED_VALUE_RE, COMMENT_ID_PART_RE):
             for match in regex.finditer(value):
-                part = match[0]
-                if part != value and _comment_filename_alias(part):
-                    self.cell_parts.setdefault(part)
+                if _comment_alias(match[0]):
+                    self.register_value(match[0])
 
     def register(self, text: str) -> None:
-        for start, end in _comment_tagged_values(text):
-            self.token(text[start:end], structured=True)
-        match = _comment_raw_label(text)
-        if match:
-            self.token(match["number"])
+        # 较长的已确认编号覆盖旧正则识别出的子串。
+        spans = [*_comment_tagged_values(text), *_comment_certain_ids(text), *_comment_baseline_ids(text)]
+        registered = []
+        for start, end in sorted(spans, key=lambda span: (span[0], -span[1])):
+            if any(left <= start and end <= right for left, right in registered):
+                continue
+            value = text[start:end]
+            self.register_value(value)
+            for match in COMMENT_ID_PART_RE.finditer(value):
+                if _comment_alias(match[0]):
+                    self.filename_parts.setdefault(match[0], self.token(value))
+            registered.append((start, end))
+
+    def recognizes_label(self, value: str) -> bool:
+        return value in self.alias_values or bool(COMMENT_FORMATTED_ID_RE.fullmatch(value)
+                                                   or COMMENT_MOBILE_RE.fullmatch(value))
 
     def prepare(self) -> None:
-        self.cell_parts = dict.fromkeys(part for part in self.cell_parts if part not in self.forms)
-        for part in self.cell_parts:
-            self.token(part)
-        aliases = build_mask_regex({value: token for value, token in self.forms.items() if _comment_alias(value)})
+        aliases = build_mask_regex(self.alias_values)
         if aliases:
             self.aliases = re.compile(rf"(?<![A-Za-z0-9])(?:{aliases.pattern})(?![A-Za-z0-9])")
 
-    def clean_prose(self, text: str, privacy_hits: Optional[List[Tuple[str, int, int]]] = None) -> str:
-        return self.clean(text, privacy_hits=privacy_hits)
+    def clean_prose(self, text: str, privacy_hits: Optional[List[Tuple[str, int, int]]] = None,
+                    context_label: str = "") -> str:
+        return self.clean(text, privacy_hits=privacy_hits, context_label=context_label)
 
     def clean(self, text: str, *, filename: bool = False, label: bool = False, mixed: bool = False,
-              privacy_hits: Optional[List[Tuple[str, int, int]]] = None) -> str:
+              privacy_hits: Optional[List[Tuple[str, int, int]]] = None, context_label: str = "") -> str:
         spans = [m.span() for m in COMMENT_OUTPUT_TOKEN_RE.finditer(text)]
         replacements = []
 
@@ -1155,37 +1161,27 @@ class CommentNumbers:
             spans.append((start, end))
             replacements.append((start, end, token or self.token(text[start:end])))
 
-        if label and text in self.forms and _comment_alias(text):
-            return self.forms[text]
+        if label and text in self.alias_values:
+            return self.alias_values[text]
 
-        if mixed:
-            for start, end in _comment_mixed_values(text):
-                replace(start, end)
+        candidates = []
         if not filename:
-            for start, end in _comment_tagged_values(text):
-                replace(start, end)
-        aliases = (build_mask_regex({value: token for value, token in self.forms.items()
-                                     if _comment_filename_alias(value) and value not in self.cell_parts})
-                   if filename else self.aliases)
-        candidates = [] if filename else [(start, end, None) for start, end in _comment_bare_ids(text)]
-        if aliases is not None:
-            dates = [] if filename else [m.span() for regex in (COMMENT_DATE_RE, COMMENT_YEAR_MONTH_RANGE_RE)
-                                         for m in regex.finditer(text)]
-            for match in aliases.finditer(text):
-                if not filename and match[0].isdigit() and COMMENT_QUANTITY_UNIT_RE.match(text, match.end()):
-                    continue
-                if any(left <= match.start() and match.end() <= right and match.span() != (left, right)
-                       for left, right in dates):
-                    continue
-                candidates.append((*match.span(), self.forms[match[0]]))
-        if filename:
-            bounded_forms = {value: token for value, token in self.forms.items()
-                             if _comment_alias(value) and not _comment_filename_alias(value)}
-            bounded_forms.update(self.filename_parts)
-            parts = build_mask_regex(bounded_forms)
-            if parts:
-                bounded = re.compile(rf"(?<![A-Za-z0-9])(?:{parts.pattern})(?![A-Za-z0-9])")
-                candidates.extend((*m.span(), bounded_forms[m[0]]) for m in bounded.finditer(text))
+            for start, end in (*_comment_tagged_values(text), *_comment_certain_ids(text), *_comment_baseline_ids(text)):
+                candidates.append((start, end, None))
+            if context_label and _comment_id_column(context_label):
+                # 文本解析可能把“考号：”当作评语标签，补回标签上下文识别正文起首的编号。
+                prefix = context_label + "："
+                candidates.extend((start - len(prefix), end - len(prefix), None)
+                                  for start, end in _comment_tagged_values(prefix + text)
+                                  if start == len(prefix))
+            if mixed:
+                candidates.extend((start, end, None) for start, end in _comment_mixed_values(text))
+        aliases = build_mask_regex(self.alias_values) if filename else self.aliases
+        if aliases:
+            candidates.extend((*m.span(), self.alias_values[m[0]]) for m in aliases.finditer(text))
+        if filename and (parts := build_mask_regex(self.filename_parts)):
+            bounded = re.compile(rf"(?<![A-Za-z0-9])(?:{parts.pattern})(?![A-Za-z0-9])")
+            candidates.extend((*m.span(), self.filename_parts[m[0]]) for m in bounded.finditer(text))
 
         def priority(span: Tuple[int, int, Optional[str]]) -> tuple:
             start, end, token = span
@@ -1213,8 +1209,11 @@ class CommentNumbers:
                     delta += len(token) - (end - start)
                 return index + delta
 
-            for category, start, end in _comment_privacy_evidence(text):
-                privacy_hits.append((category, position(start), position(end, right=True)))
+            seen = set()
+            for category, start, _, end in _comment_privacy_matches(text):
+                if category not in seen:
+                    privacy_hits.append((category, position(start), position(end, right=True)))
+                    seen.add(category)
         return cleaned
 
 
@@ -1228,7 +1227,7 @@ def _comment_register_table(numbers: CommentNumbers, tables: List[List[List[str]
                     continue
                 if _comment_mixed_id_column(header):
                     for start, end in _comment_mixed_values(row[col]):
-                        numbers.token(row[col][start:end], structured=True)
+                        numbers.register_cell(row[col][start:end])
                 elif _comment_id_column(header):
                     numbers.register_cell(row[col])
                 else:
@@ -1268,7 +1267,7 @@ def _load_comment_document(path: Path) -> Document:
         raise InputError("无法读取评语或事实表，请核对文件路径、格式和编码") from exc
 
 
-def parse_comment_entries(doc: Document, tables: List[List[List[str]]]) -> List[Entry]:
+def parse_comment_entries(doc: Document, tables: List[List[List[str]]], numbers: CommentNumbers) -> List[Entry]:
     lines, _ = cut_at_boundary(doc.lines)
     # 1. 表格：有“评语”列的优先
     for table in tables:
@@ -1307,8 +1306,8 @@ def parse_comment_entries(doc: Document, tables: List[List[List[str]]]) -> List[
                 current = Entry(label=m.group("label"), body=(m.group("body") or "").strip(), line=index)
                 entries.append(current)
                 continue
-        private = _comment_raw_label(line)
-        if private:
+        private = COMMENT_RAW_LABEL_RE.match(line)
+        if private and numbers.recognizes_label(private["number"]):
             current = Entry(private["number"], line[private.end():].strip(), index)
             entries.append(current)
             continue
@@ -1378,7 +1377,7 @@ def fact_is_empty(text: str) -> bool:
     return len(rest) < 3
 
 
-def parse_facts(doc: Document, tables: List[List[List[str]]]) -> Dict[str, str]:
+def parse_facts(doc: Document, tables: List[List[List[str]]], numbers: CommentNumbers) -> Dict[str, str]:
     lines, _ = cut_at_boundary(doc.lines)
     for table in tables:
         if not table:
@@ -1404,7 +1403,7 @@ def parse_facts(doc: Document, tables: List[List[List[str]]]) -> Dict[str, str]:
         if m and m.group("label") not in NOT_NAMES and m.group("body") is not None:
             current = m.group("label")
             facts[current] = (facts.get(current, "") + " " + m.group("body")).strip()
-        elif (private := _comment_raw_label(line)):
+        elif (private := COMMENT_RAW_LABEL_RE.match(line)) and numbers.recognizes_label(private["number"]):
             current = private["number"]
             facts[current] = (facts.get(current, "") + " " + line[private.end():]).strip()
         elif current:
@@ -1430,9 +1429,6 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
     gw, _lex = shared_names()
     doc = _load_comment_document(path)
     raw_tables = _comment_tables(doc)
-    entries = parse_comment_entries(doc, raw_tables)
-    if not entries:
-        raise InputError("没有识别到评语。请按“S01：评语”每行一名学生，或用带“评语”列的表格")
     facts_doc = _load_comment_document(facts_path) if facts_path is not None else None
     raw_fact_tables = _comment_tables(facts_doc) if facts_doc is not None else []
     numbers = CommentNumbers()
@@ -1441,6 +1437,9 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         if source is not None:
             for line in cut_at_boundary(source.lines)[0]:
                 numbers.register(line)
+    entries = parse_comment_entries(doc, raw_tables, numbers)
+    if not entries:
+        raise InputError("没有识别到评语。请按“S01：评语”每行一名学生，或用带“评语”列的表格")
     for entry in entries:
         numbers.register(entry.body)
     numbers.prepare()
@@ -1450,11 +1449,11 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
     # 篇幅统计基于输入字符数，避免占位符长短改变原来的篇幅门槛。
     entry_chars = {entry.line: count_chars(entry.body) for entry in entries}
     comment_tables = _comment_clean_tables(numbers, raw_tables)
-    table_labels = ({e.line: e.label for e in parse_comment_entries(doc, comment_tables)}
+    table_labels = ({e.line: e.label for e in parse_comment_entries(doc, comment_tables, numbers)}
                     if entries[0].from_table else {})
     for entry in entries:
         examples: List[Tuple[str, int, int]] = []
-        entry.body = numbers.clean_prose(entry.body, examples)
+        entry.body = numbers.clean_prose(entry.body, examples, "" if entry.from_table else entry.label)
         if entry.from_table:
             entry.label = table_labels[entry.line]
         elif not looks_like_name(entry.label):
@@ -1463,9 +1462,10 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
     fact_tables = _comment_clean_tables(numbers, raw_fact_tables)
     facts = {}
     if facts_doc is not None:
-        for label, body in parse_facts(facts_doc, fact_tables).items():
+        for label, body in parse_facts(facts_doc, fact_tables, numbers).items():
             key = numbers.clean(label, label=True)
-            facts[key] = (facts.get(key, "") + " " + numbers.clean_prose(body)).strip()
+            context_label = "" if fact_tables else label
+            facts[key] = (facts.get(key, "") + " " + numbers.clean_prose(body, None, context_label)).strip()
     filename = numbers.clean(path.name, filename=True)
 
     table = gw.NameTable()
@@ -1659,7 +1659,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                 if num not in known:
                     missing_nums.add(num)
                     add(e, "PY-016", "P1", "对账", f"数字“{num}”在该生的事实表中找不到",
-                        "删去，或请教师补进事实表", B_GUARDRAIL_2, num)
+                        "删去，或请教师补进事实表", B_GUARDRAIL_2, mask_digits(num))
             fact_awards = award_tokens(fact)
             award_reported = False
             for key, raw in award_tokens(body).items():

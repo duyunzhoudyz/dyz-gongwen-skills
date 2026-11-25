@@ -199,7 +199,7 @@ class K12Stage1Tests(K12TestCase):
             self.assertNotIn("45123", err)
             self.assertNotIn("Z98K76", err)
 
-    def test_comment_privacy_covers_adjacent_tokens_and_short_non_table_private_labels(self):
+    def test_comment_privacy_covers_adjacent_tokens_and_keeps_unconfirmed_short_numbers(self):
         path = self.write("draftZ98K76suffix.txt",
                           "S01：你学号Z98K76、考号45123，手机138-1234-5678，你认真完成劳动。\n"
                           "S02：你学号Z98K76、考号45123，手机138-1234-5678，你认真完成劳动。\n"
@@ -208,11 +208,11 @@ class K12Stage1Tests(K12TestCase):
         facts = self.write("facts.md", "S01：完成劳动\nS02：完成劳动\nS03：完成劳动")
         report = self.run_json("comments", str(path), "--facts", str(facts))
         self.assertTrue(any(i["id"] == "PY-008" for i in report["issues"]))
-        self.assertNotIn("PY-016", self.ids(report))
+        self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"8324"})
         assert_hidden(self, self.run_main("comments", str(path), "--facts", str(facts))[1], report,
-                      ("Z98K76", "45123", "138-1234-5678", "8324"))
+                      ("Z98K76", "45123", "138-1234-5678"))
         self.verify_number_privacy(("comments", str(path), "--facts", str(facts)),
-                                   ("Z98K76", "45123", "138-1234-5678", "8324"),
+                                   ("Z98K76", "45123", "138-1234-5678"),
                                    [[line, "学号等编号"] for line in (1, 2, 3)])
 
     def test_markdown_table_without_leading_pipe_still_registers_ids_for_privacy(self):
