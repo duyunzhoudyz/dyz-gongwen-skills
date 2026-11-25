@@ -1,21 +1,43 @@
-"""评语入口编号净化回归，包括第 1 轮评审的复现输入。"""
+"""评语入口编号净化回归，包括两轮评审的复现输入。"""
 import csv
 import io
 import json
 import unittest
+from unittest.mock import patch
 
-from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, SAMPLES, k12_check
+from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, REPO_ROOT, SAMPLES, k12_check
 
 
 def assert_hidden(test, rendered, report, originals, *, static=()):
     """比对完整文本和序列化 JSON。碰撞用例保留并单独断言静态字面量。"""
     for value in static:
         test.assertTrue(value in rendered or value in json.dumps(report, ensure_ascii=False), value)
-    for output in (rendered, json.dumps(report, ensure_ascii=False)):
+    for output, serialized in ((rendered, False), (json.dumps(report, ensure_ascii=False), True)):
         for value in static:
             output = output.replace(value, "")
         for value in originals:
-            test.assertNotIn(value, output)
+            test.assertNotIn(json.dumps(value, ensure_ascii=False)[1:-1] if serialized else value, output)
+
+
+def assert_py005(test, report, baseline):
+    hits = [[i["line"], i["message"].removeprefix("评语中出现")]
+            for i in report["issues"] if i["id"] == "PY-005"]
+    test.assertEqual(hits, list(baseline))
+
+
+def assert_prose_preserved(test, bodies, originals, keep=()):
+    """逐次还原正文替换，要求每个新占位符只对应本用例点名的编号。"""
+    test.assertTrue(bodies)
+    for raw, clean, tokens in bodies:
+        def restore(match):
+            value = tokens[match[0]]
+            test.assertIn(value, originals, f"正文被误替换：{raw!r}")
+            return value
+
+        test.assertEqual(k12_check.COMMENT_NUMBER_TOKEN_RE.sub(restore, clean), raw)
+    cleaned = "\n".join(body for _, body, _ in bodies)
+    for value in keep:
+        test.assertIn(value, cleaned)
 
 
 TABLE_VARIANTS = (
@@ -88,15 +110,28 @@ class CommentPrivacyTests(K12TestCase):
                 source = buffer.getvalue()
         return self.write(filename, source)
 
-    def check_output(self, comments, facts, originals, *, static=()):
-        path = self.write_input(*comments)
+    def check_output(self, comments, facts, originals, *, static=(), baseline=(), keep_prose=()):
+        path = self.write_input(*comments) if isinstance(comments, (list, tuple)) else comments
         args = ("comments", str(path))
         if facts:
-            args += ("--facts", str(self.write_input(*facts)))
-        rc, rendered, err = self.run_main(*args)
+            fact_path = self.write_input(*facts) if isinstance(facts, (list, tuple)) else facts
+            args += ("--facts", str(fact_path))
+        bodies = []
+        clean = k12_check.CommentNumbers.clean
+
+        def record(numbers, raw, **kwargs):
+            safe = clean(numbers, raw, **kwargs)
+            if kwargs.get("privacy_hits") is not None:
+                bodies.append((raw, safe, {token: value for value, token in numbers.forms.items()}))
+            return safe
+
+        with patch.object(k12_check.CommentNumbers, "clean", record):
+            rc, rendered, err = self.run_main(*args)
         self.assertEqual((rc, err), (0, ""))
         report = self.run_json(*args)
         assert_hidden(self, rendered, report, originals, static=static)
+        assert_py005(self, report, baseline)
+        assert_prose_preserved(self, bodies, originals, keep_prose)
         return rendered, report
 
     def check_review_cases(self, *, word):
@@ -107,7 +142,7 @@ class CommentPrivacyTests(K12TestCase):
                 continue
             with self.subTest(case=case["id"]):
                 rendered, report = self.check_output(case["comments"], case["facts"], case["hide"],
-                                                     static=case.get("static", ()))
+                                                     static=case.get("static", ()), baseline=case["baseline_py005"])
                 self.assertEqual(report["mode"], "comments")
                 self.assertTrue(rendered.startswith("学生评语检查："))
                 for value in case.get("preserve", ()):
@@ -116,6 +151,9 @@ class CommentPrivacyTests(K12TestCase):
                 if "quantities" in case:
                     self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"},
                                      set(case["quantities"]))
+                if case["id"] == "10_same_cell_combined_header":
+                    first = next(i for i in report["issues"] if i["id"] == "PY-001")
+                    self.assertTrue(first["excerpt"].startswith("〔姓名1〕 〔编号1〕"))
                 if case["id"] in {"11_text_real_label_with_table_facts", "facts_table_text_comments_py007_py015.txt"}:
                     pair = next(i for i in report["issues"] if i["id"] == "PY-007")
                     self.assertEqual(pair["label"], "李明")
@@ -132,6 +170,125 @@ class CommentPrivacyTests(K12TestCase):
     def test_review_word_case(self):
         self.check_review_cases(word=True)
 
+    def check_round2_cases(self, *, word):
+        rows = (SAMPLES / "comment_privacy_review_r2.jsonl").read_text(encoding="utf-8").splitlines()
+        for raw in rows:
+            case = json.loads(raw)
+            comments, facts = case.get("comments"), case.get("facts")
+            has_word = any(source and source[0].endswith(".docx") for source in (comments, facts))
+            if has_word != word:
+                continue
+            with self.subTest(case=case["id"]):
+                if case.get("examples"):
+                    folder = REPO_ROOT / "examples/D-中小学评语本地脱敏与还原"
+                    comments = folder / "2-模型生成评语-编号版.txt"
+                    facts = folder / "1-本机脱敏事实表.md"
+                rendered, report = self.check_output(
+                    comments, facts, case.get("must_hide", ()), baseline=case["baseline_py005"],
+                    static=case.get("static", ()), keep_prose=case.get("keep_prose", ()))
+                serialized = json.dumps(report, ensure_ascii=False)
+                for value in case.get("must_keep_txt", ()):
+                    self.assertIn(value, rendered)
+                for value in case.get("must_keep_json", ()):
+                    self.assertIn(value, serialized)
+                ids = set(self.ids(report))
+                quantities = {i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}
+                self.assertLessEqual(set(case.get("expect_ids", ())), ids)
+                self.assertTrue(ids.isdisjoint(case.get("forbid_ids", ())))
+                self.assertLessEqual(set(case.get("expect_py016", ())), quantities)
+                cid = case["id"].split("_", 1)[0]
+                if cid == "V11":
+                    excerpt = next(i["excerpt"] for i in report["issues"] if i["id"] == "PY-001")
+                    self.assertIn("无可救药", excerpt)
+                    self.assertNotIn("〔编号", excerpt)
+                if cid == "V22":
+                    self.assertEqual(report["entries"][0]["label"], "〔编号1〕")
+                    self.assertIn("〔编号1〕", report["file"])
+                    self.assertNotIn("〔编号2〕", serialized)
+                if cid == "V25":
+                    for issue in report["issues"]:
+                        if issue["id"] in {"PY-007", "PY-008"}:
+                            self.assertNotIn("〔姓名", issue["message"])
+                        if issue["id"] in {"PY-007", "PY-015"}:
+                            self.assertIn(issue["label"], issue["message"])
+                if cid == "V28":
+                    self.assertEqual([e["label"] for e in report["entries"]], ["S01", "S02", "S03", "S04"])
+
+    def test_round2_review_cases(self):
+        self.check_round2_cases(word=False)
+
+    @unittest.skipUnless(HAS_DOCX, "需要既有可选库 python-docx")
+    def test_round2_review_word_cases(self):
+        self.check_round2_cases(word=True)
+
+    def test_round2_large_quantities_still_reconcile(self):
+        for unit in ("字", "下", "步", "余元", "多本", "题", "道", "圈", "遍", "场", "天", "周", "万", "千", "位", "页",
+                     "件", "段", "回", "套", "公斤", "公里"):
+            with self.subTest(unit=unit):
+                raw = f"680125{unit}"
+                _, report = self.check_output(
+                    ("qty.txt", f"S01：你很笨，学号：78331及{raw}。"),
+                    ("facts.txt", f"S01：691345{unit}。"), ("78331",),
+                    baseline=[[1, "学号等编号"]], keep_prose=(raw,))
+                self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"680125"})
+
+    def test_round2_state_cells_do_not_register_prose_aliases(self):
+        for state in ("无", "在读", "暂无", "正常", "待核", "-", "K", "ABC"):
+            with self.subTest(state=state):
+                prose = f"你很笨，还是无可救药。备注是{state}，规范范围50-60下。"
+                _, report = self.check_output(
+                    ("status.csv", [["编号", "评语"], [state, prose]]), None, (), keep_prose=(prose,))
+                self.assertEqual(report["entries"][0]["label"], "〔编号1〕")
+                self.assertIn("PY-001", self.ids(report))
+
+    def test_round2_bare_prefixed_numbers(self):
+        for identifier in ("G110106201201155676", "L11010620120115567x", "g11010620120115567X",
+                           "l110106201201155678", "G110106-20120115-567X", "L110106 20120115 567X",
+                           "Q847512", "AZ847512", "az847512", "J847512A", "ZX847512XX"):
+            with self.subTest(identifier=identifier):
+                _, report = self.check_output(
+                    (f"报告_{identifier}.txt", f"S01：你很笨，档案{identifier}已转入，20261126参加活动1次。"),
+                    ("facts.txt", "S01：20261126参加活动1次。"), (identifier,),
+                    keep_prose=("20261126参加活动1次",))
+                self.assertIn("〔编号1〕", report["file"])
+                self.assertNotIn("PY-016", self.ids(report))
+
+    def test_round2_mixed_headers_and_adjacency(self):
+        variants = (
+            ("姓名与学生卡号", "WX_581_43", "WX_581_43王小明"),
+            ("考号及姓名", "E-88059", "王小明E-88059"),
+            ("姓名/工号", "AB__4582", "王小明/AB__4582"),
+            ("姓名编号（内部）", "2026-02-01", "王小明2026-02-01"),
+            ("学生（工号）", "ZZ 9418", "ZZ 9418王小明"),
+            ("学生姓名（证件号码）", "2026/02/03", "王小明2026/02/03"),
+            ("准考证号（学生姓名）", "Z811W2", "Z811W2王小明"),
+            ("同学（学生卡号）", "59018", "王小明（8班）59018"),
+            ("班级学生姓名（编号）", "AW_004", "AW_004（王小明）"),
+        )
+        for header, identifier, cell in variants:
+            with self.subTest(header=header, identifier=identifier):
+                # 日期形编号只在有编号上下文的混合格中净化。
+                prefix = "" if header in {"姓名编号（内部）", "学生姓名（证件号码）"} else identifier
+                notes = f"{prefix}王小明，你很笨，读书9本。"
+                comments = [[header, "评语"], [cell, notes]]
+                facts = [[header, "具体表现"], [cell, "读书4本"]]
+                _, report = self.check_output(("mixed.csv", comments), ("facts.md", facts),
+                                              (identifier, "王小明"))
+                self.assertRegex(report["entries"][0]["label"], r"〔姓名\d+〕")
+                self.assertNotIn("PY-015", self.ids(report))
+                self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"9"})
+
+    def test_round2_list_separators_and_local_codes(self):
+        for separator in ("、", "，", ",", "和", "与", "/", "及"):
+            with self.subTest(separator=separator):
+                value = f"NB__024{separator}KA_003{separator}S004"
+                comments = [["编号", "评语"], ["S004", f"你很笨，学生卡号是{value}，读书9本。"]]
+                facts = [["编号", "具体表现"], ["S004", "读书4本"]]
+                _, report = self.check_output(("list.md", comments), ("facts.csv", facts),
+                                              ("NB__024", "KA_003"), keep_prose=("S004",))
+                self.assertEqual(report["entries"][0]["label"], "S004")
+                self.assertNotIn("PY-015", self.ids(report))
+
     def check_table_variants(self, *, word):
         for header, value, fmt in TABLE_VARIANTS:
             if (fmt == "docx") != word:
@@ -140,10 +297,15 @@ class CommentPrivacyTests(K12TestCase):
                 # 两侧仅有编号可对账。事实表额外的普通数字必须保留。
                 comments = [[header, "评语"], [value, "你读书13本，表现很笨。"]]
                 facts = [[header, "具体表现"], [value, "你读书7本。"]]
-                filename = f"评语_{value}.{fmt}" if "/" not in value else f"评语.{fmt}"
-                _text, report = self.check_output((filename, comments), ("facts." + fmt, facts), (value,))
-                self.assertEqual(report["entries"][0]["label"], "〔编号1〕")
-                self.assertIn("〔编号1〕", report["file"] if "/" not in value else report["entries"][0]["label"])
+                local_code = value == "S096"
+                in_filename = "/" not in value and value not in {"K", "年份 报告句子"}
+                filename = f"评语_{value}.{fmt}" if in_filename else f"评语.{fmt}"
+                _text, report = self.check_output((filename, comments), ("facts." + fmt, facts),
+                                                  () if local_code else (value,))
+                label = value if local_code else "〔编号1〕"
+                self.assertEqual(report["entries"][0]["label"], label)
+                if in_filename:
+                    self.assertIn(label, report["file"])
                 self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"13"})
                 self.assertNotIn("PY-015", self.ids(report))
 
@@ -159,12 +321,12 @@ class CommentPrivacyTests(K12TestCase):
             with self.subTest(note=note):
                 filename = f"评语_{originals[0]}.txt" if "\t" not in originals[0] else "评语.txt"
                 comment = f"S01：你读书17本，你很笨。{note}，应继续努力。"
-                _, report = self.check_output((filename, comment), ("facts.txt", "S01：读书8本。"), originals)
+                baseline = [[1, "手机号"]] if originals == ("15981936719",) else ()
+                _, report = self.check_output((filename, comment), ("facts.txt", "S01：读书8本。"),
+                                              originals, baseline=baseline)
                 self.assertIn("〔编号1〕", report["file"] if "\t" not in originals[0]
                               else next(i["excerpt"] for i in report["issues"] if i["id"] == "PY-001"))
                 self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"17"})
-                if note.startswith(("档案中的", "号码留在", "你的号码")):
-                    self.assertIn("PY-005", self.ids(report))
 
     def test_quantities_dates_and_numbered_rows_keep_their_meaning(self):
         comments = ("| 序号 | 学号 | 评语 |\n|---|---|---|\n"
@@ -175,7 +337,8 @@ class CommentPrivacyTests(K12TestCase):
         # 同一数值只在“学号”列是编号。数量出现是预期。
         _, report = self.check_output(
             ("draft_338517.md", comments), ("facts.md", facts), ("338517",),
-            static=("338517本", "数字“338517”", "原文：“338517”", '"excerpt": "338517"'))
+            static=("338517本", "数字“338517”", "原文：“338517”", '"excerpt": "338517"'),
+            keep_prose=("338517本", "2026-11-21", "150000.65元", "5班"))
         self.assertNotIn("338517", report["file"])
         self.assertEqual(report["entries"][0]["label"], "53")
         self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"},
@@ -193,7 +356,7 @@ class CommentPrivacyTests(K12TestCase):
         text = ("| 学号 | 评语 |\n|---|---|\n"
                 "| 甲区 39684 / 乙区 | 你很笨，电话是FA19-36 CD70-26。 |")
         _, report = self.check_output(("评语_39684_CD70-26.md", text), None,
-                                      ("39684", "FA19-36", "CD70-26"))
+                                      ("39684", "FA19-36", "CD70-26", "FA19-36 CD70-26"))
         first, second = report["file"].removeprefix("评语_").removesuffix(".md").split("_")
         self.assertEqual(report["entries"][0]["label"], first)
         self.assertNotEqual(first, second)

@@ -150,8 +150,7 @@ class CommentsTest(K12TestCase):
         messages = " ".join(i["message"] for i in report["issues"])
         self.assertIn("“3”在该生的事实表中找不到", messages)        # 事实表写的是“两次”
         self.assertIn("童心向党", messages)
-        self.assertIn("事实表中有 〔编号3〕，评语中没有", messages)
-        self.assertNotIn("S03", messages)
+        self.assertIn("事实表中有 S03，评语中没有", messages)
         self.assertIn("事实表中没有 S04", messages)
 
     def test_chinese_numerals_in_facts_match_digits(self):
