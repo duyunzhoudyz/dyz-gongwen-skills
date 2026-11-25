@@ -542,6 +542,57 @@ class ClauseTest(unittest.TestCase):
         self.assertEqual(frame.clauses, [1])
         self.assertEqual([a.polarity for a in graph.actions], [P.NEGATIVE, P.POSITIVE])
 
+    def test_review_r3_numbered_colon_prose(self):
+        for label, text, members, context, polarity in [
+            ("B2V_09", "1、严禁以下行为：\n学校统一购买校服。教师向校外培训机构透露学生电话。",
+             [1, 2], C.NEGATION, P.NEGATIVE),
+            ("B2V_10", "一、严禁以下行为：\n学校统一购买校服。教师向校外培训机构透露学生电话。",
+             [1, 2], C.NEGATION, P.NEGATIVE),
+            ("B2V_11", "- 严禁以下行为：\n学校统一购买校服。教师向校外培训机构透露学生电话。",
+             [1, 2], C.NEGATION, P.NEGATIVE),
+            ("E01", "1、严禁以下行为：\n学校统一购买校服。", [1], C.NEGATION, P.NEGATIVE),
+            ("E02", "（一）严禁以下行为：\n班主任组织学生参加校外有偿补课。", [1], C.NEGATION, P.NEGATIVE),
+            ("E03", "1. 严禁以下行为：\n学校统一购买校服。", [1], C.NEGATION, P.NEGATIVE),
+            ("E04", "1、以下为反面典型案例：\n学校统一购买校服。", [1], C.UNKNOWN, P.UNKNOWN),
+        ]:
+            with self.subTest(label=label):
+                graph = CLAUSE.analyze(text)
+                frame, = (f for f in graph.frames if f.kind == "colon")
+                self.assertEqual((frame.clauses, frame.context), (members, context))
+                self.assertEqual([graph.clauses[i].context for i in members], [context] * len(members))
+                self.assertEqual({a.clause for a in graph.actions}, set(members))
+                self.assertEqual({(a.context, a.polarity, a.admission) for a in graph.actions},
+                                 {(context, polarity, None)})
+
+    def test_review_r3_numbered_colon_mutations(self):
+        first = "学校统一购买校服。"
+        second = "教师向校外培训机构透露学生电话。"
+        for marker in ("1、", "一、", "（一）", "1. ", "- "):
+            for body, members in [(first, [1]), (first + second, [1, 2]),
+                                  ("  1. " + first + "\n  2. " + second, [1, 2])]:
+                with self.subTest(marker=marker, body=body):
+                    graph = CLAUSE.analyze(marker + "严禁以下行为：\n" + body)
+                    frame, = (f for f in graph.frames if f.kind == "colon")
+                    self.assertEqual(frame.clauses, members)
+                    self.assertEqual([(a.clause, a.polarity, a.admission) for a in graph.actions],
+                                     [(i, P.NEGATIVE, None) for i in members])
+
+    def test_review_r3_numbered_colon_scope_boundaries(self):
+        for body, members in [
+            ("\n学校统一购买校服。", []),
+            ("2. 学校统一购买校服。", []),
+            ("  1. 教师向校外培训机构透露学生电话。\n2. 学校统一购买校服。", [1]),
+        ]:
+            with self.subTest(body=body):
+                graph = CLAUSE.analyze("1、严禁以下行为：\n" + body)
+                frame, = (f for f in graph.frames if f.kind == "colon")
+                self.assertEqual(frame.clauses, members)
+                self.assertEqual([(a.clause, a.context, a.polarity) for a in graph.actions],
+                                 [(i, C.NEGATION, P.NEGATIVE) for i in members]
+                                 + [(len(members) + 1, C.ASSERTION, P.POSITIVE)])
+                if body.startswith("\n"):
+                    self.assertEqual(graph.actions[-1].admission, CLAUSE.Admission.MAIN)
+
     def test_review_r2_risk_structure(self):
         cases = review_r2_cases()
 

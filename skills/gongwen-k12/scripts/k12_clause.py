@@ -884,15 +884,12 @@ class _Builder:
                 list_id, active = self.list_scope(blocks, level, previous_level, previous_intro, offset, start)
                 self.open_frame = None
                 self.next_sentence()
-            elif blocks:
+            elif blocks or (not paragraph_starts and previous_intro is not None):
                 blocks.clear()
+                if not paragraph_starts and previous_intro is not None:
+                    # 纯文本以紧邻正文行作为下一段，冒号管到该行末。
+                    active = (previous_intro,)
                 previous_intro = self.open_frame = None
-                self.paragraph += 1
-                self.next_sentence()
-            elif not paragraph_starts and previous_intro is not None:
-                # 纯文本以紧邻正文行作为下一段，冒号管到该行末。
-                active = (previous_intro,)
-                self.open_frame = None
                 self.paragraph += 1
                 self.next_sentence()
             previous_intro = self.line_parts(line, offset, start, len(line), pairs, bad, escaped,
