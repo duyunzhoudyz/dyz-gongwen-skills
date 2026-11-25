@@ -68,7 +68,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.5"
+VERSION = "1.2.6"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -791,20 +791,25 @@ def merge_rule_issues(baseline: Sequence[Issue], added: Sequence[Issue] = (),
         if not exempt <= eligible:
             raise ValueError("基线豁免须指向已登记规则的一条原始命中")
     baseline = [item for item in baseline if id(item) not in exempt]
+
+    def key(item: Issue) -> tuple:
+        table_unknown = item.id == "K12-G04" and item.message == shared_names()[0].TABLE_UNKNOWN_HINT
+        return item.id, item.line, table_unknown
+
     levels = {}
     for item in baseline:
-        key = (item.id, item.line)
+        group = key(item)
         rank = LEVELS.index(item.level)
-        levels[key] = min(rank, levels.get(key, rank))
+        levels[group] = min(rank, levels.get(group, rank))
     upgrades = {}
     for item in added:
-        key = (item.id, item.line)
+        group = key(item)
         rank = LEVELS.index(item.level)
-        if rank < levels.get(key, len(LEVELS)):
-            levels[key] = rank
-            upgrades[key] = item
-    # 已有同级命中优先，保留旧姓名分支同一行的不同历史告警。
-    return [item for item in baseline if (item.id, item.line) not in upgrades] + list(upgrades.values())
+        if rank < levels.get(group, len(LEVELS)):
+            levels[group] = rank
+            upgrades[group] = item
+    # 已有同级命中优先，姓名列人工核对提示独立于实名命中。
+    return [item for item in baseline if key(item) not in upgrades] + list(upgrades.values())
 
 
 # ---------------------------------------------------------------------------
@@ -816,6 +821,7 @@ class Entry:
     label: str
     body: str
     line: int
+    from_table: bool = False
 
 
 ENTRY_LABEL_RE = re.compile(
@@ -879,26 +885,42 @@ def count_chars(text: str) -> int:
     return len(re.sub(r"\s", "", MARKER_RE.sub("", text)))
 
 
-COMMENT_ID_HEADERS = (*STUDENT_ID_HEADERS, "身份证", "证件", "手机", "电话", "联系方式")
+COMMENT_ID_KEYWORDS = ("学号", "考号", "考生号", "准考证", "学籍", "证件", "身份证", "手机", "电话",
+                       "联系方式", "工号", "编号")
+COMMENT_ID_ANNOTATION = r"[（(][^（）()\r\n]{1,12}[）)]"
+COMMENT_HEADER_ANNOTATION_RE = re.compile(r"[（(][^（）()\r\n]*[）)]")
+COMMENT_ID_VALUE = r"[A-Za-z0-9]+(?:(?:[ \t]*[-－–][ \t]*|[ \t]+)[A-Za-z0-9]+)*"
+COMMENT_FILENAME_ID_RE = re.compile(r"[A-Za-z0-9]+(?:[-－–][A-Za-z0-9]+)*")
+COMMENT_ID_LIST_SEPARATOR = r"[ \t]*[、,，和与][ \t]*"
+COMMENT_ID_LABEL = "(?:" + "|".join(COMMENT_ID_KEYWORDS) + r")(?:号码|号|码)?"
 COMMENT_TAGGED_ID_RE = re.compile(
-    r"(?:学号|学籍号|考号|准考证号|学生卡号|身份证号?|证件号|手机号?|电话号?)(?:码)?"
-    r"\s*(?:[：:]\s*|[为是]\s*)?(?P<number>[A-Za-z0-9]{4,})"
+    rf"(?<!〔){COMMENT_ID_LABEL}[ \t]*(?:{COMMENT_ID_ANNOTATION}[ \t]*)?[为是]?[ \t]*[：:]?[ \t]*"
+    rf"(?P<values>{COMMENT_ID_VALUE}(?:{COMMENT_ID_LIST_SEPARATOR}{COMMENT_ID_VALUE})*)"
 )
-COMMENT_CELL_ID_RE = re.compile(r"[A-Za-z0-9]{4,}")
-COMMENT_RAW_LABEL_RE = re.compile(r"^\s*(?P<number>[A-Za-z0-9]{4,})\s*[：:]")
-COMMENT_MOBILE_RE = re.compile(r"(?<![0-9])1[3-9]\d[ -]?\d{4}[ -]?\d{4}(?![0-9])")
-COMMENT_LONG_ID_RE = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]*\d{6,}[A-Za-z0-9]*(?![A-Za-z0-9])")
-COMMENT_PLACEHOLDER_RE = re.compile(r"〔姓名\d+〕|【已(?:遮蔽|删除)】")
+COMMENT_ID_SPLIT_RE = re.compile(COMMENT_ID_LIST_SEPARATOR)
+COMMENT_RAW_LABEL_RE = re.compile(rf"^\s*(?P<number>{COMMENT_ID_VALUE})[ \t]*[：:]")
+COMMENT_FORMATTED_ID_RE = re.compile(r"(?<![A-Za-z0-9])\d{6}[ -]?\d{8}[ -]?\d{3}[\dXx](?![A-Za-z0-9])")
+COMMENT_MOBILE_RE = re.compile(r"(?<!\d)1[3-9]\d[ -]?\d{4}[ -]?\d{4}(?!\d)")
+COMMENT_LONG_ID_RE = re.compile(r"(?<![A-Za-z0-9])\d{6,}(?![A-Za-z0-9])")
+COMMENT_NUMBER_TOKEN_RE = re.compile(r"〔编号\d+〕")
+COMMENT_OUTPUT_TOKEN_RE = re.compile(r"(〔(?:编号|姓名)\d+〕)")
 COMMENT_TABLE_SEPARATOR_RE = re.compile(r"\|?\s*:?-{2,}:?(?:\s*\|\s*:?-{2,}:?)+\s*\|?")
+COMMENT_QUANTITY_UNIT_RE = re.compile(
+    r"[ \t]*(?:\.\d|[%％元块]|年[度份]?|月|日|分(?!组|班)|次|本|篇|项|个|张|名|班|人|米|克|公里|小时)"
+)
+COMMENT_DATE_RE = re.compile(r"(?<!\d)\d{4}[-/]\d{1,2}[-/]\d{1,2}(?!\d)")
+COMMENT_PRIVACY_RULES = ((ID_RE, "身份证号"), (MOBILE_RE, "手机号"), (STUDENT_NO_RE, "学号等编号"))
 
 
 def _comment_tables(doc: Document) -> List[List[List[str]]]:
     if doc.kind != "text":
         return doc.tables
     lines, _ = cut_at_boundary(doc.lines)
-    # 隐私扫描兼容省略行首竖线的 Markdown 表格，评语段落定位仍沿用原解析。
+    # 普通入口沿用原表格解析。编号表也接受 Markdown 省略行首竖线的写法。
     for index, line in enumerate(lines[:-1]):
         if "|" not in line or not COMMENT_TABLE_SEPARATOR_RE.fullmatch(lines[index + 1].strip()):
+            continue
+        if not any(_comment_id_column(cell) or _comment_mixed_id_column(cell) for cell in line.split("|")):
             continue
         for row in range(index, len(lines)):
             text = lines[row].strip()
@@ -908,39 +930,207 @@ def _comment_tables(doc: Document) -> List[List[List[str]]]:
     return parse_md_tables(lines)
 
 
-def _comment_private_ids(docs: Sequence[Document], sources: Sequence[str]) -> set:
-    private_ids = {m["number"] for source in sources for m in COMMENT_TAGGED_ID_RE.finditer(source)}
-    for doc in docs:
-        for line in cut_at_boundary(doc.lines)[0]:
-            match = COMMENT_RAW_LABEL_RE.match(line)
-            if match and any(c.isdigit() for c in match["number"]) and not CODE_LIKE_RE.fullmatch(match["number"]):
-                private_ids.add(match["number"])
-        for table in _comment_tables(doc):
-            if not table:
+def _comment_id_column(header: str) -> bool:
+    header = re.sub(r"\s", "", COMMENT_HEADER_ANNOTATION_RE.sub("", header))
+    return any(keyword in header for keyword in COMMENT_ID_KEYWORDS)
+
+
+def _comment_mixed_id_column(header: str) -> bool:
+    # “学生姓名（学号）”仍是姓名列，仅净化括注指明的编号部分。
+    return "姓名" in header and any(_comment_id_column(annotation[1:-1])
+                                    for annotation in COMMENT_HEADER_ANNOTATION_RE.findall(header))
+
+
+def _comment_label_column(header: Sequence[str]) -> Optional[int]:
+    label = find_column(header, LABEL_HEADER_NAMES)
+    if label is not None:
+        return label
+    return next((i for i, cell in enumerate(header) if _comment_id_column(cell)), None)
+
+
+def _comment_tagged_values(text: str):
+    for match in COMMENT_TAGGED_ID_RE.finditer(text):
+        start = match.start("values")
+        values = match["values"]
+        for separator in COMMENT_ID_SPLIT_RE.finditer(values):
+            yield start, match.start("values") + separator.start()
+            start = match.start("values") + separator.end()
+        yield start, match.end("values")
+
+
+def _comment_raw_label(text: str):
+    match = COMMENT_RAW_LABEL_RE.match(text)
+    if match:
+        value = match["number"]
+        if (len(re.sub(r"\s", "", value)) >= 4 and any(c.isdigit() for c in value)
+                and not CODE_LIKE_RE.fullmatch(value) and not COMMENT_DATE_RE.fullmatch(value)):
+            return match
+    return None
+
+
+def _comment_bare_ids(text: str):
+    # 证件和手机号先于连续长数字，避免把分段证件号拆开。
+    for regex, category in ((COMMENT_FORMATTED_ID_RE, "身份证号"), (COMMENT_MOBILE_RE, "手机号"),
+                            (COMMENT_LONG_ID_RE, "学号等编号")):
+        for match in regex.finditer(text):
+            if regex == COMMENT_LONG_ID_RE and (
+                COMMENT_QUANTITY_UNIT_RE.match(text, match.end())
+                or re.search(r"\d\.$", text[:match.start()])
+            ):
                 continue
-            for col, header in enumerate(table[0]):
-                if find_column((header,), COMMENT_ID_HEADERS) is not None:
-                    for row in table[1:]:
-                        if col < len(row):
-                            private_ids.update(COMMENT_CELL_ID_RE.findall(row[col]))
-    return private_ids
+            yield match.start(), match.end(), category
 
 
-def _mask_comment_output(value: Any, pattern: re.Pattern) -> Any:
-    if isinstance(value, str):
-        return pattern.sub(lambda m: m[0] if COMMENT_PLACEHOLDER_RE.fullmatch(m[0]) else "【已遮蔽】", value)
-    if isinstance(value, dict):
-        return {key: _mask_comment_output(item, pattern) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_mask_comment_output(item, pattern) for item in value]
-    return value
+class CommentNumbers:
+    """只在输入边界登记和替换编号，评语与事实表使用同一张编号表。"""
+
+    def __init__(self) -> None:
+        self.forms: Dict[str, str] = {}
+        self.filename_parts: Dict[str, str] = {}
+        self.aliases: Optional[re.Pattern] = None
+
+    def token(self, value: str, *, structured: bool = False) -> str:
+        token = self.forms.setdefault(value, f"〔编号{len(self.forms) + 1}〕")
+        if structured:
+            for match in COMMENT_FILENAME_ID_RE.finditer(value):
+                part = match[0]
+                if len(part) >= 4 and any(c.isdigit() for c in part):
+                    self.filename_parts.setdefault(part, token)
+        return token
+
+    def register(self, text: str) -> None:
+        for start, end in _comment_tagged_values(text):
+            self.token(text[start:end], structured=True)
+        match = _comment_raw_label(text)
+        if match:
+            self.token(match["number"])
+
+    def prepare(self) -> None:
+        if self.forms:
+            values = "|".join(map(re.escape, sorted(self.forms, key=len, reverse=True)))
+            self.aliases = re.compile(rf"(?<![A-Za-z0-9])(?:{values})(?![A-Za-z0-9])")
+
+    def clean(self, text: str, *, filename: bool = False, label: bool = False,
+              privacy_hits: Optional[List[Tuple[str, str]]] = None) -> str:
+        spans = [m.span() for m in COMMENT_OUTPUT_TOKEN_RE.finditer(text)]
+        replacements = []
+
+        def replace(start: int, end: int, token: Optional[str] = None) -> None:
+            if any(start < right and left < end for left, right in spans):
+                return
+            spans.append((start, end))
+            replacements.append((start, end, token or self.token(text[start:end])))
+
+        if label and text in self.forms:
+            return self.forms[text]
+
+        tagged = list(_comment_tagged_values(text))
+        for start, end in tagged:
+            replace(start, end)
+        markers = list(MARKER_RE.finditer(text)) if privacy_hits is not None else []
+
+        def outside_marker(start: int, end: int) -> bool:
+            return not any(start < m.end() and m.start() < end for m in markers)
+
+        evidence = {}
+        if privacy_hits is not None:
+            for regex, category in COMMENT_PRIVACY_RULES:
+                match = next((m for m in regex.finditer(text) if outside_marker(*m.span())), None)
+                if match:
+                    evidence[category] = match.span()
+        bare_spans = []
+        for start, end, category in _comment_bare_ids(text):
+            if any(start < right and left < end for left, right in bare_spans + spans):
+                continue
+            bare_spans.append((start, end))
+            if privacy_hits is not None and outside_marker(start, end):
+                evidence.setdefault(category, (start, end))
+        if privacy_hits is not None:
+            for start, end in tagged:
+                for regex, category in ((COMMENT_FORMATTED_ID_RE, "身份证号"), (COMMENT_MOBILE_RE, "手机号")):
+                    if regex.fullmatch(text, start, end) and outside_marker(start, end):
+                        evidence.setdefault(category, (start, end))
+        aliases = build_mask_regex(self.forms) if filename else self.aliases
+        candidates = [(start, end, None) for start, end in bare_spans]
+        if aliases is not None:
+            dates = [] if filename else list(COMMENT_DATE_RE.finditer(text))
+            for match in aliases.finditer(text):
+                if not filename and match[0].isdigit() and COMMENT_QUANTITY_UNIT_RE.match(text, match.end()):
+                    continue
+                if any(date.start() <= match.start() and match.end() <= date.end() for date in dates):
+                    continue
+                candidates.append((*match.span(), self.forms[match[0]]))
+        if filename:
+            candidates.extend((*m.span(), self.filename_parts[m[0]]) for m in COMMENT_FILENAME_ID_RE.finditer(text)
+                              if m[0] in self.filename_parts)
+        def priority(span: Tuple[int, int, Optional[str]]) -> tuple:
+            start, end, token = span
+            return filename and token is None, start - end, start, token is None
+
+        for start, end, token in sorted(candidates, key=priority):
+            replace(start, end, token)
+
+        parts = []
+        last = 0
+        replacements.sort()
+        for start, end, token in replacements:
+            parts.extend((text[last:start], token))
+            last = end
+        parts.append(text[last:])
+        cleaned = "".join(parts)
+        if privacy_hits is not None:
+            def position(index: int, *, right: bool = False) -> int:
+                delta = 0
+                for start, end, token in replacements:
+                    if index <= start:
+                        break
+                    if index < end:
+                        return start + delta + (len(token) if right else 0)
+                    delta += len(token) - (end - start)
+                return index + delta
+
+            for category, (start, end) in evidence.items():
+                privacy_hits.append((category, _comment_excerpt(cleaned, position(start), position(end, right=True))))
+        return cleaned
 
 
-def _comment_table_names(doc: Document, gw: Any, lex: Any) -> list:
-    if doc.kind == "text":
-        return list(gw.find_table_names(cut_at_boundary(doc.lines)[0], lex, "k12").values())
-    return [row for cells in doc.tables
-            for row in gw.find_table_names(render_md_table(cells), lex, "k12").values()]
+def _comment_excerpt(text: str, start: int, end: int, radius: int = 10) -> str:
+    left, right = max(0, start - radius), min(len(text), end + radius)
+    for match in COMMENT_NUMBER_TOKEN_RE.finditer(text):
+        if match.start() < right and match.end() > left:
+            left, right = min(left, match.start()), max(right, match.end())
+    return text[left:right].strip()
+
+
+def _comment_register_table(numbers: CommentNumbers, tables: List[List[List[str]]]) -> None:
+    for table in tables:
+        if not table:
+            continue
+        for col, header in enumerate(table[0]):
+            for row in table[1:]:
+                if col >= len(row) or not row[col]:
+                    continue
+                if _comment_id_column(header):
+                    numbers.token(row[col], structured=True)
+                elif _comment_mixed_id_column(header):
+                    for match in re.finditer(COMMENT_ID_VALUE, row[col]):
+                        numbers.token(match[0], structured=True)
+                else:
+                    numbers.register(row[col])
+
+
+def _comment_clean_tables(numbers: CommentNumbers, tables: List[List[List[str]]]) -> List[List[List[str]]]:
+    return [[table[0], *[
+        [numbers.token(cell) if cell and i < len(table[0]) and _comment_id_column(table[0][i])
+         else numbers.clean(cell) for i, cell in enumerate(row)]
+        for row in table[1:]
+    ]] for table in tables if table]
+
+
+def _comment_table_names(tables: List[List[List[str]]], gw: Any, lex: Any) -> list:
+    return [row for cells in tables
+            for row in gw.find_table_names(
+                [COMMENT_NUMBER_TOKEN_RE.sub("", line) for line in render_md_table(cells)], lex, "k12").values()]
 
 
 def _load_comment_document(path: Path) -> Document:
@@ -951,23 +1141,23 @@ def _load_comment_document(path: Path) -> Document:
         raise InputError("无法读取评语或事实表，请核对文件路径、格式和编码") from exc
 
 
-def parse_comment_entries(doc: Document) -> List[Entry]:
+def parse_comment_entries(doc: Document, tables: List[List[List[str]]]) -> List[Entry]:
     lines, _ = cut_at_boundary(doc.lines)
     # 1. 表格：有“评语”列的优先
-    tables = parse_md_tables(lines) if doc.kind == "text" else doc.tables
     for table in tables:
         if not table:
             continue
         c_comment = find_column(table[0], COMMENT_HEADER_NAMES)
         if c_comment is None:
             continue
-        c_label = find_column([h if i != c_comment else "" for i, h in enumerate(table[0])], LABEL_HEADER_NAMES)
+        c_label = _comment_label_column([h if i != c_comment else "" for i, h in enumerate(table[0])])
         entries = []
         for r_index, row in enumerate(table[1:], start=1):
             body = row[c_comment] if c_comment < len(row) else ""
             label = row[c_label] if c_label is not None and c_label < len(row) else f"第{r_index}条"
             if body.strip():
-                entries.append(Entry(label=label.strip() or f"第{r_index}条", body=body.strip(), line=r_index + 1))
+                entries.append(Entry(label=label.strip() or f"第{r_index}条", body=body.strip(),
+                                     line=r_index + 1, from_table=True))
         if entries:
             return entries
     # 2. 文本：“编号：评语”，或编号独占一行、评语在下一段
@@ -990,6 +1180,11 @@ def parse_comment_entries(doc: Document) -> List[Entry]:
                 current = Entry(label=m.group("label"), body=(m.group("body") or "").strip(), line=index)
                 entries.append(current)
                 continue
+        private = _comment_raw_label(line)
+        if private:
+            current = Entry(private["number"], line[private.end():].strip(), index)
+            entries.append(current)
+            continue
         if current is not None:
             current.body += line
         else:
@@ -1020,7 +1215,7 @@ def cn_to_int(text: str) -> Optional[int]:
 
 
 def numbers_in(text: str) -> List[str]:
-    return re.findall(r"\d+(?:\.\d+)?", MARKER_RE.sub("", text))
+    return re.findall(r"\d+(?:\.\d+)?", COMMENT_OUTPUT_TOKEN_RE.sub(" ", MARKER_RE.sub("", text)))
 
 
 def fact_numbers(text: str) -> set:
@@ -1049,20 +1244,19 @@ def award_tokens(text: str) -> Dict[str, str]:
 
 def fact_is_empty(text: str) -> bool:
     """事实表条目只有空白、占位词或“成绩一般”之类的笼统评价，没有具体表现。"""
-    rest = normalize(text)
+    rest = normalize(COMMENT_NUMBER_TOKEN_RE.sub(" ", text))
     for phrase in GENERIC_PHRASES:
         rest = rest.replace(phrase, "")
     rest = FACT_PLACEHOLDER_RE.sub("", rest)
     return len(rest) < 3
 
 
-def parse_facts(doc: Document) -> Dict[str, str]:
+def parse_facts(doc: Document, tables: List[List[List[str]]]) -> Dict[str, str]:
     lines, _ = cut_at_boundary(doc.lines)
-    tables = parse_md_tables(lines) if doc.kind == "text" else doc.tables
     for table in tables:
         if not table:
             continue
-        c_label = find_column(table[0], LABEL_HEADER_NAMES)
+        c_label = _comment_label_column(table[0])
         if c_label is None:
             continue
         facts: Dict[str, str] = {}
@@ -1083,6 +1277,9 @@ def parse_facts(doc: Document) -> Dict[str, str]:
         if m and m.group("label") not in NOT_NAMES and m.group("body") is not None:
             current = m.group("label")
             facts[current] = (facts.get(current, "") + " " + m.group("body")).strip()
+        elif (private := _comment_raw_label(line)):
+            current = private["number"]
+            facts[current] = (facts.get(current, "") + " " + line[private.end():]).strip()
         elif current:
             facts[current] += " " + line
     if not facts:
@@ -1105,34 +1302,41 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
     """学生评语批量检查。表格姓名在整个报告中遮蔽，文本实名标签保留本机定位。"""
     gw, _lex = shared_names()
     doc = _load_comment_document(path)
-    entries = parse_comment_entries(doc)
+    raw_tables = _comment_tables(doc)
+    entries = parse_comment_entries(doc, raw_tables)
     if not entries:
         raise InputError("没有识别到评语。请按“S01：评语”每行一名学生，或用带“评语”列的表格")
     facts_doc = _load_comment_document(facts_path) if facts_path is not None else None
-    facts = parse_facts(facts_doc) if facts_doc is not None else {}
-    docs = [doc, facts_doc] if facts_doc is not None else [doc]
-    sources = [*(source.path.name for source in docs), *(e.label for e in entries), *(e.body for e in entries),
-               *facts, *facts.values()]
-    private_values = _comment_private_ids(docs, sources)
-    literals = "|".join(map(re.escape, sorted(private_values, key=lambda value: (-len(value), value))))
-    direct = f"{ID_RE.pattern}|{COMMENT_MOBILE_RE.pattern}"
-    # 对账只排除完整编号，报告还要遮住粘连在文件名或归一化摘录里的已知编号。
-    private_ids = re.compile(direct + (rf"|(?<![A-Za-z0-9])(?:{literals})(?![A-Za-z0-9])" if literals else ""))
-    output_checks = [COMMENT_PLACEHOLDER_RE.pattern, direct, COMMENT_LONG_ID_RE.pattern]
-    if literals:
-        output_checks.append(literals)
-    output_ids = re.compile("|".join(output_checks))
+    raw_fact_tables = _comment_tables(facts_doc) if facts_doc is not None else []
+    numbers = CommentNumbers()
+    for source, tables in ((doc, raw_tables), (facts_doc, raw_fact_tables)):
+        _comment_register_table(numbers, tables)
+        if source is not None:
+            for line in cut_at_boundary(source.lines)[0]:
+                numbers.register(line)
+    for entry in entries:
+        numbers.register(entry.body)
+    numbers.prepare()
 
-    def excerpt(text: str, start: int, end: int, radius: int = 10) -> str:
-        left, right = max(0, start - radius), min(len(text), end + radius)
-        # 先保住完整编号边界，待共享姓名处理完成后再遮蔽整个编号。
-        for match in output_ids.finditer(text):
-            if match.start() >= right:
-                break
-            if match.end() > left:
-                left = min(left, match.start())
-                right = max(right, match.end())
-        return text[left:right].strip()
+    # 保留旧 PY-005 的识别证据。规则和摘录只读取净化后的内容。
+    privacy_by_line: Dict[int, List[Tuple[str, str]]] = {}
+    # 篇幅统计基于输入字符数，避免占位符长短改变原来的篇幅门槛。
+    entry_chars = {entry.line: count_chars(entry.body) for entry in entries}
+    for entry in entries:
+        examples: List[Tuple[str, str]] = []
+        entry.body = numbers.clean(entry.body, privacy_hits=examples)
+        if entry.from_table or not looks_like_name(entry.label):
+            entry.label = numbers.clean(entry.label, label=True)
+        privacy_by_line[entry.line] = examples
+    comment_tables = _comment_clean_tables(numbers, raw_tables)
+    fact_tables = _comment_clean_tables(numbers, raw_fact_tables)
+    facts = {}
+    if facts_doc is not None:
+        for label, body in parse_facts(facts_doc, fact_tables).items():
+            key = numbers.clean(label, label=True)
+            facts[key] = (facts.get(key, "") + " " + numbers.clean(body)).strip()
+    filename = numbers.clean(path.name, filename=True)
+    excerpt = _comment_excerpt
 
     compulsory = stage == "义务教育"
     issues: List[Issue] = []
@@ -1187,11 +1391,8 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                 "评语写了具体考试分数" + ("；义务教育学校考试实行等级评价" if compulsory else ""),
                 "改为等级或进步的具体表现，如“计算题的错误明显减少”", B_EXAM if compulsory else B_LOCAL,
                 excerpt(body, m.start(), m.end()))
-        for regex, cat in ((ID_RE, "身份证号"), (MOBILE_RE, "手机号"), (STUDENT_NO_RE, "学号等编号")):
-            m = regex.search(body)
-            if m:
-                add(e, "PY-005", "P0", "个人信息", f"评语中出现{cat}", "删去", B_GUARDRAIL_1,
-                    excerpt(body, m.start(), m.end()))
+        for cat, safe_example in privacy_by_line[e.line]:
+            add(e, "PY-005", "P0", "个人信息", f"评语中出现{cat}", "删去", B_GUARDRAIL_1, safe_example)
         for regex, cat in ((FAMILY_RE, "家庭情况"), (HEALTH_RE, "健康或特殊教育需求"), (DISCIPLINE_RE, "违纪处分")):
             m = regex.search(body)
             if m:
@@ -1203,7 +1404,7 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
         if m:
             add(e, "PY-014", "P1", "承诺升学", "评语对升学结果作出承诺或预测",
                 "改为对学习方法和习惯的具体期望", B_PROMISE, excerpt(body, m.start(), m.end()))
-        n_chars = count_chars(body)
+        n_chars = entry_chars[e.line]
         if (min_chars and n_chars < min_chars) or (max_chars and n_chars > max_chars):
             add(e, "PY-009", "P2", "篇幅", f"评语 {n_chars} 字（含标点），不在 {min_chars}～{max_chars} 字之间",
                 "按学校统一要求调整篇幅", B_LOCAL)
@@ -1253,7 +1454,6 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                 seen.add(key)
                 sentence_owner.setdefault(key, []).append(e.label)
                 if key not in sentence_excerpt:
-                    # 归一化会去掉号码中的分隔符，保留原样供输出遮蔽。
                     sentence_excerpt[key] = sent
     threshold = max(2, shared_threshold)
     for key, owners in sentence_owner.items():
@@ -1287,9 +1487,9 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                     excerpt(fact, 0, 20, 0))
                 continue
             body = MARKER_RE.sub("", e.body)
-            known = fact_numbers(private_ids.sub(" ", fact))
+            known = fact_numbers(fact)
             missing_nums = set()
-            for num in numbers_in(private_ids.sub(" ", body)):
+            for num in numbers_in(body):
                 if num not in known:
                     missing_nums.add(num)
                     add(e, "PY-016", "P1", "对账", f"数字“{num}”在该生的事实表中找不到",
@@ -1312,43 +1512,53 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
                         "核对作品、奖项、活动名称，事实表中没有的删去", B_GUARDRAIL_2, q)
 
     table = gw.NameTable()
-    comment_rows = _comment_table_names(doc, gw, _lex)
-    table_rows = comment_rows + (_comment_table_names(facts_doc, gw, _lex) if facts_doc is not None else [])
+    comment_rows = _comment_table_names(comment_tables, gw, _lex)
+    table_rows = comment_rows + _comment_table_names(fact_tables, gw, _lex)
     for row in table_rows:
         table.add_hits(hit for hit in row.hits if not hit.table_only)
     for e in entries:
         label = re.sub(r"\s", "", e.label)
         if 2 <= len(label) <= 4 and not CODE_LIKE_RE.fullmatch(label) and looks_like_name(label):
             table.add(label)
-        for _, name in _g04_analyze(e.body)[1]:
+        for _, name in _g04_analyze(COMMENT_NUMBER_TOKEN_RE.sub(" ", e.body))[1]:
             table.add(name)
     table.add_table_masks(table_rows)
+
+    def mask_input_names(value: str, *, fragment: bool = False) -> str:
+        parts = COMMENT_OUTPUT_TOKEN_RE.split(value)
+        mask = table.mask_fragment if fragment else table.mask
+        return "".join(mask(part) if i % 2 == 0 else part for i, part in enumerate(parts))
+
     for it in issues:
-        it.excerpt = mask_names(table, it.excerpt)
+        it.excerpt = mask_input_names(it.excerpt, fragment=True)
     marker_text = "\n".join(e.body for e in entries)
     issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
     result = {
         "mode": "comments",
-        "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
+        "file": mask_input_names(filename),  # 文件名里与正文已识别姓名相同的部分也遮蔽
         "stage": stage,
         "entry_count": len(entries),
         "summary": summarize(issues, marker_text),
-        "entries": [{"label": e.label, "line": e.line, "chars": count_chars(e.body)} for e in entries],
+        "entries": [{"label": e.label, "line": e.line, "chars": entry_chars[e.line]} for e in entries],
         "similar_pairs": pairs,
         "issues": [i.to_dict() for i in issues],
     }
     if table_rows:
-        masked = table.mask_output(result)
-        if not comment_rows:
-            # 事实表姓名仍进入输出遮蔽，纯文本评语的本机定位标签保留。
-            labels = {e.label for e in entries}
-            for key in ("entries", "issues", "similar_pairs"):
-                for item, original in zip(masked[key], result[key]):
-                    for field in ("label", "a", "b"):
-                        if field in original and original[field] in labels:
-                            item[field] = original[field]
-        result = masked
-    return _mask_comment_output(result, output_ids)
+        # 仅保护纯文本评语的实名标签及其在动态提示里的引用。
+        local = {e.label for e in entries if not e.from_table}
+        names = build_mask_regex(dict.fromkeys(table.names(), ""))
+        pattern = re.compile(r"〔(?:编号|姓名)\d+〕" + ("|" + names.pattern if names else ""))
+
+        def mask_label(value: str) -> str:
+            return pattern.sub(lambda m: m[0] if m[0] in local or COMMENT_OUTPUT_TOKEN_RE.fullmatch(m[0])
+                               else table.placeholder(m[0]), value)
+
+        for key in ("entries", "issues", "similar_pairs"):
+            for item in result[key]:
+                for field in ("label", "a", "b", "message"):
+                    if field in item:
+                        item[field] = mask_label(item[field])
+    return result
 
 
 # ---------------------------------------------------------------------------

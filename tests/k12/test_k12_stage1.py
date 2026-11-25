@@ -5,6 +5,7 @@ import json
 import unittest
 
 from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, REPO_ROOT, SAMPLES, k12_check
+from tests.k12.test_k12_comment_privacy import assert_hidden
 
 
 REGRESSION = SAMPLES / "clause_regression"
@@ -47,7 +48,10 @@ def reference_documents():
 class K12Stage1Tests(K12TestCase):
     def test_all_probes_preserve_baseline_except_the_frozen_private_number_findings(self):
         runs = errors = 0
-        private_differences = Counter()
+        deltas = read_jsonl(SAMPLES / "comment_privacy_baseline_deltas.jsonl")
+        private_differences = {(row["id"], row["stage"]): row for row in deltas}
+        self.assertEqual(len(private_differences), len(deltas))
+        applied = set()
         measured = set()
         levels = {rule["id"]: rule["stage_levels"] for rule in k12_check.rule_catalog()["rules"]}
         for filename in ("probes.jsonl", "supplemental_text.jsonl", "output_probes.jsonl"):
@@ -67,26 +71,25 @@ class K12Stage1Tests(K12TestCase):
                                 measured.update((probe["text"], stage, entry, *hit) for hit in baseline["hits"])
                             else:
                                 errors += 1
-                            expected_output = stage_data.get("expected_output", {})
-                            if expected_output.get("py016_forbidden_literals"):
-                                expected = {"hits": expected_output["allowed_hits"]}
+                            key = (probe["id"], stage)
+                            if entry == "comments" and key in private_differences:
+                                changes = private_differences[key]
                                 old_hits = {tuple(hit) for hit in baseline["hits"]}
-                                new_hits = {tuple(hit) for hit in expected["hits"]}
-                                self.assertFalse(new_hits - old_hits)
-                                self.assertTrue(all(hit[0] == "PY-016" for hit in old_hits - new_hits))
-                                if old_hits != new_hits:
-                                    private_differences[probe["id"]] += len(old_hits - new_hits)
+                                removed = {tuple(hit) for hit in changes["removed"]}
+                                added = {tuple(hit) for hit in changes["added"]}
+                                self.assertTrue(removed or added)
+                                self.assertTrue(removed <= old_hits)
+                                self.assertFalse(added & old_hits)
+                                expected = {"hits": (old_hits - removed) | added}
+                                applied.add(key)
                             if "hits" in expected:
-                                expected = {"hits": sorted(expected["hits"], key=lambda hit: (hit[2], hit[0], hit[1]))}
+                                expected = {"hits": sorted(map(list, expected["hits"]),
+                                                           key=lambda hit: (hit[2], hit[0], hit[1]))}
                             self.assertEqual(actual, expected)
                             for rid, level, _line in actual.get("hits", ()):
                                 self.assertIn(level, levels[rid][entry][stage])
         self.assertEqual((runs, errors), (4215, 5))
-        self.assertEqual(private_differences, {
-            "R4-CLI_shared_sentence_and_missing_label": 2,
-            "R5-CLI_R5_CMT_01_exact_header_short_alnum": 1,
-            "R5-CLI_R5_CMT_02_substring_headers_leak_probe": 2,
-        })
+        self.assertEqual(applied, set(private_differences))
         false_positives = read_jsonl(REGRESSION / "baseline_false_positives.jsonl")
         self.assertEqual(len(false_positives), 55)
         for row in false_positives:
@@ -107,9 +110,8 @@ class K12Stage1Tests(K12TestCase):
                     report = self.run_json(*args)
                     rc, rendered, err = self.run_main(*args)
                     self.assertEqual((rc, err), (0, ""))
+                    assert_hidden(self, rendered, report, expected["forbidden_literals"])
                     for output in (rendered, json.dumps(report, ensure_ascii=False)):
-                        for value in expected["forbidden_literals"]:
-                            self.assertNotIn(value, output)
                         for label in expected["preserve_cli_labels"]:
                             self.assertIn(label, output)
                     issues = [i for i in report["issues"] if i["id"] == "PY-016"]
@@ -146,19 +148,18 @@ class K12Stage1Tests(K12TestCase):
                 self.assertEqual({(p["a"], p["b"]) for p in report["similar_pairs"]}, {("〔姓名1〕", "〔姓名2〕")})
                 self.assertEqual({i["excerpt"] for i in report["issues"] if i["id"] == "PY-016"}, {"9999"})
                 self.assertTrue(any(i["id"] == "PY-015" and i["label"] == "〔姓名3〕" for i in report["issues"]))
-                for output in (self.run_main(*args)[1], json.dumps(report, ensure_ascii=False)):
-                    for private in ("王小明", "李明", "赵小红", "Z98K76", "45123", "A55B01", "8324",
-                                    "B77C88", "45124", "A55B02", "8325", "XM405", "60789"):
-                        self.assertNotIn(private, output)
+                assert_hidden(self, self.run_main(*args)[1], report,
+                              ("王小明", "李明", "赵小红", "Z98K76", "45123", "A55B01", "8324",
+                               "B77C88", "45124", "A55B02", "8325", "XM405", "60789"))
 
     def test_same_label_cell_preserves_name_and_number_placeholders(self):
         path = self.write("王小明_Z98K76.md",
                           "| 学生姓名 | 学生学号 | 评语 |\n|---|---|---|\n"
                           "| 王小明 Z98K76 | Z98K76 | 王小明 Z98K76 你很笨。 |")
         report = self.run_json("comments", str(path))
-        self.assertEqual(report["entries"][0]["label"], "〔姓名1〕 【已遮蔽】")
-        self.assertEqual(report["file"], "〔姓名1〕_【已遮蔽】.md")
-        self.assertIn("〔姓名1〕 【已遮蔽】", self.run_main("comments", str(path))[1])
+        self.assertEqual(report["entries"][0]["label"], "〔姓名1〕 〔编号1〕")
+        self.assertEqual(report["file"], "〔姓名1〕_〔编号1〕.md")
+        self.assertIn("〔姓名1〕 〔编号1〕", self.run_main("comments", str(path))[1])
 
     def test_comments_keep_non_table_real_label_and_hide_file_error_details(self):
         path = self.write("notes.txt", "王小明：你很笨。")
@@ -182,9 +183,8 @@ class K12Stage1Tests(K12TestCase):
         report = self.run_json("comments", str(path), "--facts", str(facts))
         self.assertTrue(any(i["id"] == "PY-008" for i in report["issues"]))
         self.assertNotIn("PY-016", self.ids(report))
-        blob = json.dumps(report, ensure_ascii=False)
-        for private in ("Z98K76", "45123", "138-1234-5678", "8324"):
-            self.assertNotIn(private, blob)
+        assert_hidden(self, self.run_main("comments", str(path), "--facts", str(facts))[1], report,
+                      ("Z98K76", "45123", "138-1234-5678", "8324"))
 
     def test_markdown_table_without_leading_pipe_still_registers_ids_for_privacy(self):
         path = self.write("课后记录_Z98K76.md",
@@ -192,9 +192,7 @@ class K12Stage1Tests(K12TestCase):
                           "--- | --- | ---\n"
                           "Z98K76 | 45123 | 你很笨。")
         args = ("comments", str(path))
-        for output in (self.run_main(*args)[1], json.dumps(self.run_json(*args), ensure_ascii=False)):
-            for private in ("Z98K76", "45123"):
-                self.assertNotIn(private, output)
+        assert_hidden(self, self.run_main(*args)[1], self.run_json(*args), ("Z98K76", "45123"))
 
     def test_current_reference_documents_match_frozen_hits(self):
         data = read_jsonl(SAMPLES / "reference_baseline.jsonl")
@@ -260,6 +258,14 @@ class K12Stage1Tests(K12TestCase):
         unregistered = issue("JZ-006", "P0", 1)
         with self.assertRaises(ValueError):
             k12_check.merge_rule_issues([unregistered], exemptions=[unregistered])
+
+    def test_baseline_union_keeps_table_name_fallback_when_same_line_is_upgraded(self):
+        rule = "K12-G04"
+        hint = k12_check.shared_names()[0].TABLE_UNKNOWN_HINT
+        old = k12_check.Issue(rule, "P1", "", "表格姓名列出现真实姓名", "", "", line=2)
+        fallback = k12_check.Issue(rule, "P1", "", hint, "", "", line=2)
+        new = k12_check.Issue(rule, "P0", "", "新锚点", "", "", line=2)
+        self.assertEqual(k12_check.merge_rule_issues([old, fallback], [new]), [fallback, new])
 
     @unittest.skipUnless(HAS_DOCX, "需要既有可选库 python-docx")
     def test_docx_keeps_table_positions_relative_to_paragraphs_and_boundary(self):

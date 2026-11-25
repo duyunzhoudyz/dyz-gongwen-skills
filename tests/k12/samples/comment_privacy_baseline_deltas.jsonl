@@ -1,0 +1,5 @@
+{"id": "R4-CLI_id18_mobile11_stu10", "stage": "义务教育", "category": "编号净化后相似度跨过阈值", "removed": [], "added": [["PY-007", "P1", 3]]}
+{"id": "R4-CLI_shared_sentence_and_missing_label", "stage": "义务教育", "category": "识别原裸编号标签与共用句、事实错配；私密数字退出对账", "removed": [["PY-016", "P1", 2], ["PY-016", "P1", 3]], "added": [["PY-005", "P0", 1], ["PY-007", "P1", 2], ["PY-008", "P2", 0], ["PY-015", "P1", 0], ["PY-015", "P1", 1]]}
+{"id": "R5-CLI_R5_CMT_01_exact_header_short_alnum", "stage": "义务教育", "category": "私密数字退出对账", "removed": [["PY-016", "P1", 4]], "added": []}
+{"id": "R5-CLI_R5_CMT_02_substring_headers_leak_probe", "stage": "义务教育", "category": "私密数字退出对账", "removed": [["PY-016", "P1", 2], ["PY-016", "P1", 3]], "added": []}
+{"id": "R5-CLI_R5_CMT_03_text_shared_py008_py016_py017", "stage": "义务教育", "category": "编号净化后相似度跨过阈值", "removed": [], "added": [["PY-007", "P1", 3]]}
