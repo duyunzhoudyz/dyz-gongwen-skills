@@ -1,4 +1,4 @@
-"""评语入口编号净化回归，包括四轮评审的复现输入。"""
+"""评语入口编号净化回归，包括五轮评审的复现输入。"""
 import csv
 import io
 import json
@@ -42,18 +42,27 @@ def rule_hits(report):
 def assert_prose_preserved(test, bodies, originals, keep=()):
     """逐次还原正文替换，要求每个新占位符只对应本用例点名的编号。"""
     test.assertTrue(bodies)
+    replaced = set()
     for raw, clean, tokens in bodies:
-        def restore(match):
-            if match[0] not in tokens:
-                return match[0]
-            value = tokens[match[0]]
-            test.assertIn(value, originals, f"正文被误替换：{raw!r}")
-            return value
-
-        test.assertEqual(k12_check.COMMENT_NUMBER_TOKEN_RE.sub(restore, clean), raw)
+        raw_index = clean_index = 0
+        for match in k12_check.COMMENT_NUMBER_TOKEN_RE.finditer(clean):
+            literal = clean[clean_index:match.start()]
+            test.assertTrue(raw.startswith(literal, raw_index), raw)
+            raw_index += len(literal)
+            if raw.startswith(match[0], raw_index):
+                value = match[0]
+            else:
+                forms = tokens.get(match[0], ())
+                value = next((form for form in forms if raw.startswith(form, raw_index)), None)
+                test.assertIn(value, originals, f"正文被误替换：{raw!r}")
+                replaced.add(value)
+            raw_index += len(value)
+            clean_index = match.end()
+        test.assertEqual(clean[clean_index:], raw[raw_index:])
     cleaned = "\n".join(body for _, body, _ in bodies)
     for value in keep:
         test.assertIn(value, cleaned)
+    return replaced
 
 
 @contextmanager
@@ -63,7 +72,12 @@ def capture_prose():
 
     def record(numbers, raw, *args):
         safe = clean(numbers, raw, *args)
-        tokens = {token: value for value, token in numbers.forms.items() if token not in raw}
+        tokens = {}
+        for value, token in (numbers.forms | numbers.alias_values).items():
+            if token not in raw and value in raw:
+                tokens.setdefault(token, []).append(value)
+        for forms in tokens.values():
+            forms.sort(key=len, reverse=True)
         bodies.append((raw, safe, tokens))
         return safe
 
@@ -160,7 +174,7 @@ class CommentPrivacyTests(K12TestCase):
         return self.write(filename, source)
 
     def check_output(self, comments, facts, originals, *, static=(), baseline=(), keep_prose=(), prose_ids=None,
-                     stage="义务教育", person="second", bom_crlf=False):
+                     stage="义务教育", person="second", bom_crlf=False, exact_prose=False):
         path = self.write_input(*comments, bom_crlf=bom_crlf) if isinstance(comments, (list, tuple)) else comments
         args = ("comments", str(path), "--stage", stage, "--person", person)
         if facts:
@@ -172,7 +186,10 @@ class CommentPrivacyTests(K12TestCase):
         report = self.run_json(*args)
         assert_hidden(self, rendered, report, originals, static=static)
         assert_py005(self, report, baseline)
-        assert_prose_preserved(self, bodies, originals if prose_ids is None else prose_ids, keep_prose)
+        expected_prose = originals if prose_ids is None else prose_ids
+        replaced = assert_prose_preserved(self, bodies, expected_prose, keep_prose)
+        if exact_prose:
+            self.assertEqual(replaced, set(expected_prose))
         return rendered, report
 
     def assert_frozen_report(self, rendered, report, expected_digest):
@@ -340,14 +357,57 @@ class CommentPrivacyTests(K12TestCase):
                 for output in (rendered, json.dumps(report, ensure_ascii=False)):
                     self.assertFalse(any(0xE000 <= ord(ch) <= 0xF8FF for ch in output))
 
-    def test_explicit_labels_preserve_spaced_date_fraction_and_quantity(self):
+    def test_round5_interval_and_ordinary_reports_against_baseline(self):
+        path = SAMPLES / "comment_privacy_review_r5.jsonl"
+        cases = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(Counter(case["id"][0] for case in cases),
+                         {"U": 44, "Z": 56, "E": 22, "W": 4, "M": 6, "T": 6, "A": 40})
+        for case in cases:
+            with self.subTest(case=case["id"]):
+                inputs = [case["comments"]] + ([case["facts"]] if case["facts"] else [])
+                if not HAS_DOCX and any(name.endswith(".docx") for name, _ in inputs):
+                    self.skipTest("python-docx unavailable")
+                rendered, report = self.check_output(
+                    case["comments"], case["facts"], case["hide"], static=case.get("static", ()),
+                    baseline=case["baseline_py005"], keep_prose=case["keep"],
+                    prose_ids=case["prose_ids"], exact_prose=True)
+                if case["ordinary"]:
+                    self.assert_frozen_report(rendered, report, case["ordinary_digest"])
+                else:
+                    self.assert_frozen_hits(report, case)
+                quantities = py016_numbers(report)
+                self.assertLessEqual(set(case.get("expect_py016", ())), quantities)
+                self.assertTrue(set(case.get("forbid_py016", ())).isdisjoint(quantities))
+                ids = set(self.ids(report))
+                self.assertLessEqual(set(case.get("expect_ids", ())), ids)
+                self.assertTrue(set(case.get("forbid_ids", ())).isdisjoint(ids))
+                for output in (rendered, json.dumps(report, ensure_ascii=False)):
+                    self.assertFalse(any(0xE000 <= ord(ch) <= 0xF8FF for ch in output))
+                excerpts = [i["excerpt"] for i in report["issues"] if i["id"] == "PY-001"]
+                if case.get("excerpts"):
+                    self.assertEqual(excerpts, case["excerpts"])
+                if case.get("alias_pair"):
+                    token = k12_check.COMMENT_NUMBER_TOKEN_RE.search(report["file"])[0]
+                    self.assertTrue(any(token in excerpt for excerpt in excerpts))
+                if "expected_labels" in case:
+                    self.assertEqual([e["label"] for e in report["entries"]], case["expected_labels"])
+                if "expected_file" in case:
+                    self.assertEqual(report["file"], case["expected_file"])
+                if "expected_text_parts" in case:
+                    for value in case["expected_text_parts"]:
+                        self.assertIn(value, rendered)
+                if "baseline_ratios" in case:
+                    self.assertEqual([pair["ratio"] for pair in report["similar_pairs"]], case["baseline_ratios"])
+
+    def test_explicit_labels_stop_at_full_stop_with_no_date_or_fraction_exception(self):
         comments = ("notes.txt", "S01：你很笨，考号：A117C3 2026/03/15参加比赛，"
                     "工号：45376 3/5，编号：67139 19.5元。")
         facts = ("facts.txt", "S01：2026/03/14参赛，跑2/5，花12.5元。")
-        _, report = self.check_output(comments, facts, ("A117C3", "45376", "67139"),
+        _, report = self.check_output(comments, facts, ("A117C3", "45376", "67139", "19.5"),
                                       baseline=[[1, "学号等编号"]],
-                                      keep_prose=("2026/03/15", "3/5", "19.5元"))
-        self.assertEqual(py016_numbers(report), {"3", "15", "19.5"})
+                                      keep_prose=(".5元", "2026/03/14参赛", "跑2/5", "12.5元"),
+                                      prose_ids=("A117C3 2026", "03", "15", "45376 3", "5", "67139 19"))
+        self.assertEqual(py016_numbers(report), set())
 
     def test_short_explicit_value_with_label_at_paragraph_start(self):
         comments = ("notes.txt", "考号：825，你很笨，读书7本。")
@@ -396,13 +456,13 @@ class CommentPrivacyTests(K12TestCase):
                                       keep_prose=("读书7本", "读书3本"))
         self.assertEqual(py016_numbers(report), {"7"})
 
-    def test_round2_large_quantities_still_reconcile(self):
+    def test_large_quantities_after_comma_still_reconcile(self):
         for unit in ("字", "下", "步", "余元", "多本", "题", "道", "圈", "遍", "场", "天", "周", "万", "千", "位", "页",
                      "件", "段", "回", "套", "公斤", "公里"):
             with self.subTest(unit=unit):
                 raw = f"680125{unit}"
                 _, report = self.check_output(
-                    ("qty.txt", f"S01：你很笨，学号：78331及{raw}。"),
+                    ("qty.txt", f"S01：你很笨，学号：78331，记录{raw}。"),
                     ("facts.txt", f"S01：691345{unit}。"), ("78331",),
                     baseline=[[1, "学号等编号"]], keep_prose=(raw,))
                 self.assertEqual(py016_numbers(report), {"680125"})
@@ -455,7 +515,7 @@ class CommentPrivacyTests(K12TestCase):
                 self.assertEqual(py016_numbers(report), {"9"})
 
     def test_round2_list_separators_and_local_codes(self):
-        for separator in ("、", "，", ",", "和", "与", "/", "及"):
+        for separator in ("、", "和", "与", "/", "及"):
             with self.subTest(separator=separator):
                 value = f"NB__024{separator}KA_003{separator}S004"
                 comments = [["编号", "评语"], ["S004", f"你很笨，学生卡号是{value}，读书9本。"]]
@@ -498,6 +558,8 @@ class CommentPrivacyTests(K12TestCase):
             "你的号码录入档案6789112。": {"6789112"},
             "考生号A0和99B·备注": {"0", "99"},
         }
+        after_comma = {"联系方式为 XN54-879, XN55-351": {"55", "351"},
+                       "编号是：QA-0430，QQ-9271": {"9271"}}
         for note, originals in INLINE_VARIANTS:
             with self.subTest(note=note):
                 known = note in outside_scope
@@ -505,14 +567,16 @@ class CommentPrivacyTests(K12TestCase):
                 filename = f"评语_{originals[0]}.txt" if has_alias else "评语.txt"
                 comment = f"S01：你读书17本，你很笨。{note}，应继续努力。"
                 baseline = [[1, "手机号"]] if originals == ("15981936719",) else ()
+                hidden = () if known else originals[:1] if note in after_comma else originals
+                keep = (note,) if known else originals[1:] if note in after_comma else ()
                 _, report = self.check_output((filename, comment), ("facts.txt", "S01：读书8本。"),
-                                              () if known else originals, baseline=baseline,
-                                              keep_prose=(note,) if known else ())
+                                              hidden, baseline=baseline, keep_prose=keep)
                 if known:
                     self.assertEqual(report["file"], filename)
                 elif has_alias:
                     self.assertIn("〔编号1〕", report["file"])
-                self.assertEqual(py016_numbers(report), {"17"} | outside_scope.get(note, set()))
+                self.assertEqual(py016_numbers(report),
+                                 {"17"} | outside_scope.get(note, set()) | after_comma.get(note, set()))
 
     def test_quantities_dates_and_numbered_rows_keep_their_meaning(self):
         comments = ("| 序号 | 学号 | 评语 |\n|---|---|---|\n"
