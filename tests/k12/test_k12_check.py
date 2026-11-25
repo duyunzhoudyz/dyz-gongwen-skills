@@ -765,7 +765,7 @@ class SharedModuleTest(K12TestCase):
                 self.assertIn("gw_names.json", r.stderr)
 
     def test_full_copy_runs(self):
-        r = self._run_copy(["k12_check.py", "gw_names.py", "gw_names.json"], *self._all_commands()[4])
+        r = self._run_copy(["k12_check.py", "k12_clause.py", "gw_names.py", "gw_names.json"], *self._all_commands()[4])
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
 

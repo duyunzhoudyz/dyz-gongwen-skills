@@ -68,12 +68,14 @@ import importlib.util
 import json
 import re
 import sys
+from bisect import bisect_right
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-VERSION = "1.2.6"
+VERSION = "1.2.7"
 BOUNDARY = "【起草说明】"
 # 与 gongwen_lint.py、fact_diff.py 的分界行写法保持一致
 DRAFT_NOTE_RE = re.compile(r"^\s*(?:#{1,6}\s*)?(?:(?:\*\*|__)\s*)?" + re.escape(BOUNDARY))
@@ -1869,6 +1871,32 @@ def _sentence_of(text: str, start: int, end: int) -> str:
     return left + text[start:end] + right
 
 
+def _parent_matches(rule, line):
+    for m in rule.pattern.finditer(line):
+        sentence = _sentence_of(line, m.start(), m.end())
+        before = re.split(r"[。！？；!?;，,]", line[:m.start()])[-1][-12:]
+        if rule.negation and NEG_RE.search(before + m.group(0)):
+            continue
+        if rule.need_subject or rule.exclude_teacher:
+            head = re.split(r"[。！？；!?;]", line[:m.start()])[-1][-14:]
+            if rule.need_subject and not PARENT_SUBJECT_RE.search(head) and not head.endswith("请"):
+                continue
+            if TEACHER_SUBJECT_END_RE.search(head):
+                continue
+        if rule.sentence_must and not rule.sentence_must.search(sentence):
+            continue
+        who = m.groupdict().get("who")
+        if who is not None and any(who.endswith(w) for w in NON_NAME_WORDS):
+            continue
+        if rule.clause_must and not rule.clause_must.search(_clause_of(line, m.start(), m.end())):
+            continue
+        if rule.sentence_skip and rule.sentence_skip.search(sentence):
+            continue
+        if rule.paragraph_lacks and rule.paragraph_lacks.search(line):
+            continue
+        yield m
+
+
 def check_parents(path: Path, stage: str = "义务教育") -> dict:
     """面向家长文书检查。识别出的学生姓名（敏感身份锚点、JZ-012 点名批评）进全文姓名表，excerpt 统一遮蔽。"""
     gw, lex = shared_names()
@@ -1879,7 +1907,9 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     else:
         lines, _ = cut_at_boundary(doc.lines)
     compulsory = stage == "义务教育"
+    evidence = _ClauseEvidence(doc, lines)
     issues: List[Issue] = []
+    exemptions = []
     table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
     for index, line in enumerate(lines, start=1):
@@ -1896,41 +1926,27 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
             level = rule.level if compulsory else rule.level_other
             if level == "skip":
                 continue
-            for m in rule.pattern.finditer(line):
-                sentence = _sentence_of(line, m.start(), m.end())
-                before = re.split(r"[。！？；!?;，,]", line[:m.start()])[-1][-12:]
-                if rule.negation and NEG_RE.search(before + m.group(0)):
-                    continue
-                if rule.need_subject or rule.exclude_teacher:
-                    head = re.split(r"[。！？；!?;]", line[:m.start()])[-1][-14:]
-                    if rule.need_subject and not PARENT_SUBJECT_RE.search(head) and not head.endswith("请"):
-                        continue
-                    if TEACHER_SUBJECT_END_RE.search(head):
-                        continue
-                if rule.sentence_must and not rule.sentence_must.search(sentence):
-                    continue
-                who = m.groupdict().get("who")
-                if who is not None and any(who.endswith(w) for w in NON_NAME_WORDS):
-                    continue
-                if rule.clause_must and not rule.clause_must.search(_clause_of(line, m.start(), m.end())):
-                    continue
-                if rule.sentence_skip and rule.sentence_skip.search(sentence):
-                    continue
-                if rule.paragraph_lacks and rule.paragraph_lacks.search(line):
-                    continue
+            for m in _parent_matches(rule, line):
                 key = (rule.id, index)
                 if key in seen:
                     continue
-                seen.add(key)
+                who = m.groupdict().get("who")
                 if who is not None:
                     given = _who_name(line, m.start("who"), m.end("who"), lex)
                     if given:
                         table.add(given)
-                issues.append(Issue(id=rule.id, level=level, category=rule.category, message=rule.message,
-                                    suggestion=rule.suggestion, basis=rule.basis, line=index,
-                                    excerpt=excerpt_of(line, m.start(), m.end(), 12)))
-                break
-    issues = merge_rule_issues(issues)
+                item = Issue(id=rule.id, level=level, category=rule.category, message=rule.message,
+                             suggestion=rule.suggestion, basis=rule.basis, line=index,
+                             excerpt=excerpt_of(line, m.start(), m.end(), 12))
+                issues.append(item)
+                if evidence.exempt(rule.id, index, m):
+                    exemptions.append(item)
+                else:
+                    seen.add(key)
+                    break
+    added = evidence.added("parents", stage)
+    added.extend(evidence.rank_replacements(exemptions))
+    issues = merge_rule_issues(issues, added, exemptions)
     table.add_table_masks(table_rows.values())
     for it in issues:
         it.excerpt = mask_names(table, it.excerpt)
@@ -2128,7 +2144,9 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
     else:
         lines, _ = cut_at_boundary(doc.lines)
     compulsory = stage == "义务教育"
+    evidence = _ClauseEvidence(doc, lines)
     issues: List[Issue] = []
+    exemptions = []
     table = gw.NameTable()
     table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
@@ -2163,12 +2181,25 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                 key = (rid, index)
                 if key in seen:
                     continue
-                seen.add(key)
-                issues.append(Issue(id=rid, level=level, category=cat, message=msg,
-                                    suggestion=sug, basis=basis, line=index,
-                                    excerpt=excerpt_of(line, m.start(), m.end(), 12)))
-                break
-    issues = merge_rule_issues(issues)
+                item = Issue(id=rid, level=level, category=cat, message=msg,
+                             suggestion=sug, basis=basis, line=index,
+                             excerpt=excerpt_of(line, m.start(), m.end(), 12))
+                issues.append(item)
+                if evidence.exempt(rid, index, m):
+                    exemptions.append(item)
+                else:
+                    seen.add(key)
+                    break
+    added = []
+    for index, line in enumerate(lines, 1):
+        for rule in _BASELINE_PAIRS:
+            if (match := next((m for m in _parent_matches(rule, line) if not evidence.exempt(rule.id, index, m)), None)):
+                rid = _PAIR_RULES[rule.id]
+                added.append(_clause_issue(rid, "P1", index, excerpt_of(line, match.start(), match.end(), 12)))
+    # 同级沿用基线镜像摘录，精确层 P0 仍可覆盖。
+    added.extend(evidence.added("general", stage))
+    added.extend(evidence.rank_replacements(exemptions))
+    issues = merge_rule_issues(issues, added, exemptions)
     table.add_table_masks(table_rows.values())
     for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
         it.excerpt = mask_names(table, it.excerpt)
@@ -2180,6 +2211,321 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
         "summary": summarize(issues, "\n".join(lines)),
         "issues": [i.to_dict() for i in issues],
     })
+
+
+_PAIR_RULES = {"JZ-006": "K12-G05", "JZ-008": "K12-G09"}
+_BASELINE_PAIRS = tuple(rule for rule in PARENT_RULES if rule.id in _PAIR_RULES)
+_FEE_ACTS = {"收取", "代收", "收缴", "缴纳", "交纳", "上交", "交齐", "缴齐", "购买",
+             "订购", "征订", "订阅", "办理", "收费", "缴费", "交费", "缴", "买", "收", "订", "摊派", "募集", "缴款"}
+_FEE_VERB = re.compile(r"收取|代收|收缴|缴纳|上交|交齐|缴齐|交纳|收费|缴费|(?<!提)交费|筹集|筹款|摊派|分摊|结清|征订|购[买置]|订[购阅]|办理|缴款")
+_FEE_ITEM = re.compile(r"保险|校服|教辅|报刊|报纸|杂志|课后服务|研学|(?:资料|材料|活动|报名|交通|讲义|班|学习用品)费"
+                       r"|手册|练习册|教材|图册|服装|款项|套装|资料|器材|材料包|费用|\d+(?:\.\d+)?\s*元"
+                       r"|[\u4e00-\u9fff](?<![免退收缴交付保])费")
+_FEE_FORCE = re.compile(r"必须|一律|务必|均须|均需|须|统一|强制|强迫|强行|全体|集体|指定|要求|条件")
+_FEE_EXECUTION = re.compile(r"照办|执行|结清|分摊|按小组|集中办理|必须参加")
+_FEE_INACTIVE = re.compile(r"^(?:的|标准|流程|情况|依据|要求|统一管理|办法|费等|与|及)|使用情况|核算|归档|公示明细")
+_UNIFORM_PROCUREMENT = {"购买", "订购", "征订", "订阅", "办理", "缴纳", "交纳", "上交", "交齐", "缴齐"}
+_REFUSAL = re.compile(r"(?:尚未|未|拒绝|拒不|拒|不)(?:按期)?(?:缴|交齐|买|购买|订购)")
+_PENALTY = re.compile(r"不(?:得|能|准|予|发)|取消(?:评优|评先)|报名|(?:参加|参与)评优")
+_COMMITTEE = re.compile(r"家委会|家长委员会")
+_COMMITTEE_DISCUSSION = re.compile(r"(?:收取|收费)(?:标准|流程|情况)")
+_COMMITTEE_CHARGER = re.compile(r"^(?:以)?(?:家长委员会|家委会)(?:名义|决定|决议|通过|商议|收取|收缴|代收|筹集|核定)")
+_TUTOR_ACTS = {"组织", "安排", "动员", "推荐", "介绍", "要求", "联系", "辅导", "培训学生"}
+_DATA_ACTS = {"提供", "提供给", "发给", "发送", "发送给", "转交", "移交", "交给", "透露",
+              "泄露", "推荐", "介绍", "输送"}
+_TRANSFER_WORDS = re.compile(r"提供|发给|转交|移交|交给|交至|发送|分发|透露|泄露|输送|招揽|推荐|介绍|领[取走]|接洽|取件|收件")
+_TUTOR_WORDS = re.compile(r"组织|安排|推荐|动员|介绍|联系|建议|参加|报读|报名|宣传|带队|协助|分发|前往|发给|目的地|填报|要求")
+_TUTOR_SERVICE = re.compile(r"补课|补习|辅导|培训(?:班|机构|项目)?|有偿课程")
+_TUTOR_PAID = re.compile(r"有偿|收费|付费")
+_TUTOR_INSTITUTION = re.compile(r"培训机构|辅导机构|补习机构|补习班|培训班|辅导班|补课班")
+_TUTOR_EXTRACURRICULAR = re.compile(r"校外(?:收费|付费).{0,10}(?:兴趣|书法)活动")
+_STUDENTS = re.compile(r"学生|同学|新生|毕业生|学员|孩子")
+_SCHOOL = re.compile(r"学校|本校|我校|校方|各班|教务处|教研组|年级组|教师|老师|班主任")
+_DATA_OBJECT = re.compile(r"(?:学生|家长|毕业生|监护人|各班).{0,10}(?:电话|微信号|学籍号|学号|名单|名册|通讯录|联系|信息)"
+                          r"|生源|联系方式|电话表|通讯录|名册|(?:分组|报名)名单")
+_TEACHER = re.compile(r"(?:全体|各位|本校|在职|任课)?(?:教师|老师|教职工|班主任)")
+_RANK_ACTS = {"排名", "分班", "排座", "公布", "张贴", "通报", "公示", "发布", "晒", "公开",
+              "发成绩", "发到", "上传", "上传到"}
+_RANK_TARGET = re.compile(r"成绩|分数|排名|名次|期末考试")
+_GENERAL_RANK_TARGET = re.compile(r"考试成绩|成绩排名|名次|分数")
+_GENERAL_PUBLISH = {"公布", "张贴", "通报", "公示"}
+_SCORE_RULE = next(rule for rule in PARENT_RULES if rule.id == "JZ-014")
+
+
+def _clause_issue(rule, level, line, excerpt):
+    paired = next((item for item in _BASELINE_PAIRS if rule == _PAIR_RULES[item.id]), None)
+    if rule.startswith("JZ-") or paired:
+        metadata = paired or next(item for item in PARENT_RULES if item.id == rule)
+        return Issue(rule, level, metadata.category, metadata.message, metadata.suggestion, metadata.basis,
+                     line=line, excerpt=excerpt)
+    _, _, _, category, _, message, suggestion, basis = GENERAL_RULES[0]
+    return Issue(rule, level, category, message, suggestion, basis, line=line, excerpt=excerpt)
+
+
+def _chain(graph, action):
+    yield action
+    while action.parent is not None:
+        action = graph.actions[action.parent]
+        yield action
+
+
+def _teacher_training(graph, action):
+    controller = graph.actions[action.parent] if action.parent is not None else None
+    return ((action.predicate in {"组织", "开展", "安排", "培训", "举办"} and
+             _TEACHER.fullmatch(action.recipient) and _TUTOR_SERVICE.search(action.object))
+            or (action.predicate == "培训" and _TEACHER.fullmatch(action.object))
+            or (action.predicate in {"参加", "参加培训"} and controller and
+                controller.predicate in {"组织", "安排", "动员"} and
+                _TEACHER.fullmatch(controller.object) and re.search(r"培训|研修|进修", action.object)))
+
+
+def _fee_precision(graph, action):
+    chain = tuple(_chain(graph, action))
+    if not action.admission or not (action.fixed_notice or any(item.school_agent for item in chain)):
+        return False
+    label = graph.projects[action.project].label if action.project is not None else ""
+    if not label or not action.object or re.search(r"报刊|报纸|杂志", label):
+        return False
+    if action.predicate == "办理" and "保险" not in action.object:
+        return False
+    return (any(item.mandatory or item.predicate == "要求" for item in chain)
+            or any(item.uniform for item in chain)
+            and (action.predicate in _UNIFORM_PROCUREMENT or action.negation or action.parent is not None
+                 or action.admission == load_clause_module().Admission.PARALLEL))
+
+
+def _tutor_precision(graph, action, children):
+    if not action.admission or not any(item.school_agent for item in _chain(graph, action)):
+        return False
+    if action.predicate in _DATA_ACTS and _DATA_OBJECT.search(action.object):
+        if _TUTOR_INSTITUTION.search(action.recipient) and "校外" in action.recipient:
+            return True
+    if action.predicate not in _TUTOR_ACTS:
+        return False
+    linked = [item for item in children if item.admission and item.predicate in {"参加", "报名", "参加培训"}]
+    evidence = " ".join([action.object, action.topic, *(item.object for item in linked)])
+    target = " ".join([action.object, action.recipient, *(item.agent for item in linked)])
+    return bool(_STUDENTS.search(target) and "校外" in evidence
+                and _TUTOR_PAID.search(evidence) and _TUTOR_SERVICE.search(evidence))
+
+
+class _ClauseEvidence:
+    def __init__(self, doc, lines):
+        self.module = load_clause_module()
+        self.offsets = [0]
+        for line in lines:
+            self.offsets.append(self.offsets[-1] + len(line) + 1)
+        self.graph = self.module.analyze("\n".join(lines), paragraph_starts=(
+            tuple(range(1, len(lines) + 1)) if doc.kind == "docx" else ()))
+        self.by_line = defaultdict(list)
+        for action in self.graph.actions:
+            self.by_line[bisect_right(self.offsets, action.span.start)].append(action)
+        self.sources = []
+        if doc.kind != "table":
+            self.sources.append((self.graph, self.offsets, 0))
+        row_offset = 0
+        for table, after in zip(doc.tables, doc.table_after_paragraph if doc.kind == "docx" else
+                                [0] * len(doc.tables) if doc.kind == "table" else []):
+            if doc.kind == "docx" and after >= len(lines) and after < len(doc.lines):
+                continue
+            table_text = ["| " + " | ".join(cell.replace("|", r"\|").replace("\n", " ") for cell in row) + " |"
+                          for row in table]
+            offsets = [0]
+            for line in table_text:
+                offsets.append(offsets[-1] + len(line) + 1)
+            self.sources.append((self.module.analyze("\n".join(table_text)), offsets, after + row_offset))
+            if doc.kind == "table":
+                row_offset += len(table)
+
+    def exempt(self, rule, line, match):
+        if rule not in {"JZ-003", "K12-G01", "JZ-008"}:
+            return False
+        graph = self.graph
+        start, end = (self.offsets[line - 1] + index for index in match.span())
+        for action in self.by_line[line]:
+            clause = graph.clauses[action.clause]
+            if not clause.span.start <= start or end > clause.span.end:
+                continue
+            if rule == "JZ-008":
+                if not _teacher_training(graph, action):
+                    continue
+                head = tuple(_chain(graph, action))[-1]
+                if head.span.start >= start and head.span.start < end and not _STUDENTS.search(action.object):
+                    return True
+            elif action.predicate in _RANK_ACTS and start <= action.span.start < end:
+                if self.module.directly_denied(graph, action) and not any(
+                    other.id != action.id and other.predicate in _RANK_ACTS and start <= other.span.start < end
+                    and not self.module.directly_denied(graph, other) for other in self.by_line[line]
+                ):
+                    return True
+        return False
+
+    def rank_replacements(self, exemptions):
+        # 同行仅显示一条旧规则。被遮住的独立肯定动作沿用该行的基线级别。
+        for old in exemptions:
+            if old.id not in {"JZ-003", "K12-G01"}:
+                continue
+            for a in self.by_line[old.line]:
+                clause = self.graph.clauses[a.clause]
+                if a.predicate not in _GENERAL_PUBLISH or not _GENERAL_RANK_TARGET.search(a.object.replace("成绩单", "考试成绩")):
+                    continue
+                if (a.local_polarity == self.module.Polarity.POSITIVE and not clause.question and
+                        not a.binding and clause.connector and not self.module.wide_suppressed(self.graph, clause, a)):
+                    yield _clause_issue(old.id, old.level, old.line, clause.text)
+                    break
+
+    def added(self, entry, stage):
+        fee, tutor, rank = ("JZ-006", "JZ-008", "JZ-003") if entry == "parents" else (
+            "K12-G05", "K12-G09", "K12-G01")
+        results = []
+        ranked_level = "P0" if stage == "义务教育" else "P1"
+        for graph, offsets, row_offset in self.sources:
+            groups = defaultdict(list)
+            children = defaultdict(list)
+            for action in graph.actions:
+                if action.parent is not None:
+                    children[action.parent].append(action)
+            for clause in graph.clauses:
+                if not clause.table_header:
+                    if clause.table is not None:
+                        key = ("table", clause.table, clause.row, clause.project,
+                               clause.column if clause.project is None else None)
+                    else:
+                        key = ("sentence", clause.sentence)
+                    groups[key].append(clause)
+            for clauses in groups.values():
+                visible = {clause.id: self.module.visible_evidence(clause) for clause in clauses}
+                combined = " ".join(visible.values())
+                actions = [action for clause in clauses for action in graph.actions_for(clause.id)]
+                project_labels = {graph.projects[a.project].label for a in actions
+                                  if a.project is not None and a.predicate in _FEE_ACTS}
+                for clause in clauses:
+                    line = bisect_right(offsets, clause.span.start) + row_offset
+                    raw = visible[clause.id]
+                    local = graph.actions_for(clause.id)
+                    # 只在本分句、同一动作的槽位上查精确条件。
+                    precise_fee = any(_fee_precision(graph, a) for a in local if a.predicate in _FEE_ACTS)
+                    precise_tutor = any(_tutor_precision(graph, a, children[a.id]) for a in local)
+                    if precise_fee or self._fee_wide(graph, clause, raw, combined, clauses, project_labels):
+                        results.append(_clause_issue(fee, ranked_level if precise_fee else "P1", line, clause.text))
+                    if precise_tutor or self._tutor_wide(graph, clause, raw, combined, actions):
+                        results.append(_clause_issue(tutor, "P0" if precise_tutor else "P1", line, clause.text))
+                    results.extend(self._ranking(graph, clause, local, actions, rank, ranked_level, line))
+        return results
+
+    def _fee_wide(self, graph, clause, raw, combined, clauses, project_labels):
+        local = graph.actions_for(clause.id)
+        collecting = [a for a in local if a.predicate in _FEE_ACTS and not a.attributive
+                      and (a.predicate != "办理" or "保险" in raw or not a.object and a.uniform and "保险" in combined)
+                      and (a.predicate != "收" or _FEE_ITEM.search(a.object))]
+        committee = bool(_COMMITTEE.search(combined))
+        committee_discussion = committee and bool(re.search(r"审议|提出建议|听取|就|商议", raw))
+        forced = bool(_FEE_FORCE.search(raw) or any(
+            c.column_header in {"要求", "缴费要求", "购买要求", "是否自愿"} and _FEE_FORCE.search(c.text) for c in clauses))
+        implemented = bool(_FEE_EXECUTION.search(combined) and _FEE_FORCE.search(combined))
+        has_item = bool(clause.project is not None or _FEE_ITEM.search(combined))
+        if not has_item or self.module.free_project(graph, clause, raw) or (
+                "校外" in raw and _TUTOR_SERVICE.search(raw) and not any(
+                    a.object and _FEE_ITEM.search(a.object) for a in collecting)):
+            return False
+        if _REFUSAL.search(combined) and _PENALTY.search(combined):
+            enforced = [a for a in local if self.module.refusal_enforced(graph, clause, a)]
+            for a in enforced:
+                if a.conditions and (a.binding == self.module.Binding.ACCOUNTABILITY or
+                        not self.module.optional_charge(clause, a, clauses, project_labels)):
+                    return True
+            textual = self.module.refusal_enforced(graph, clause)
+            if (_PENALTY.search(raw) and (_REFUSAL.search(raw) or enforced)
+                    and not self.module.optional_charge(clause, None, clauses, project_labels)
+                    and (textual or enforced)):
+                return True
+            if re.search(r"不(?:得|准|能|予|发)", raw) and textual:
+                return True
+        if committee_discussion and _COMMITTEE_DISCUSSION.search(raw) and not self.module.wide_suppressed(graph, clause):
+            return True
+        if self.module.optional_charge(clause, None, clauses, project_labels) and not any(
+                _COMMITTEE.fullmatch(a.agent) for a in collecting):
+            return False
+        for a in collecting:
+            if self.module.wide_suppressed(graph, clause, a) or _FEE_INACTIVE.search(a.object):
+                continue
+            chain = tuple(_chain(graph, a))
+            force = forced or implemented or any(p.mandatory or p.uniform or p.predicate == "要求" for p in chain)
+            chair = bool(_COMMITTEE.fullmatch(a.agent) or committee and (
+                a.predicate in {"代收", "收缴", "募集", "缴款", "摊派"} or
+                "代收" in a.object and any(_COMMITTEE_CHARGER.match(c.text) for c in clauses) or
+                a.predicate in {"收取", "收"} and any(_COMMITTEE_CHARGER.match(c.text) for c in clauses) or
+                a.predicate == "上交" and any(_COMMITTEE.search(p.agent) and p.predicate == "办理"
+                                            for c in clauses for p in graph.actions_for(c.id)) or
+                re.search(r"家委会名义|家长委员会(?!代表|监督)|家委会(?:决定|针对|配合|登记|以)", raw)))
+            if self.module.optional_charge(clause, a, clauses, project_labels) and not chair:
+                continue
+            if force or chair or a.predicate in {"收取", "收缴"} and _FEE_EXECUTION.search(raw):
+                return True
+            if a.predicate == "办理" and a.uniform and "保险" in combined:
+                return True
+        verb = _FEE_VERB.search(raw)
+        return bool(verb and (not collecting or implemented) and not self.module.wide_suppressed(graph, clause)
+                    and (verb[0] != "办理" or "保险" in raw)
+                    and (verb[0] != "收费" or _FEE_ITEM.search(raw, verb.end()))
+                    and not _FEE_INACTIVE.match(raw, verb.end())
+                    and (forced or implemented or committee and verb[0] in {"筹集", "筹款", "代收"}))
+
+    def _tutor_wide(self, graph, clause, raw, combined, actions):
+        local = graph.actions_for(clause.id)
+        if self.module.free_project(graph, clause, raw):
+            return False
+        if any(_teacher_training(graph, a) for a in local) and not any(
+                _STUDENTS.search(a.object) or _DATA_OBJECT.search(a.object) for a in local):
+            return False
+        service = bool(_TUTOR_SERVICE.search(raw) or _TUTOR_EXTRACURRICULAR.search(raw))
+        destination = _TUTOR_INSTITUTION.search(combined)
+        relation = bool(destination and _DATA_OBJECT.search(combined) and _TRANSFER_WORDS.search(combined)
+                        and (_TRANSFER_WORDS.search(raw) or _DATA_OBJECT.search(raw) or _TUTOR_INSTITUTION.search(raw)))
+        tutoring = service and (destination or "校外" in raw or _TUTOR_PAID.search(raw)) and (
+            bool(_TUTOR_WORDS.search(raw)) or bool(re.search(r"有偿补课事项", raw)))
+        cross_clause = bool(
+            destination and _SCHOOL.search(combined) and re.search(r"报读|报名|参加|协助|前往", combined)
+            and (service or re.search(r"报读|报名|参加|协助|前往", raw))
+            or service and _TUTOR_PAID.search(raw) and re.search(r"(?:老师|班主任|教师)[^。]{0,18}参加", combined))
+        if not relation and not tutoring and not cross_clause:
+            return False
+        if not (_SCHOOL.search(combined) or _STUDENTS.search(combined) or _DATA_OBJECT.search(combined)
+                or destination or _TUTOR_PAID.search(raw)):
+            return False
+        relevant = [a for a in local if not a.attributive and (
+            a.predicate in _TUTOR_ACTS | _DATA_ACTS or _TUTOR_SERVICE.search(a.object))]
+        if relevant:
+            return any(not self.module.wide_suppressed(graph, clause, a) and not _teacher_training(graph, a)
+                       for a in relevant)
+        return (service or bool(_TRANSFER_WORDS.search(raw)) or cross_clause) and not self.module.wide_suppressed(graph, clause)
+
+    def _ranking(self, graph, clause, local, actions, rid, level, line):
+        general = rid == "K12-G01"
+        negated = [a for a in actions if a.predicate in _RANK_ACTS and self.module.directly_denied(graph, a)]
+        for a in local:
+            if a.predicate not in _RANK_ACTS or self.module.wide_suppressed(graph, clause, a):
+                continue
+            targets = a.object + a.topic
+            if not a.negation:
+                if (general and a.predicate == "晒" and negated and "分数排名" in a.object
+                        and any(item.predicate in _GENERAL_PUBLISH for item in actions)):
+                    yield _clause_issue(rid, "P1", line, clause.text)
+                continue
+            if general:
+                in_scope = (a.predicate in _GENERAL_PUBLISH and _GENERAL_RANK_TARGET.search(targets)
+                            or a.predicate in {"排名", "分班", "排座"} and re.search(r"按(?:考试)?成绩", targets))
+            else:
+                in_scope = _RANK_TARGET.search(targets) or (
+                    a.predicate == "晒" and any(item.predicate == "排名" for item in local))
+            if in_scope:
+                yield _clause_issue(rid, level if a.admission else "P1", line, clause.text)
+        if not general and _SCORE_RULE.pattern.search(clause.text) and not _SCORE_RULE.sentence_skip.search(clause.text):
+            independent = any(a.clause != clause.id and a.span.start < clause.span.start for a in negated)
+            reversed_score = any(a.predicate in _RANK_ACTS and a.negation and a.local_polarity == self.module.Polarity.POSITIVE
+                                 and not self.module.wide_suppressed(graph, clause, a) for a in local)
+            if independent or reversed_score:
+                yield _clause_issue("JZ-014", "P1", line, clause.text)
 
 
 # ---------------------------------------------------------------------------
@@ -2211,6 +2557,21 @@ COMMENT_STAGE_LEVELS = {
 }
 
 
+_FEE_MATRIX = (
+    ("校方明确强制缴购或统一代办，同分句准入", "P0", "P1", "P1"),
+    ("拒缴与拒缴后果同项共现，首版宽层", "P1", "P1", "P1"),
+    ("证据共现但未准入、强制与自愿并存、家委会实收或议事", "P1", "P1", "P1"),
+    ("报刊征订，新增只走宽层；parents 保留基线级别", "P1", "P1", "P1"),
+    ("直接禁止、确证不实行、同项自愿且明确退出", "跳过", "跳过", "跳过"),
+)
+_TUTOR_MATRIX = (
+    ("校方组织学生参加校外有偿补课，同分句准入", "P0", "P0", "P0"),
+    ("向校外培训或辅导机构导流或提供学生及家长信息，同分句准入", "P0", "P0", "P0"),
+    ("证据共现但未准入、机构未明示校外或已实施后问责", "P1", "P1", "P1"),
+    ("直接禁止、确证不实行、明确教师受训或免费且无导流", "跳过", "跳过", "跳过"),
+)
+
+
 def rule_catalog() -> dict:
     order = (*LEVELS, "skip")
     rules: Dict[str, dict] = {}
@@ -2235,6 +2596,19 @@ def rule_catalog() -> dict:
             add(rid, "general", ((lv_c, "P1"), (lv_o, "P1"), (lv_o, "P1")), message)
         else:
             add(rid, "general", ((lv_c,), (lv_o,), (lv_o,)), message)
+    for rule in _BASELINE_PAIRS:
+        fee = rule.id == "JZ-006"
+        stage_levels = (("P0", "P1"), ("P1",), ("P1",)) if fee else (("P0", "P1"),) * len(STAGES)
+        condition = "精确层按分句准入；宽层 P1；仅 parents 基线命中时保留旧级别，general 保底 P1"
+        for rid, entry in ((rule.id, "parents"), (_PAIR_RULES[rule.id], "general")):
+            add(rid, entry, stage_levels, condition)
+            rules[rid]["writing_matrix"] = [
+                {"writing": row[0], "stage_levels": dict(zip(STAGES, row[1:]))}
+                for row in (_FEE_MATRIX if fee else _TUTOR_MATRIX)
+            ]
+    add("JZ-014", "parents", (("P1",),) * len(STAGES), "独立后项或双重否定恢复的分值提示 P1")
+    for rid, entry in (("JZ-003", "parents"), ("K12-G01", "general")):
+        add(rid, entry, (("P1",),) * len(STAGES), "同分句直接否定豁免；反转肯定并准入按学段分级")
     for command in ("parents", "general"):
         add(G04_RULE[0], command, (("P0", "P1"),) * len(STAGES),
             "表格姓名列含实名或需要人工核对的值")
@@ -2253,8 +2627,10 @@ def render_rule_catalog(catalog: dict) -> str:
         stages = []
         for command, levels in rule["stage_levels"].items():
             stages.append(command + " " + " ".join(f"{stage}={'/'.join(levels[stage])}" for stage in STAGES))
+        matrix = "".join("；" + row["writing"] + "（" + "/".join(row["stage_levels"].values()) + "）"
+                         for row in rule.get("writing_matrix", ()))
         lines.append(f"{rule['id']} | {', '.join(rule['commands'])} | {'/'.join(rule['levels'])} | "
-                     + "；".join(stages) + " | " + rule["condition"])
+                     + "；".join(stages) + " | " + rule["condition"] + matrix)
     return "\n".join(lines)
 
 

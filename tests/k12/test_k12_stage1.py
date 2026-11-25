@@ -6,6 +6,10 @@ import unittest
 
 from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, REPO_ROOT, SAMPLES, k12_check
 from tests.k12.test_k12_comment_privacy import assert_hidden, assert_prose_preserved, assert_py005, capture_prose
+from tests.k12.stage3a_checks import (
+    RULES, assert_preserved, assert_probe_additions, document_additions, document_exemptions, hits,
+    noise_mirrors, probe_exemptions,
+)
 
 
 REGRESSION = SAMPLES / "clause_regression"
@@ -94,7 +98,13 @@ class K12Stage1Tests(K12TestCase):
                             if "hits" in expected:
                                 expected = {"hits": sorted(map(list, expected["hits"]),
                                                            key=lambda hit: (hit[2], hit[0], hit[1]))}
-                            self.assertEqual(actual, expected)
+                            if entry == "comments":
+                                self.assertEqual(actual, expected)
+                            else:
+                                final = stage_data["expected"][entry]
+                                assert_preserved(self, expected, actual, probe_exemptions(expected, final))
+                                assert_probe_additions(self, entry, expected, actual,
+                                                       stage_data.get("expected_new_layer", {}).get(entry, {}))
                             for rid, level, _line in actual.get("hits", ()):
                                 self.assertIn(level, levels[rid][entry][stage])
         self.assertEqual((runs, errors), (4215, 5))
@@ -228,6 +238,8 @@ class K12Stage1Tests(K12TestCase):
         data = read_jsonl(SAMPLES / "reference_baseline.jsonl")
         metadata, *docs = data
         self.assertEqual({record["file"]: record["category"] for record in docs}, reference_documents())
+        by_file = {record["file"]: record for record in docs}
+        mirrors = noise_mirrors(self, REPO_ROOT, SAMPLES, docs, k12_check.STAGES)
         levels = Counter()
         for record in docs:
             path = REPO_ROOT / record["file"]
@@ -236,8 +248,15 @@ class K12Stage1Tests(K12TestCase):
                 for stage in k12_check.STAGES:
                     with self.subTest(file=record["file"], entry=entry, stage=stage):
                         actual = run_entry(k12_check, entry, path, stage)
-                        self.assertEqual(actual, record["runs"][entry][stage])
-                        levels.update(hit[1] for hit in actual.get("hits", ()))
+                        frozen = record["runs"][entry][stage]
+                        if entry == "comments":
+                            self.assertEqual(actual, frozen)
+                        else:
+                            assert_preserved(self, frozen, actual, document_exemptions(record, entry, frozen))
+                            added = hits(actual) - hits(frozen)
+                            self.assertLessEqual({hit[0] for hit in added}, RULES[entry])
+                            self.assertLessEqual(added, document_additions(record["file"], entry, stage, by_file, mirrors))
+                        levels.update(hit[1] for hit in frozen.get("hits", ()))
         self.assertEqual(len(docs) * len(ENTRIES) * len(k12_check.STAGES), metadata["runs"])
         self.assertEqual(dict(levels), metadata["levels"])
 
@@ -245,10 +264,16 @@ class K12Stage1Tests(K12TestCase):
         rc, out, err = self.run_main("--list-rules", "--json")
         self.assertEqual((rc, err), (0, ""))
         rules = {rule["id"]: rule for rule in json.loads(out)["rules"]}
-        self.assertEqual(len(rules), 35)
+        self.assertEqual(len(rules), 37)
+        self.assertEqual(set(rules) - (
+            {rule.id for rule in k12_check.PARENT_RULES}
+            | {rule[0] for rule in k12_check.GENERAL_RULES}
+            | {f"PY-{index:03d}" for index in range(1, 18)}
+        ), {"K12-G05", "K12-G09"})
         self.assertEqual(set(rules),
                          {rule.id for rule in k12_check.PARENT_RULES}
                          | {rule[0] for rule in k12_check.GENERAL_RULES}
+                         | {"K12-G05", "K12-G09"}
                          | {f"PY-{index:03d}" for index in range(1, 18)})
         for rid, rule in rules.items():
             self.assertTrue(rule["condition"], rid)
