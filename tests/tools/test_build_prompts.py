@@ -277,6 +277,18 @@ class BuildPromptsTest(TempRepoTestCase):
         self.assertEqual(self.build("--offline")[0], 0)
         self.assertEqual(target.read_bytes(), first)
 
+    def test_offline_reports_unclosed_omission_in_rag_source(self):
+        self.repo.add_skill()
+        write_text(
+            self.root / "shared/profiles/units/demo.md",
+            "# 单位画像\n<!-- prompt:omit -->\n仅供 Agent 的说明\n",
+        )
+        code, out = self.build("--offline")
+        self.assertEqual(code, 1, out)
+        self.assertIn(
+            "错误：生成离线包失败（units/demo.md：第 2 行：prompt:omit 标记未闭合）", out,
+        )
+
     def add_install_files(self):
         """在假仓库里放上安装脚本和离线使用说明的源文件。"""
         write_text(self.root / "install.ps1", "# install.ps1\n")

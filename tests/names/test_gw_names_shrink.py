@@ -221,6 +221,10 @@ class LexiconSourceTest(unittest.TestCase):
         for g in ("报或", "期或"):
             self.assertNotIn(g, have)
 
+    def test_classmate_bigram_is_kept_below_threshold(self) -> None:
+        self.assertIn("同学", self.tool.build_bigrams(self.tool.bigram_docfreq([])))
+        self.assertIn("同学", self.tool.load()["word_bigrams"].split())
+
 
 if __name__ == "__main__":
     unittest.main()
