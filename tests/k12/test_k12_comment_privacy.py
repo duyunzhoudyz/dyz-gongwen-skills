@@ -245,8 +245,8 @@ class CommentPrivacyTests(K12TestCase):
         self.check_round2_cases(word=True)
 
     def test_round3_review_and_ordinary_prose_against_baseline(self):
-        # 保存 cec4521 规则命中。普通输入同时冻结完整报告与文本，沿用第 2 轮
-        # 已验收的 PY-016 数量摘录格式（显示完整数字）。
+        # 普通输入冻结 cec4521 完整报告和文本。逐一核对允许差异后，仅将登记的
+        # PY-016 摘录还原为基线格式，再比较整份输出。
         path = SAMPLES / "comment_privacy_review_r3.jsonl"
         for raw in path.read_text(encoding="utf-8").splitlines():
             case = json.loads(raw)
@@ -276,8 +276,14 @@ class CommentPrivacyTests(K12TestCase):
                     self.assertEqual([e["label"] for e in report["entries"][:2]], ["S01", "S002"])
                 if case.get("ordinary_digest"):
                     self.assertNotIn("〔编号", rendered)
+                    self.assertEqual(rendered, k12_check.render_check_text(report) + "\n")
+                    for delta in case.get("allowed_excerpt_deltas", ()):
+                        issue = report["issues"][delta["issue_index"]]
+                        self.assertEqual((issue["id"], issue["line"], issue["excerpt"]),
+                                         ("PY-016", delta["line"], delta["current"]))
+                        issue["excerpt"] = delta["baseline"]
                     serialized = json.dumps([report, k12_check.render_check_text(report)], ensure_ascii=False,
-                                            sort_keys=True, separators=(",", ":"))
+                                            separators=(",", ":"))
                     self.assertEqual(sha256(serialized.encode("utf-8")).hexdigest(), case["ordinary_digest"])
 
     def test_round3_independent_cell_members_and_explicit_number_list(self):
