@@ -148,6 +148,25 @@ def shared_names() -> Tuple[Any, Any]:
     return mod, lex
 
 
+def load_clause_module() -> Any:
+    """供分句图入口按本包真实路径加载，兼容工具箱的文件路径导入。"""
+    path = _HERE / "k12_clause.py"
+    name = f"_gw_k12_clause:{path}"
+    mod = sys.modules.get(name)
+    if mod is None:
+        try:
+            spec = importlib.util.spec_from_file_location(name, str(path))
+            if spec is None or spec.loader is None:
+                raise ImportError("无法创建模块说明")
+            mod = importlib.util.module_from_spec(spec)
+            sys.modules[name] = mod
+            spec.loader.exec_module(mod)
+        except Exception as exc:
+            sys.modules.pop(name, None)
+            raise InputError(f"本地模块 scripts/k12_clause.py 无法加载：{exc}") from exc
+    return mod
+
+
 # ---------------------------------------------------------------------------
 # 通用工具
 # ---------------------------------------------------------------------------
