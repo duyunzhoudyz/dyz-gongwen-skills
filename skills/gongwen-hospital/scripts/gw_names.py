@@ -346,7 +346,7 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
 # 锚点
 # ---------------------------------------------------------------------------
 
-def compile_anchors(spec: Optional[Mapping[str, Any]]) -> List[Anchor]:
+def compile_anchors(spec: Optional[Mapping[str, Any]], lex: Optional[Lexicon] = None) -> List[Anchor]:
     """读规则 JSON 的 name_anchors：{"prefix":[{"re":..,"strength":3}], "postfix":[..], "list":[..], "frame":[..]}。"""
     if not spec:
         return []
@@ -364,8 +364,13 @@ def compile_anchors(spec: Optional[Mapping[str, Any]]) -> List[Anchor]:
             strength = item.get("strength", 3)
             if not isinstance(strength, int) or isinstance(strength, bool):
                 raise AnchorError(f"name_anchors.{kind} 的 strength 必须是整数")
+            pattern = item["re"]
+            if "<<OFFICE_MODIFIERS>>" in pattern:
+                # 框架的姓名右边界和候选排除共用同一份任职修饰词。
+                modifiers = sorted((lex or load_lexicon()).office_modifiers, key=lambda w: (-len(w), w))
+                pattern = pattern.replace("<<OFFICE_MODIFIERS>>", "(?:" + "|".join(map(re.escape, modifiers)) + ")")
             try:
-                regex = re.compile(item["re"])
+                regex = re.compile(pattern)
             except re.error as exc:
                 raise AnchorError(f"name_anchors.{kind} 的正则无法编译：{exc}") from exc
             if kind == "frame" and "n" not in regex.groupindex:
@@ -897,7 +902,11 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
         got_pieces: List[bool] = []
         for ps, pe in pieces:
             if a.suffix:
-                cands = [(pe - length, pe) for length in (4, 3, 2) if length <= pe - ps]
+                ends = [pe]
+                if parts.get("office") and pe == m.start("office"):
+                    # “欧阳原任”拆开只剩复姓。短候选不成名时，再试原来的完整姓名。
+                    ends.append(m.end("office"))
+                cands = [(end - length, end) for end in ends for length in (4, 3, 2) if ps <= end - length < pe]
             else:
                 cands = [(ps, pe)]
             got_one = False

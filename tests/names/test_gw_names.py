@@ -215,7 +215,7 @@ class LexiconStructureTest(unittest.TestCase):
 
     # ---- 1.1.0 新增字段 ----
     def test_version_and_new_fields(self) -> None:
-        self.assertEqual(LEX.version, "1.2.5")
+        self.assertEqual(LEX.version, "1.2.6")
         self.assertGreaterEqual(len(LEX.given), 400)
         self.assertGreaterEqual(len(LEX.word_bigrams), 2000)
         self.assertTrue(LEX.soft_given and LEX.stopwords_exact)

@@ -1,0 +1,50 @@
+{
+  "soe_person": [
+    {"id":"R6_01_f3_real_yuanren","engine":"soe","filename":"王建国.md","body":"撤销王建国原任党内职务，王建国项目先行开工。","expected_names":["王建国"]},
+    {"id":"R6_02_f3_real_tongzhi_yuanren","engine":"soe","filename":"王建国.md","body":"撤销王建国同志原任党内职务，王建国项目先行开工。","expected_names":["王建国"]},
+    {"id":"R6_03_f3_real_xianren","engine":"soe","filename":"王建国.md","body":"撤销王建国现任党内职务，王建国项目先行开工。","expected_names":["王建国"]},
+    {"id":"R6_04_f3_real_quanbu","engine":"soe","filename":"王建国.md","body":"撤销王建国全部党内职务，王建国项目先行开工。","expected_names":["王建国"]},
+    {"id":"R6_05_f3_real_paren_yuanren","engine":"soe","filename":"王建国.md","body":"撤销王建国（原总经理）原任党内职务，王建国项目先行开工。","expected_names":["王建国"]},
+    {"id":"R6_06_f3_real_title_suoren","engine":"soe","filename":"王建国.md","body":"撤销副部长王建国所任党内职务，王建国项目先行开工。","expected_names":["王建国"]},
+    {"id":"R6_37_real_banzihan_control","engine":"soe","filename":"班子涵.md","body":"对班子涵给予停职检查，班子涵项目先行开工。","expected_names":["班子涵"]},
+    {"id":"R6_38_real_anjianguo_control","engine":"soe","filename":"安建国.md","body":"对安建国给予停职检查，安建国项目先行开工。","expected_names":["安建国"]},
+    {"id":"R6_39_real_yuanjianguo_control","engine":"soe","filename":"原建国.md","body":"撤销原建国党内职务，原建国项目先行开工。","expected_names":["原建国"]},
+    {"id":"F3R_01","engine":"soe","filename":"王建国.md","body":"撤销王建国原任党内职务。","expected_names":["王建国"]},
+    {"id":"F3R_02","engine":"soe","filename":"王建国.md","body":"撤销王建国同志原任党内职务。","expected_names":["王建国"]},
+    {"id":"F3R_03","engine":"soe","filename":"王建国.md","body":"撤销王建国现任党内职务。","expected_names":["王建国"]},
+    {"id":"F3R_04","engine":"soe","filename":"王建国.md","body":"撤销王建国全部党内职务。","expected_names":["王建国"]},
+    {"id":"XMB_01","engine":"soe","filename":"张伟.md","body":"对项目部副主任张伟给予警告处分。","expected_names":["张伟"]}
+  ],
+  "soe_clean": [
+    {"id":"R6_07_collective_dangweihui","engine":"soe","filename":"clean.md","body":"对党委会进行诫勉谈话。","expected_names":[]},
+    {"id":"R6_08_collective_changweihui","engine":"soe","filename":"clean.md","body":"对常委会进行诫勉谈话。","expected_names":[]},
+    {"id":"R6_09_collective_quanweihui","engine":"soe","filename":"clean.md","body":"对全委会进行诫勉谈话。","expected_names":[]},
+    {"id":"R6_10_collective_zhiweihui","engine":"soe","filename":"clean.md","body":"对支委会进行诫勉谈话。","expected_names":[]},
+    {"id":"R6_11_collective_dangzongzhi","engine":"soe","filename":"clean.md","body":"对党总支进行诫勉谈话。","expected_names":[]},
+    {"id":"R6_12_collective_dangweibanzi","engine":"soe","filename":"clean.md","body":"对党委班子予以停职检查，撤销党委班子党内职务。","expected_names":[]},
+    {"id":"R6_13_f3_clean_ciqian_suoren","engine":"soe","filename":"clean.md","body":"给予某同志撤销此前所任党内职务处分。","expected_names":[]},
+    {"id":"R6_14_f3_clean_yuanren_quanbu","engine":"soe","filename":"clean.md","body":"给予某同志撤销原任全部党内职务处分。","expected_names":[]},
+    {"id":"R6_15_f3_clean_cengjianren","engine":"soe","filename":"clean.md","body":"给予某同志撤销曾兼任党内职务处分。","expected_names":[]},
+    {"id":"R6_16_f3_clean_zhangmou_yuanren","engine":"soe","filename":"clean.md","body":"撤销张某原任党内职务。","expected_names":[]},
+    {"id":"R6_17_f3_clean_yiqie","engine":"soe","filename":"clean.md","body":"给予某同志撤销一切党内职务处分。","expected_names":[]},
+    {"id":"DZZ_01","engine":"soe","filename":"clean.md","body":"对党总支予以停职检查。","expected_names":[]},
+    {"id":"DZZ_02","engine":"soe","filename":"clean.md","body":"撤销党总支党内职务。","expected_names":[]},
+    {"id":"DZZ_03","engine":"soe","filename":"clean.md","body":"对党总支移送司法机关。","expected_names":[]},
+    {"id":"QWH_01","engine":"soe","filename":"clean.md","body":"对全委会予以停职检查。","expected_names":[]},
+    {"id":"ZWH_01","engine":"soe","filename":"clean.md","body":"对支委会予以停职检查。","expected_names":[]}
+  ],
+  "html_fallback": [
+    {"id":"R6_18_html_tag_then_plain","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| <span>王秀英</span>李明 | 哮喘 | 治愈率100%，王秀英、李明已出院 |","expected_names":["王秀英","李明"]},
+    {"id":"R6_19_html_plain_then_tag","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| 王秀英<span>李明</span> | 哮喘 | 治愈率100%，王秀英、李明已出院 |","expected_names":["王秀英","李明"]},
+    {"id":"R6_20_html_bold_then_plain","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| <b>王秀英</b>李明 | 哮喘 | 治愈率100%，王秀英、李明已出院 |","expected_names":["王秀英","李明"]},
+    {"id":"R6_21_html_name_plus_gender_badge","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| <span>王秀英</span><span class=\"tag\">男</span> | 哮喘 | 治愈率100%，王秀英已出院 |","expected_names":["王秀英"]},
+    {"id":"R6_22_html_name_plus_dept_badge","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| <span>王秀英</span><span class=\"dept\">内科</span> | 哮喘 | 治愈率100%，王秀英已出院 |","expected_names":["王秀英"]},
+    {"id":"R6_23_html_name_plus_pseudo","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| <span>王秀英</span><span>王某</span> | 哮喘 | 治愈率100%，王秀英已出院 |","expected_names":["王秀英"]},
+    {"id":"R6_24_html_two_names_plus_ke","engine":"hos","filename":"王秀英.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| <span>王秀英</span><span>李明</span><span>张登科</span> | 哮喘 | 治愈率100%，王秀英、李明、张登科已出院 |","expected_names":["王秀英","李明","张登科"]},
+    {"id":"R6_25_html_name_plus_fin_dept","engine":"soe","filename":"王秀英.md","body":"| 职工姓名 | 处分 | 说明 |\n| --- | --- | --- |\n| <span>王秀英</span><span>财务部</span> | 警告 | 王秀英先行开工 |","expected_names":["王秀英"]}
+  ],
+  "html_split_name": [
+    {"id":"R6_28_html_nbsp_split_2char","engine":"hos","filename":"王秀.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| 王&nbsp;秀 | 哮喘 | 治愈率100%，王秀已出院 |","expected_names":[],"exposed_name":"王秀","registered":[]},
+    {"id":"R6_29_html_comment_split_2char","engine":"hos","filename":"王秀.md","body":"| 患者姓名 | 诊断 | 说明 |\n| --- | --- | --- |\n| 王<!-- 核对 -->秀 | 哮喘 | 治愈率100%，王秀已出院 |","expected_names":[],"exposed_name":"王秀","registered":["核对"]}
+  ]
+}

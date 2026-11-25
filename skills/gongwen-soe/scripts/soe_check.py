@@ -85,7 +85,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.3.5"
+VERSION = "1.3.6"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")
@@ -267,9 +267,9 @@ def _build_rule(item: Dict[str, Any], procedural: bool) -> Rule:
         if rule.detector not in (None, "names"):
             raise InputError(f"规则 {rid} 的 detector 只能是 names")
         if rule.detector == "names":
-            gn, _gc, _lex = _shared()
+            gn, _gc, lex = _shared()
             try:
-                rule.anchors = gn.compile_anchors(item.get("name_anchors"))
+                rule.anchors = gn.compile_anchors(item.get("name_anchors"), lex)
             except gn.LexiconError as exc:
                 raise InputError(f"规则 {rid} 的 name_anchors 有误：{exc}") from exc
             if not rule.anchors:
