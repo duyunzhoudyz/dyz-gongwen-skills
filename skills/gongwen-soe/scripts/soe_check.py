@@ -85,7 +85,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Pattern, Sequence, Set, Tuple
 
-VERSION = "1.3.4"
+VERSION = "1.3.5"
 _HERE = Path(__file__).resolve().parent
 RULES_PATH = _HERE / "soe_rules.json"
 LEVELS = ("P0", "P1", "P2")

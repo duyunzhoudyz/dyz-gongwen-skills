@@ -112,6 +112,9 @@ class NameReviewRoundFourTest(unittest.TestCase):
     def test_reference_hits(self):
         reference = fixture("name_reference_hits.json")
         cases = {c["id"]: c for c in REVIEW + ADVERSARIAL}
+        for group in fixture("review_r5_inputs.json").values():
+            cases.update((c["id"], c) for c in group
+                         if c["engine"] == "soe" and not c["expect"] and "|" not in c["body"])
         self.assertCountEqual([r["id"] for r in reference["cases"]], list(cases))
         for sample in reference["cases"]:
             case = cases[sample["id"]]

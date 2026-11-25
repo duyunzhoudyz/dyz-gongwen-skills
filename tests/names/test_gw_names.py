@@ -215,7 +215,7 @@ class LexiconStructureTest(unittest.TestCase):
 
     # ---- 1.1.0 新增字段 ----
     def test_version_and_new_fields(self) -> None:
-        self.assertEqual(LEX.version, "1.2.4")
+        self.assertEqual(LEX.version, "1.2.5")
         self.assertGreaterEqual(len(LEX.given), 400)
         self.assertGreaterEqual(len(LEX.word_bigrams), 2000)
         self.assertTrue(LEX.soft_given and LEX.stopwords_exact)
@@ -255,6 +255,7 @@ class LexiconStructureTest(unittest.TestCase):
                  "right_weak": len(LEX.right_weak), "left_words": len(LEX.left_words), "word_bigrams": len(LEX.word_bigrams),
                  "table_names": len(LEX.table_names), "table_public": len(LEX.table_public),
                  "table_nonnames": len(LEX.table_nonnames), "org_abbr_end": len(LEX.org_abbr_end), "personal_actions": len(LEX.personal_actions),
+                 "frame_collectives": len(LEX.frame_collectives), "office_modifiers": len(LEX.office_modifiers),
                  **{"table_sensitive_" + d: len(words) for d, words in LEX.table_sensitive.items()}}
         for key, floor in gn.MIN_SIZES.items():
             self.assertGreaterEqual(sizes[key], floor, key)

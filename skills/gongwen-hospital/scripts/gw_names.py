@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import json
 import re
+from bisect import bisect_left
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, FrozenSet, Iterable, List, Mapping, NamedTuple, Optional, Pattern, Sequence, Tuple
@@ -111,7 +112,8 @@ _TABLE_CLASS_RE = re.compile(r"(?:[一二三四五六七八九十\d]+年级|[高
 _TABLE_PLACEHOLDER_RE = re.compile(r"〔姓名\d+〕|(?<!\w)(?:(?:共计?|合计|小计|总计)?[\d一二两三四五六七八九十百]+人|N/A)(?!\w)|[-‐‑‒–—―－]+", re.I)
 _TABLE_DEPT_END = ("部", "处", "科", "室", "组", "队", "班", "中心", "学院", "办", "病区", "部门", "公司", "集团")
 _TABLE_LINK_RE = re.compile(r"\[([^]\n]+)\]\((?:[^()\n]|\([^()\n]*\))*\)")
-_TABLE_TAG_RE = re.compile(r"</?(?:span|strong|em|b|i|u|s|del|ins|code|mark|small|sub|sup|a|br)(?=[\s/>])(?:[^>\"']|\"[^\"]*\"|'[^']*')*>", re.I)
+_TABLE_TAG_RE = re.compile(r"<(/?)([a-zA-Z][a-zA-Z0-9:._-]*)(?=[\s/>])(?:[^<>\"']|\"[^\"]*\"|'[^']*')*>")
+_TABLE_INLINE_RE = re.compile(r"(\*{1,3}|_{1,3}|~~|\x60+)([^\n]+?)\1")
 _TABLE_SUFFIX_RE = re.compile(r"(?:等[一二两三四五六七八九十百]*[人名位]*|同志|同学|先生|女士)+$")
 TABLE_UNKNOWN_HINT = "姓名列内容未能识别，请人工核对"
 # 原框架的形态准入保持不变。新增处分只给已入框的同形简称定级，不能据此把地名当姓名。
@@ -164,6 +166,8 @@ class Lexicon:
     table_sensitive: Mapping[str, Tuple[str, ...]] = field(default_factory=dict)
     personal_actions: FrozenSet[str] = frozenset()
     org_abbr_end: FrozenSet[str] = frozenset()
+    frame_collectives: FrozenSet[str] = frozenset()
+    office_modifiers: FrozenSet[str] = frozenset()
 
     @property
     def surnames(self) -> FrozenSet[str]:
@@ -230,6 +234,7 @@ MIN_SIZES: Dict[str, int] = {
     "soft_given_chars": 5, "given_chars": 400, "place_end": 30, "place_end_2char": 5, "stopwords": 800,
     "stopwords_exact": 50, "right_strong": 20, "right_weak": 10, "left_words": 20, "word_bigrams": 2000,
     "table_names": 8, "table_public": 4, "table_nonnames": 4, "org_abbr_end": 20, "personal_actions": 16,
+    "frame_collectives": 2, "office_modifiers": 4,
     "table_sensitive_hospital": 5, "table_sensitive_soe": 4, "table_sensitive_k12": 5,
 }
 # 哨兵：这些最基本的数据必须在
@@ -277,6 +282,8 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
     table_public = frozenset(_need_list(data, "table_public"))
     table_nonnames = frozenset(_need_list(data, "table_nonnames"))
     personal_actions = frozenset(_need_list(data, "personal_actions"))
+    frame_collectives = frozenset(_need_list(data, "frame_collectives"))
+    office_modifiers = frozenset(_need_list(data, "office_modifiers"))
     org_abbr_end = frozenset(_need_str(data, "org_abbr_end"))
     table_sensitive = {domain: _need_list(data, "table_sensitive_" + domain) for domain in ("hospital", "soe", "k12")}
 
@@ -289,6 +296,7 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
         "right_weak": len(right_weak), "left_words": len(left_words), "word_bigrams": len(set(bigram_list)),
         "table_names": len(table_names), "table_public": len(table_public), "table_nonnames": len(table_nonnames),
         "org_abbr_end": len(org_abbr_end), "personal_actions": len(personal_actions),
+        "frame_collectives": len(frame_collectives), "office_modifiers": len(office_modifiers),
         **{"table_sensitive_" + domain: len(set(words)) for domain, words in table_sensitive.items()},
     }
     for name, floor in MIN_SIZES.items():
@@ -328,6 +336,7 @@ def load_lexicon(path: Optional[Path] = None) -> Lexicon:
         stop_index={k: tuple(v) for k, v in index.items()},
         table_names=table_names, table_public=table_public, table_nonnames=table_nonnames,
         table_sensitive=table_sensitive, org_abbr_end=org_abbr_end, personal_actions=personal_actions,
+        frame_collectives=frame_collectives, office_modifiers=office_modifiers,
     )
     _LEX_CACHE[key] = lex
     return lex
@@ -882,6 +891,9 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
                 pos += len(part) + 1
         else:
             pieces = [(gs, ge)]
+        # 任职修饰词只排除在“撤销……党内职务”的宾语位置，避免影响别处的同形姓名。
+        excluded = lex.frame_collectives | lex.office_modifiers if parts.get("object") else lex.frame_collectives
+        pieces = [(ps, pe) for ps, pe in pieces if text[ps:pe] not in excluded]
         got_pieces: List[bool] = []
         for ps, pe in pieces:
             if a.suffix:
@@ -891,6 +903,8 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
             got_one = False
             for s, e in cands:
                 word = text[s:e]
+                if word in excluded:
+                    continue
                 left = _frame_left(a, text, s, lex) if a.suffix else 1
                 if s == gs and parts.get("object"):
                     left = 1  # “撤销〔姓名〕党内职务”的前置动词已确定左边界。
@@ -918,11 +932,12 @@ def _scan_frame(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], N
                     break
             got_pieces.append(got_one)
         if a.suffix and len(pieces) > 1 and any(got_pieces):
-            _frame_backfill(text, a, lex, out, m, pieces, got_pieces, personal_action)
+            _frame_backfill(text, a, lex, out, m, pieces, got_pieces, personal_action, excluded)
 
 
 def _frame_backfill(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int], NameHit], m: "re.Match[str]",
-                    pieces: List[Tuple[int, int]], got_pieces: List[bool], personal_action: bool) -> None:
+                    pieces: List[Tuple[int, int]], got_pieces: List[bool], personal_action: bool,
+                    excluded: FrozenSet[str]) -> None:
     """处分框架里的并列姓名：有一项识别出来，其余项（与常用词同形的“白云、夏天、黎明”、复姓表外等）一律登记进姓名表。
     第 2 项起，整段就是姓名；第 1 项前面可能带着“相关责任人”之类的字，从末尾取 4、3、2 字，左边界要成立。"""
     for k, ((ps, pe), got) in enumerate(zip(pieces, got_pieces)):
@@ -938,7 +953,7 @@ def _frame_backfill(text: str, a: Anchor, lex: Lexicon, out: Dict[Tuple[int, int
             if st < ps:
                 continue
             word = text[st:pe]
-            if _frame_left(a, text, st, lex) == 0 or not _list_item_like_name(word, lex):
+            if word in excluded or _frame_left(a, text, st, lex) == 0 or not _list_item_like_name(word, lex):
                 continue
             if any(ch in lex.nongiven for ch in (word[2:] if word[:2] in lex.compound else word[1:])):
                 continue
@@ -1115,14 +1130,24 @@ def _table_department(value: str, lex: Lexicon) -> bool:
 def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexicon,
                       natural_column: bool) -> Tuple[List[NameHit], bool]:
     # 删除标记但保留可见文字与源坐标；<br> 保留为分隔，姓名中间的内联标记不切碎姓名。
-    def hide(match: "re.Match[str]") -> str:
-        return "\0" * len(match[0])
+    sibling_starts = []
+    close_end = -1
+
+    def hide_tag(match: "re.Match[str]") -> str:
+        nonlocal close_end
+        if not match[1] and match.start() == close_end:
+            sibling_starts.append(match.start())
+        close_end = match.end() if match[1] else -1
+        return (" " if match[2].lower() == "br" else "\0") * len(match[0])
 
     marked = _TABLE_LINK_RE.sub(lambda m: "\0" + m[1] + "\0" * (len(m[0]) - len(m[1]) - 1), value)
-    marked = _TABLE_TAG_RE.sub(lambda m: " " * len(m[0]) if re.match(r"<br\b", m[0], re.I) else hide(m), marked)
-    marked = re.sub(r"(\*{1,3}|_{1,3}|~~|\x60+)([^\n]+?)\1",
-                    lambda m: "\0" * len(m[1]) + m[2] + "\0" * len(m[1]), marked)
+    marked = _TABLE_TAG_RE.sub(hide_tag, marked)
+    while True:
+        marked, stripped = _TABLE_INLINE_RE.subn(lambda m: "\0" * len(m[1]) + m[2] + "\0" * len(m[1]), marked)
+        if not stripped:
+            break
     offsets = [i for i, ch in enumerate(marked) if ch != "\0"]
+    sibling_cuts = sorted({bisect_left(offsets, i) for i in sibling_starts})
     clean = "".join(marked[i] for i in offsets)
     cell = clean.strip()
     if not cell or cell in lex.table_nonnames or _TABLE_PLACEHOLDER_RE.fullmatch(cell) or cell.isdecimal():
@@ -1130,6 +1155,17 @@ def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexic
     if _TABLE_CLASS_RE.fullmatch(cell):
         return [], False
     clean, placeholders = _TABLE_PLACEHOLDER_RE.subn(lambda m: " " * len(m[0]), clean)
+
+    def name_hit(pos: int, end: int) -> Optional[NameHit]:
+        word = clean[pos:end]
+        evidence = natural_column or _personal_context(clean[:pos], clean[end:])
+        shape = _shape(word, lex, evidence=evidence, tail_ok=True)
+        recognized = shape and not shape.pseudo and (evidence or not (shape.ambiguous and len(word) == 2))
+        connector_name = natural_column and len(word) == 3 and any(ch in "和与及" for ch in word[1:])
+        if recognized or (connector_name and _list_item_like_name(word, lex)):
+            return NameHit(start + pos, start + end, word, score, False, label, person_evidence=evidence)
+        return None
+
     tokens = list(_TABLE_TOKEN_RE.finditer(clean))
     if not tokens:
         return [], not (placeholders and not clean.strip(" \t、，,；;/|"))
@@ -1167,14 +1203,22 @@ def _table_cell_names(value: str, start: int, label: str, score: int, lex: Lexic
             if _table_nonname(raw, lex):
                 continue
             word = _TABLE_SUFFIX_RE.sub("", clean[pos:end])
-            evidence = natural_column or _personal_context(clean[:pos], clean[pos + len(word):])
-            shape = _shape(word, lex, evidence=evidence, tail_ok=True)
-            recognized = bool(shape and not shape.pseudo and (evidence or not (shape.ambiguous and len(word) == 2)))
-            if natural_column and len(word) == 3 and any(ch in "和与及" for ch in word[1:]) and _list_item_like_name(word, lex):
-                recognized = True
-            if recognized:
-                hits.append(NameHit(start + pos, start + pos + len(word), word, score, False, label, person_evidence=evidence))
+            word_end = pos + len(word)
+            hit = name_hit(pos, word_end)
+            recognized = hit is not None
+            if hit:
+                hits.append(hit)
             else:
+                # 先尝试完整文字，以保留跨标签的单个姓名。相邻元素各自成名才拆开。
+                cuts = sibling_cuts[bisect_left(sibling_cuts, pos + 1):bisect_left(sibling_cuts, word_end)]
+                if cuts:
+                    bounds = [pos, *cuts, word_end]
+                    split_hits = [None if _table_nonname(clean[lo:hi], lex) else name_hit(lo, hi)
+                                  for lo, hi in zip(bounds, bounds[1:])]
+                    if all(split_hits):
+                        hits.extend(h for h in split_hits if h is not None)
+                        recognized = True
+            if not recognized:
                 unknown = True
             # 剥过修饰语或未识别的原段整段登记。子串穷举只看二、三字及四字复姓名。
             if len(raw) >= 2 and (not recognized or raw != word):
