@@ -298,15 +298,15 @@ class K12Stage1Tests(K12TestCase):
         def issue(rule, level, line):
             return k12_check.Issue(rule, level, "", "", "", "", line=line)
 
-        first = issue("JZ-003", "P0", 1)
-        second = issue("JZ-003", "P0", 2)
+        first = issue("K12-G04", "P0", 1)
+        second = issue("K12-G04", "P0", 2)
         weak = issue("JZ-008", "P2", 2)
         upgraded = issue("JZ-008", "P1", 2)
         extra = issue("JZ-008", "P1", 3)
-        independent = issue("JZ-003", "P0", 1)
+        independent = issue("K12-G04", "P0", 1)
         self.assertEqual(k12_check.merge_rule_issues([first, second, weak]), [first, second, weak])
         self.assertEqual(k12_check.merge_rule_issues(
-            [first, independent, second, weak], [issue("JZ-003", "P1", 2), upgraded, extra], [first]),
+            [first, independent, second, weak], [issue("K12-G04", "P1", 2), upgraded, extra], [first]),
             [independent, second, upgraded, extra])
         with self.assertRaises(ValueError):
             k12_check.merge_rule_issues([first], exemptions=[independent])

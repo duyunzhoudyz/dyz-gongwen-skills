@@ -7,7 +7,8 @@ RULES = {
     "parents": frozenset(("JZ-003", "JZ-006", "JZ-008", "JZ-014")),
     "general": frozenset(("K12-G01", "K12-G05", "K12-G09")),
 }
-EXEMPT_RULES = frozenset(("JZ-003", "K12-G01", "JZ-008"))
+EXEMPT_RULES = frozenset(("JZ-008",))
+RANK_RULES = frozenset(("JZ-003", "K12-G01"))
 PAIRS = {"JZ-006": "K12-G05", "JZ-008": "K12-G09"}
 FAMILIES = {parent: general for parent, general in PAIRS.items()}
 FAMILIES.update({"JZ-003": "K12-G01", "JZ-014": "K12-G01"})

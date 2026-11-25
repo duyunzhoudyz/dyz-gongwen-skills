@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from tests.k12.stage3a_checks import (
-    PAIRS, RANK, RULES, assert_noise, assert_preserved, assert_probe_additions,
+    PAIRS, RANK, RANK_RULES, RULES, assert_noise, assert_preserved, assert_probe_additions,
     document_exemptions, hits, noise_mirrors, probe_exemptions,
 )
 from tests.k12.test_k12_stage1 import REGRESSION, REPO_ROOT, SAMPLES, k12_check, read_jsonl, run_entry
@@ -72,24 +72,17 @@ def baseline_losses(before, after):
 
 
 def baseline_exemption_witness(evidence, rule, line):
-    """定位被冻结的第一条命中，返回物理行区间或教师受训动作。"""
-    if not 1 <= line < len(evidence.offsets):
+    """定位被冻结的教师受训动作。"""
+    if rule != "JZ-008" or not 1 <= line < len(evidence.offsets):
         return None
     text = evidence.graph.text[evidence.offsets[line - 1]:evidence.offsets[line] - 1]
-    if rule in {"JZ-003", "JZ-008"}:
-        spec = next(rule_spec for rule_spec in k12_check.PARENT_RULES if rule_spec.id == rule)
-        match = next(k12_check._parent_matches(spec, text), None)
-    elif rule == "K12-G01":
-        pattern = next(item[4] for item in k12_check.GENERAL_RULES if item[0] == rule)
-        match = next((m for m in pattern.finditer(text) if not k12_check.NEG_RE.search(
-            k12_check.re.split(r"[。！？；!?;，,]", text[:m.start()])[-1][-12:] + m[0])), None)
-    else:
-        return None
+    spec = next(rule_spec for rule_spec in k12_check.PARENT_RULES if rule_spec.id == rule)
+    match = next(k12_check._parent_matches(spec, text), None)
     return evidence.exemption_witness(rule, line, match) if match else None
 
 
 def clause_evidence(path):
-    doc = k12_check.load_document(path, ranking_cells=True)
+    doc = k12_check.load_document(path)
     lines = ([" ".join(row) for table in doc.tables for row in table]
              if doc.kind == "table" else k12_check.cut_at_boundary(doc.lines)[0])
     return k12_check._ClauseEvidence(doc, lines)
@@ -150,6 +143,13 @@ class Stage3aTests(unittest.TestCase):
                     for rule, level, line in hits(reports[entry]) - hits(before):
                         if level == "P0":
                             self.assertIn(line, allowed.get(rule, ()), (rule, level, line))
+
+    def test_ranking_baseline_objects_cannot_be_exempted(self):
+        for rule in sorted(RANK_RULES):
+            with self.subTest(rule=rule):
+                baseline = k12_check.Issue(rule, "P0", "", "", "", "", line=1)
+                with self.assertRaisesRegex(ValueError, "^基线豁免须指向已登记规则的一条原始命中$"):
+                    k12_check.merge_rule_issues([baseline], exemptions=[baseline])
 
     def test_clear_violations_match_both_entries_and_pair_presence_agrees(self):
         clear = Counter()
@@ -360,21 +360,8 @@ class Stage3aReviewTests(unittest.TestCase):
                             if goal in {"wide", "no_exempt", "jz014_keep", "keep_student"}:
                                 self.assertLessEqual(old, actual)
                             for rid, level, line in old - actual:
-                                self.assertTrue(self._named_exemption(evidence, rid, line), (rid, level, line))
-
-    def _named_exemption(self, evidence, rule, line):
-        text = evidence.graph.text.splitlines()[line - 1]
-        if rule in {"JZ-003", "JZ-008"}:
-            candidates = (match for item in k12_check.PARENT_RULES if item.id == rule
-                          for match in k12_check._parent_matches(item, text))
-        elif rule == "K12-G01":
-            pattern = next(item[4] for item in k12_check.GENERAL_RULES if item[0] == rule)
-            candidates = (match for match in pattern.finditer(text) if not k12_check.NEG_RE.search(
-                k12_check.re.split(r"[。！？；!?;，,]", text[:match.start()])[-1][-12:] + match[0]))
-        else:
-            return False
-        match = next(candidates, None)
-        return match is not None and evidence.exempt(rule, line, match)
+                                self.assertIsNotNone(baseline_exemption_witness(evidence, rid, line),
+                                                     (rid, level, line))
 
     def test_word_body_table_precedes_drafting_note(self):
         try:
@@ -423,7 +410,10 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
             if entry not in RULES:
                 continue
             self.assertEqual(before.get("error"), after[entry].get("error"))
-            for rule, level, line in baseline_losses(before, after[entry]):
+            losses = baseline_losses(before, after[entry])
+            # 排名在同一入口、学段和行号保留，且级别至少等于冻结基线。
+            self.assertFalse([hit for hit in losses if hit[0] in RANK_RULES], (path, stage, entry, losses))
+            for rule, level, line in losses:
                 if evidence is None:
                     evidence = clause_evidence(path)
                 witness = baseline_exemption_witness(evidence, rule, line)
@@ -470,6 +460,14 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                 with self.subTest(file=record["file"], stage=stage):
                     self.assert_external_preserved(REPO_ROOT / record["file"], stage, before)
 
+        for record in read_jsonl(SAMPLES / "reference_baseline.jsonl")[1:]:
+            for stage in k12_check.STAGES:
+                with self.subTest(file=record["file"], stage=stage):
+                    self.assert_external_preserved(
+                        REPO_ROOT / record["file"], stage,
+                        {entry: record["runs"][entry][stage] for entry in RULES},
+                    )
+
     def test_round3_without_docx(self):
         self.assertGreaterEqual(len(set(self.round3["word_skip"])), 10)
         with patch.dict("sys.modules", {"docx": None}):
@@ -486,10 +484,6 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
             path = Path(folder) / "review.txt"
             for case in (*self.round3["text"], *self.round3["variants"]):
                 path.write_text(case["text"], encoding="utf8")
-                if case["id"].startswith(("question-", "past-", "current-", "quote-", "source-")):
-                    with self.subTest(id=case["id"], check="整行准入"):
-                        evidence = clause_evidence(path)
-                        self.assertFalse(list(evidence.module.ranking_denial_spans(evidence.graph)))
                 for stage, before in case["base"].items():
                     with self.subTest(id=case["id"], stage=stage):
                         after = self.assert_preserved_with_witness(path, stage, before)
@@ -505,6 +499,9 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                             levels = {level for rid, level, _ in actual if rid == rule}
                             if goal in {"none", "exempt"}:
                                 self.assertEqual(levels, set(), (entry, rule, actual))
+                            elif goal == "baseline_rank":
+                                self.assertEqual({hit for hit in actual if hit[0] == rule},
+                                                 {hit for hit in old if hit[0] == rule})
                             elif goal in {"weak", "wide"}:
                                 self.assertEqual(levels, {"P1"}, (entry, rule, actual))
                             elif goal == "baseline_or_p1":
@@ -547,6 +544,9 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                                                  {(rule, "P1", 1)})
                             if goal == "none":
                                 self.assertFalse(levels, (entry, rule, actual))
+                            if goal == "baseline_rank":
+                                self.assertEqual({hit for hit in actual if hit[0] == rule},
+                                                 {hit for hit in hits(before[entry]) if hit[0] == rule})
                             if goal in {"none", "no_new_p0", "free_wide", "weak", "wide"}:
                                 self.assertFalse(any(level == "P0" for _, level, _ in new), (entry, new))
                             if goal == "keep":
@@ -557,14 +557,11 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
 
     def assert_variant_structure(self, path, case):
         name = case["id"]
-        if not name.startswith(("rank-pass-", "teacher-pass-", "free-pass-", "voluntary-pass-")):
+        if not name.startswith(("teacher-pass-", "free-pass-", "voluntary-pass-")):
             return
         evidence = clause_evidence(path)
         graph, module = evidence.graph, evidence.module
-        if name.startswith("rank-pass-"):
-            self.assertFalse(list(module.ranking_denial_spans(graph)), case)
-            return
-        elif name.startswith("teacher-pass-"):
+        if name.startswith("teacher-pass-"):
             qualified = any(module.teacher_training(graph, a) for a in graph.actions)
         elif name.startswith("free-pass-"):
             qualified = any(module.free_project(graph, graph.clauses[a.clause], a)
@@ -574,7 +571,7 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                             for a in graph.actions if a.predicate == "代收")
         self.assertTrue(qualified, case)
 
-    def test_round4_reviews_and_ranking_grammar(self):
+    def test_round4_reviews_keep_ranking_baseline(self):
         self.assertEqual(Counter(case["group"] for case in self.round4),
                          {"review_a": 97, "review_b": 40, "review_d": 18, "review_targeted": 25,
                           "grammar_accept": 24, "grammar_reject": 250, "line_independence": 8})
@@ -582,7 +579,6 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                            if case["group"] == "grammar_reject")
         self.assertEqual(rejected, {"time": 40, "adverb": 40, "group": 40, "tail": 40,
                                     "particle": 40, "contrast": 40, "hardmark": 10})
-        module = k12_check.load_clause_module()
         rank_rules = {"parents": "JZ-003", "general": "K12-G01"}
         fee_rules = {"parents": "JZ-006", "general": "K12-G05"}
         with TemporaryDirectory() as folder:
@@ -590,13 +586,6 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
             for case in self.round4:
                 text, group, goal = (case[key] for key in ("text", "group", "goal"))
                 path.write_text(text, encoding="utf8")
-                spans = list(module.ranking_denial_spans(module.analyze(text)))
-                accepts = group == "grammar_accept" and not any(char in text for char in ",;．.")
-                with self.subTest(id=case["id"], grammar=True):
-                    if accepts:
-                        self.assertEqual(spans, [(0, len(text))])
-                    elif group in {"grammar_accept", "grammar_reject", "line_independence"}:
-                        self.assertFalse(spans)
                 for stage, before in case["base"].items():
                     with self.subTest(id=case["id"], stage=stage):
                         after = self.assert_preserved_with_witness(path, stage, before)
@@ -604,9 +593,7 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                         for entry, rule in rank_rules.items():
                             old, actual = hits(before[entry]), hits(after[entry])
                             had_rank |= any(r == rule for r, _, _ in old)
-                            if accepts:
-                                self.assertFalse(any(r == rule for r, _, _ in actual), actual)
-                            if (not accepts and group in {"review_a", "grammar_accept", "grammar_reject", "line_independence"}) or (
+                            if group in {"review_a", "grammar_accept", "grammar_reject", "line_independence"} or (
                                     group == "review_targeted" and goal != "punitive_wide"):
                                 assert_preserved(self, before[entry], after[entry], set())
                             if group == "review_b":
@@ -620,7 +607,6 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                             self.assertTrue(had_rank, before)
 
     def test_round5_review_inputs(self):
-        rank_rules = {"parents": "JZ-003", "general": "K12-G01"}
         cases = self.fixture["review_round_5"]
         self.assertEqual(Counter(case["script"] for case in cases),
                          {"closing": 140, "deep": 54, "extra": 39})
@@ -631,47 +617,21 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                 for stage, before in case["base"].items():
                     with self.subTest(id=case["id"], stage=stage):
                         after = self.assert_preserved_with_witness(path, stage, before)
-                        for entry, rule in rank_rules.items():
+                        for entry in RULES:
                             old, actual = hits(before[entry]), hits(after[entry])
                             if case["goal"] == "no_new_p0":
                                 self.assertFalse(any(level == "P0" for _, level, _ in actual - old))
                             if case["goal"] == "keep":
                                 assert_preserved(self, before[entry], after[entry], set())
                             if case["goal"] == "unchanged":
-                                self.assertEqual(actual, hits(case["previous"][stage][entry]))
-                            if case["goal"] == "accept":
-                                self.assertFalse(any(rid == rule for rid, _, _ in actual))
+                                previous = hits(case["previous"][stage][entry])
+                                self.assertEqual({h for h in actual if h[0] not in RANK_RULES},
+                                                 {h for h in previous if h[0] not in RANK_RULES})
+                                self.assertLessEqual(actual - previous,
+                                                     {h for h in old if h[0] in RANK_RULES})
 
-    def test_ranking_denial_line_whitelist_at_every_gap(self):
-        module = k12_check.load_clause_module()
-        positives = [
-            case["text"].translate(str.maketrans({",": "，", ";": "；", "．": "。", ".": "。"}))
-            for case in self.round4 if case["group"] == "grammar_accept"
-        ]
-        self.assertGreaterEqual(len(set(positives)), 20)
-        outside = "“”‘’\"'「」『』《》〈〉（）()[]［］【】〔〕{}｛｝〖〗〘〙〚〛〝〞«»‹›—…：:！!？?.．,;7Z龘#*|\\"
-        for raw in positives:
-            with self.subTest(text=raw):
-                self.assertEqual(list(module.ranking_denial_spans(module.analyze(raw))), [(0, len(raw))])
-                for gap in range(len(raw) + 1):
-                    for char in outside:
-                        changed = raw[:gap] + char + raw[gap:]
-                        self.assertFalse(list(module.ranking_denial_spans(
-                            module.ClauseGraph(changed), markdown_tables=True)), (gap, char, changed))
-                for wrapped in (f"材料如下：\n\n{raw}", f"草案:\n{raw}", f"上文待补“\n{raw}",
-                                f"“\n上文另起\n{raw}\n”", f"《\n【\n{raw}\n】\n》",
-                                f"草稿记载\\\"\n前文另起\n{raw}\n\\\""):
-                    self.assertFalse(list(module.ranking_denial_spans(module.analyze(wrapped))), wrapped)
-
-    def test_ranking_denial_keeps_physical_and_cell_line_boundaries(self):
+    def test_ranking_baseline_in_multiline_csv_cells(self):
         text = "学校不按成绩排名。"
-        module = k12_check.load_clause_module()
-        raw = f"  {text}\t{text.rstrip('。')}  \n学校按成绩排名。"
-        spans = list(module.ranking_denial_spans(module.analyze(raw)))
-        self.assertEqual([raw[a:b] for a, b in spans], [f"{text}\t{text.rstrip('。')}"])
-        raw = f"| 事项 | 内容 |\n|---|---|\n| 排名 | {text} |\n| 换行引语“ | {text} |"
-        spans = list(module.ranking_denial_spans(module.analyze(raw), markdown_tables=True))
-        self.assertEqual(spans, [(raw.index(text), raw.index(text) + len(text))])
         with TemporaryDirectory() as folder:
             path = Path(folder) / "review.csv"
             path.write_text(f'事项,内容\n排名,"{text}\n补充说明"\n'
@@ -680,9 +640,9 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
             for entry, rule in (("parents", "JZ-003"), ("general", "K12-G01")):
                 report = run_entry(k12_check, entry, path, "义务教育")
                 self.assertEqual({hit for hit in hits(report) if hit[0] == rule},
-                                 {(rule, "P0", 3), (rule, "P0", 4)})
+                                 {(rule, "P0", 2), (rule, "P0", 3), (rule, "P0", 4)})
 
-    def test_ranking_denial_xlsx_uses_cell_newlines(self):
+    def test_ranking_baseline_in_multiline_xlsx_cells(self):
         try:
             from openpyxl import Workbook
         except ImportError:
@@ -697,7 +657,50 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
             book.save(path)
             for entry, rule in (("parents", "JZ-003"), ("general", "K12-G01")):
                 report = run_entry(k12_check, entry, path, "义务教育")
-                self.assertEqual({hit for hit in hits(report) if hit[0] == rule}, {(rule, "P0", 3)})
+                self.assertEqual({hit for hit in hits(report) if hit[0] == rule}, {(rule, "P0", 2), (rule, "P0", 3)})
+
+    def test_round6_reviews_keep_ranking_baseline_across_formats(self):
+        cases = self.fixture["review_round_6"]
+        self.assertEqual(Counter(case["group"] for case in cases),
+                         {"visible": 70, "unicode": 32, "csv": 10, "xlsx": 7, "docx": 8,
+                          "compliant": 40, "colon": 8, "markdown": 7, "sample": 1})
+        with TemporaryDirectory() as folder:
+            for case in cases:
+                with self.subTest(id=case["id"]):
+                    suffix, value = case["format"], case["input"]
+                    path = Path(folder) / f"probe.{suffix}"
+                    if suffix == "file":
+                        path = REPO_ROOT / value
+                    elif suffix == "xlsx":
+                        try:
+                            from openpyxl import Workbook
+                        except ImportError:
+                            self.skipTest("openpyxl 未安装")
+                        book = Workbook()
+                        for row in value:
+                            book.active.append(row)
+                        book.save(path)
+                    elif suffix == "docx":
+                        try:
+                            from docx import Document
+                        except ImportError:
+                            self.skipTest("python-docx 未安装")
+                        doc = Document()
+                        for parts in value:
+                            doc.add_paragraph("\n".join(parts))
+                        doc.save(path)
+                    else:
+                        path.write_bytes(value.encode("utf8"))
+                    for stage, before in case["base"].items():
+                        with self.subTest(stage=stage):
+                            after = self.assert_preserved_with_witness(path, stage, before)
+                            for entry in RULES:
+                                self.assertEqual({h for h in hits(after[entry]) if h[0] in RANK_RULES},
+                                                 {h for h in hits(before[entry]) if h[0] in RANK_RULES})
+                                if case["group"] == "compliant":
+                                    allowed = case.get("known_p0", {}).get(stage, {}).get(entry, [])
+                                    self.assertEqual({h for h in hits(after[entry]) - hits(before[entry]) if h[1] == "P0"},
+                                                     {tuple(h) for h in allowed})
 
     def test_review_word_blocks(self):
         try:

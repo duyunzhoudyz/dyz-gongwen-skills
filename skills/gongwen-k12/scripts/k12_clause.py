@@ -416,21 +416,6 @@ _FEE_WITH_DETAIL = re.compile(r"(?P<object>" + _FEE_OBJECT.pattern + r")(?P<deta
 _RANK_OBJECT = re.compile(r"(?:(?:本班|全班|本次|学生|期末|考试|期末考试)?(?:考试成绩|成绩排名|成绩单|成绩|排名|名次|分数))")
 _WIDE_RANK_OBJECT = re.compile(r"[把将](?P<object>" + _RANK_OBJECT.pattern + r")$")
 _RANK_VERBS = {"排名", "分班", "排座", "公布", "张贴", "通报", "公示", "发布", "晒", "发成绩", "发到", "上传到", "上传"}
-_RANK_DENIAL_SUBJECT = ("学校", "我校", "本校", "校方", "各班", "各年级", "班主任", "副班主任",
-                        "教师", "任课教师", "老师", "年级组", "各年级组", "教务处", "教研组")
-_RANK_DENIAL_ADVERB = ("坚持", "始终", "一直", "一律", "严格", "坚决", "历来", "明确")
-_RANK_DENIAL_WORD = ("不", "不得", "不准", "不许", "禁止", "严禁")
-_RANK_DENIAL_PART = (
-    rf"(?:{_alternatives(_RANK_DENIAL_SUBJECT)})?(?:{_alternatives(_RANK_DENIAL_ADVERB)})*"
-    rf"(?:{_alternatives(_RANK_DENIAL_WORD)})"
-    rf"(?:(?:{_RANK_PREFIX.pattern})?(?:排名|排行|分班|排座)|"
-    rf"(?:{_alternatives(_RANK_VERBS - {'排名', '分班', '排座'} | {'公开'})}))"
-    rf"(?:学生的{_RANK_OBJECT.pattern}|{_RANK_OBJECT.pattern})?"
-)
-_RANK_DENIAL_JOIN = r"(?:[，、](?:也|并|且|同时)?|；(?:(?:也|并|且|同时)|\s*)|。\s*)"
-_RANK_DENIAL_LINE = re.compile(rf"{_RANK_DENIAL_PART}(?:{_RANK_DENIAL_JOIN}{_RANK_DENIAL_PART})*[。；]?")
-# 仅用于这条豁免的全文框边界。原分句图的配对与切分保持不变。
-_RANK_FRAME_PAIRS = {**_PAIRS, '"': '"', "'": "'", **dict(zip("{｛〖〘〚〝«‹", "}｝〗〙〛〞»›"))}
 _INFORMATION = re.compile(r"(?:学生和家长|学生|家长)(?:的)?(?:联系方式|电话(?:号码)?|微信号|学籍号|学号|名单|通讯录|信息)|生源")
 _INSTITUTION = re.compile(r"(?:校外|[“\"][^“”\"]+[”\"])?(?:培训机构|辅导机构|补习班)")
 _TRANSFER = {"提供", "提供给", "发给", "发送", "发送给", "透露", "泄露", "转交", "移交", "推荐", "输送"}
@@ -2009,41 +1994,6 @@ def _rank_clause_question(clause):
             or clause.separator in {"", "。", ".", "．", "，", ",", "；", ";"}
             and clause.text.endswith(tuple(_QUESTION_PARTICLES))
             or clause.text.startswith("是否") or _RANK_INQUIRY.search(clause.text) is not None)
-
-
-def ranking_denial_spans(graph, *, markdown_tables=False):
-    """返回无外层框且完全匹配排名否定文法的物理行区间。"""
-    text = graph.text
-    scopes = [frame.scope for frame in graph.frames
-              if frame.kind in {"quote", "annotation", "title", "colon"} and frame.scope]
-    scopes.extend(group.span for clause in graph.clauses for group in clause.groups if group.kind == "title")
-    expected_close = []
-    offset = 0
-    previous = ""
-    for line in text.split("\n"):
-        raw = line.strip()
-        candidates = {}
-        if raw and not expected_close and not previous.endswith(("：", ":")):
-            cells = []
-            if markdown_tables and raw.startswith("|") and raw.endswith("|"):
-                pairs, _, escaped = _pairs(line)
-                cells = _table_cells(line, 0, pairs, escaped)
-            for left, right in cells or [_trim(line, 0, len(line))]:
-                start, end = offset + left, offset + right
-                if _RANK_DENIAL_LINE.fullmatch(line, left, right) and not any(
-                        scope.start < end and start < scope.end for scope in scopes):
-                    candidates[left] = (start, end)
-        # 跨行栈保留到实际闭合。上一个非空行未闭合的左符号也由此拦住。
-        for column, char in enumerate(line):
-            if column in candidates and not expected_close:
-                yield candidates[column]
-            if expected_close and char == expected_close[-1]:
-                expected_close.pop()
-            elif char in _RANK_FRAME_PAIRS:
-                expected_close.append(_RANK_FRAME_PAIRS[char])
-        if raw:
-            previous = raw
-        offset += len(line) + 1
 
 
 def local_direct_negation(graph, action):
