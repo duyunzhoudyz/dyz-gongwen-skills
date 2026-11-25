@@ -9,6 +9,7 @@ from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from itertools import groupby
 from pathlib import Path
 
 
@@ -2318,6 +2319,202 @@ def committee_discussion(graph, clause):
             any(item.agent in _COMMITTEES and item.predicate in _DISCUSSION
                and re.search(r"(?:收取|收费)(?:标准|流程|情况)", item.object)
                for item in graph.actions_for(clause.id)))
+
+
+
+@dataclass(frozen=True)
+class IdentityRelation:
+    clause: int
+    names: tuple[str, ...]
+    admission: Admission | None
+    prefix_identity: bool = False
+
+
+# 人名槽只负责划界。候选能否作姓名、分数是否达阈值仍由共享姓名模块判定。
+_IDENTITY_PERSON = r"(?:某同学|[A-Za-z]同学|[\u3400-\u9fff]{2,4}?)"
+_NAMES = _IDENTITY_PERSON + r"(?:、" + _IDENTITY_PERSON + r")*"
+_PERSON_SLOT = r"(?P<names>" + _NAMES + r")"
+_ORDINAL = r"[一二三四五六七八九十0-9]+"
+_GRADE = r"(?:" + _ORDINAL + r"年级|[初高]" + _ORDINAL + r")"
+_CLASS = r"(?:（" + _ORDINAL + r"）|" + _ORDINAL + r")班"
+_CLASSROOM = rf"(?:(?:{_GRADE}(?:{_CLASS})?|{_CLASS})的?)?"
+_PUPIL = _CLASSROOM + r"(?:学生)?" + _PERSON_SLOT + r"(?:同学)?"
+_HEALTH = r"(?:慢性肾病|抑郁症|哮喘|肺炎|癫痫|糖尿病|自闭症|焦虑症)"
+_STATUS = (r"(?:贫困家庭(?:子女|学生)|低保家庭(?:子女|学生|成员)?|资助对象|受助对象|"
+           r"留守(?:儿童|学生)|(?:残疾|残障|随班就读)(?:学生|儿童)|孤儿|单亲家庭(?:成员|子女))")
+_STATEMENT = (r"(?:(?:属于|系|是|被?认定为|登记为)" + _STATUS + r"|(?:患有|确诊为)" + _HEALTH
+              + r"|享受助学金|被记过|被警告处分|被处分)")
+_PREFIX_STATUS = r"(?:残疾|残障|贫困家庭|患病|留守|受助|随班就读)(?:学生|儿童|子女)"
+_IDENTITY_PRECISE = tuple(map(re.compile, (
+    _CLASSROOM + r"学生" + _PERSON_SLOT + r"(?:同学)?" + _STATEMENT,
+    _CLASSROOM + _PERSON_SLOT + r"同学" + _STATEMENT,
+    r"(?:不予)?免收" + _PREFIX_STATUS + _PERSON_SLOT + r"的(?:课后服务费|活动费|校服费)",
+    r"(?:没有父母陪伴的)?" + _PREFIX_STATUS + _PERSON_SLOT
+    + r"(?:由(?:祖父母|外祖父母|外婆|祖母|祖父)照料|需要特别照顾)",
+)))
+_IDENTITY_WIDE = tuple(map(re.compile, (
+    _PUPIL + r"(?:疑似|可能)?" + _STATEMENT + r"(?:吗|呢|吧)?$",
+    _PUPIL + r"(?:评定为" + _STATUS + r"|登记为(?:可能)?患病|自身患病|因" + _HEALTH + r"住院)",
+    _PUPIL + r"为" + _STATUS + r"(?:$|(?:积极)?(?:募集|筹集))",
+    _PUPIL + r"(?:个人档案|去年填报的登记类别).*?(?:资助对象|随班就读)",
+    _PREFIX_STATUS + _PERSON_SLOT + r"(?:需要特别照顾|已到校|由(?:外婆|祖父母)照料)",
+)))
+_IDENTITY_SIGNAL = re.compile(_PREFIX_STATUS + "|" + _STATUS + "|" + _HEALTH + r"|助学金|患病|处分|记过|随班就读")
+_NAME_ROSTER = re.compile(_PREFIX_STATUS + r"名单(?:如下|为)?[：:]" + _PERSON_SLOT)
+_PERSON_REFERENCE = re.compile(_PUPIL + r"[，,][^。；]*?本人(?:患有|确诊为)" + _HEALTH)
+_CONTRAST_STATUS = re.compile(_PUPIL + r"(?:未|不曾)(?:被处分|被记过)但" + _STATEMENT)
+
+
+def identity_relations(graph):
+    """直接关系须消费完整语句。名单继承、跨分句本人回指及不明外层只给关系证据。"""
+    if not _IDENTITY_SIGNAL.search(graph.text):
+        return
+    sentences = defaultdict(list)
+    for clause in graph.clauses:
+        if clause.parent is None and not clause.table_header:
+            sentences[clause.sentence, clause.table, clause.column].append(clause)
+    for clauses in sentences.values():
+        first, last = clauses[0], clauses[-1]
+        value = graph.text[first.span.start:last.span.end]
+        if not _IDENTITY_SIGNAL.search(value):
+            continue
+        exact = next((m for pattern in _IDENTITY_PRECISE if (m := pattern.fullmatch(value))), None)
+        if exact:
+            # 任何未消费的句首（例如列表、引述）、问句或表格均不授予直接陈述资格。
+            line_start = graph.text.rfind("\n", 0, first.span.start) + 1
+            clean_start = not graph.text[line_start:first.span.start].strip()
+            admit = (clean_start and all(not (c.frames or c.malformed or c.question or c.table is not None
+                                              or c.list_block is not None) for c in clauses))
+            yield IdentityRelation(first.id, tuple(exact["names"].split("、")), Admission.MAIN if admit else None,
+                                   exact.re in _IDENTITY_PRECISE[-2:])
+            continue
+        for pattern in (_NAME_ROSTER, _PERSON_REFERENCE, _CONTRAST_STATUS):
+            m = pattern.fullmatch(value)
+            if m:
+                yield IdentityRelation(first.id, tuple(m["names"].split("、")), None)
+        for clause in clauses:
+            for pattern in _IDENTITY_WIDE:
+                for m in pattern.finditer(visible_evidence(clause)):
+                    yield IdentityRelation(clause.id, tuple(m["names"].split("、")), None)
+
+
+# 金额的物理行决定报告位置，依据只在自然段或当前数据行内有效。
+_BASIS_AMOUNT = re.compile(r"(?:\d[\d,，]*(?:[.．]\d+)?|[零〇一二两三四五六七八九十百千万]+)\s*(?:元|块钱)")
+_BASIS_PROJECT = re.compile(r"课后服务|校服|研学|实践费|伙食|午餐|餐费|校车|资料|材料|活动费|训练费|保险|班费|报名费|教辅")
+_BASIS_ALIAS = {"伙食": "餐费", "午餐": "餐费"}
+_BASIS_ACTION = re.compile(r"收取|收费(?!依据|管理|通知|办法|规定)|缴纳|交纳|收缴|缴齐|交齐|代收|上交|收(?=班费|材料费|资料费|\d)|购买|缴费")
+_BASIS_STANDARD = re.compile(r"收费标准|收费金额|收费价格|缴费标准|费用标准")
+_BASIS_HISTORY = re.compile(r"(?:已(?:经)?|累计|实际)(?:收取|收缴|缴纳|收费)|统计(?:累计)?收取")
+_BASIS_PENDING = re.compile(r"【待(?:补|核实)[：:][^】]*收费依据[^】]*】|收费依据[：:]【待(?:补|核实)")
+_BASIS_TITLE = re.compile(r"《([^》]+)》")
+_BASIS_NUMBER = re.compile(r"[\u3400-\u9fff]{1,16}[〔［\[]\d{4}[〕］\]]\s*\d+\s*号")
+_BASIS_AUTHORITY = r"(?:教育局|教育厅|教育部|发改委|发展改革委|物价局|物价部门|人民政府)"
+_BASIS_APPROVED = re.compile(_BASIS_AUTHORITY + r"(?:已)?(?:批准|核定|批复)(?:的)?收费标准")
+_BASIS_CITATION = re.compile(_BASIS_AUTHORITY + r"(?:(?:联合)?(?:印发|发布|制定)的?)?$")
+_BASIS_NEGATED = re.compile(r"(?:尚未|未曾|没有|未|缺少|尚缺|并非)(?:获(?:得)?|取得|提供|见|经|按|有)?[^，。；：:\n]{0,18}$")
+_LOCAL_CITATION = re.compile(r"(?:校委会|学校|教务处|校长办公会议?|班主任会议|教研组|家委会|班级集体)(?:内部)?(?:通过|批准|审定|拟定|发出|制定|核定|印发|发布)(?:的)?$")
+_BASIS_DOCUMENT = re.compile(r"(?:收费|代收费|校服管理|服务性收费).*(?:意见|办法|细则|标准|通知|规定|规范|批复|目录)$")
+
+
+def _basis_projects(value):
+    known = {_BASIS_ALIAS.get(m[0], m[0]) for m in _BASIS_PROJECT.finditer(value)}
+    if known:
+        return known
+    item = re.search(r"(?:收取|代收|缴纳|交纳|收缴)([\u3400-\u9fff]{1,12}?费)", value)
+    return {item[1]} if item else set()
+
+
+def _applicable_sources(text):
+    """一份专用文件的文号与标题属于同一个依据，不另作普适依据。"""
+    applicable = []
+    for piece in re.split(r"[。；;\n，,]", text):
+        titles = list(_BASIS_TITLE.finditer(piece))
+        for title in titles:
+            before = piece[:title.start()].rstrip()
+            if (_LOCAL_CITATION.search(before) or _BASIS_NEGATED.search(before)
+                    or re.match(r"(?:尚未|未)(?:获批|生效|批准)", piece[title.end():])):
+                continue
+            if _BASIS_DOCUMENT.search(title[1]) or (_BASIS_CITATION.search(before) and
+                    _basis_projects(title[1]) and re.search(r"通知|办法|标准|意见", title[1])):
+                applicable.append(set() if re.search("代收费|服务性收费", title[1]) else _basis_projects(title[1]))
+        if not titles:
+            for source in (*_BASIS_NUMBER.finditer(piece), *_BASIS_APPROVED.finditer(piece)):
+                if not _BASIS_NEGATED.search(piece[:source.start()]) and not _BASIS_NEGATED.search(source[0]):
+                    applicable.append(set())
+    return applicable
+
+
+@dataclass(frozen=True)
+class UnsupportedAmount:
+    line: int
+    text: str
+
+
+def table_heading(cells):
+    return any(_ITEM_COLUMN.fullmatch(label) or _BASIS_STANDARD.fullmatch(label)
+               or "姓名" in "".join(label.split()) or label in {"收费项目", "费用名称", "事项", "内容"} for label in cells)
+
+
+def unsupported_amounts(graph, *, word_lines=()):
+    if not _BASIS_AMOUNT.search(graph.text):
+        return
+    paragraphs = []
+    paragraph = 0
+    for line in graph.text.split("\n"):
+        if not line.strip():
+            paragraph += 1
+        paragraphs.append(paragraph)
+    def block_key(clause):
+        return (word_lines or paragraphs)[clause.span.line - 1], clause.table, clause.row
+
+    # 只合并连续的同段分句，表内的文件不能落入表前后正文的依据范围。
+    for (_, table, _), group in groupby((c for c in graph.clauses if c.parent is None), block_key):
+        clauses = [c for c in group if not c.table_header]
+        if not clauses:
+            continue
+        text = graph.text[clauses[0].span.start:clauses[-1].span.end]
+        if not _BASIS_AMOUNT.search(text):
+            continue
+        sources = _applicable_sources(text)
+        pending_lines = {c.span.line for c in clauses if _BASIS_PENDING.search(c.text)}
+        if any(not keys for keys in sources):
+            continue
+        # 表头或同行的实收动作可解释另一列的金额；普通段落只借同句相邻的收费标准。
+        by_sentence = defaultdict(list)
+        for c in clauses:
+            by_sentence[c.sentence].append(c)
+        for sentence in by_sentence.values():
+            active = []
+            for c in sentence:
+                raw = visible_evidence(c)
+                clean = re.sub(r"[（(][^（）()]*(?:减免|免收|免缴)[^（）()]*[）)]", "", raw)
+                if (_BASIS_ACTION.search(clean) and not _BASIS_HISTORY.search(clean)
+                        and not wide_suppressed(graph, c) and not re.search(r"免收|退还|退回|退费|不收费", clean)):
+                    active.append(c)
+            for c in sentence:
+                raw = visible_evidence(c)
+                amount = _BASIS_AMOUNT.search(raw)
+                if not amount or c.span.line in pending_lines or c.span.line + 1 in pending_lines:
+                    continue
+                if (_BASIS_HISTORY.search(raw) or re.search(r"退还|退回|退费|财政预算|财政拨付", raw)
+                        or c.connector == "还" and c.previous is not None
+                        and graph.clauses[c.previous].text.endswith("退")):
+                    continue
+                header = table is not None and (_BASIS_STANDARD.fullmatch(c.column_header)
+                          or c.column_header == "标准" and any(s.column_header == "收费项目" for s in clauses))
+                related = [a for a in active if a is c or table is not None and a.project == c.project
+                           or a.previous == c.id and _basis_projects(raw)
+                           or c.previous == a.id and _BASIS_STANDARD.search(a.text)]
+                # 本句明确以“项目费＋每生／每月……金额”陈列单价。
+                standard = re.search(r"费(?:每生|每人)(?:每月|每学期|每年)?\s*$", raw[:amount.start()])
+                if not (header or related or standard):
+                    continue
+                projects = _basis_projects(raw) or set().union(*(_basis_projects(a.text) for a in related))
+                if table is not None and c.project is not None and not projects:
+                    projects = _basis_projects(graph.projects[c.project].label)
+                if sources and (not projects or any(projects <= keys for keys in sources)):
+                    continue
+                yield UnsupportedAmount(c.span.line, c.text)
 
 
 def split_clauses(text: str, *, paragraph_starts: tuple[int, ...] = ()) -> ClauseGraph:

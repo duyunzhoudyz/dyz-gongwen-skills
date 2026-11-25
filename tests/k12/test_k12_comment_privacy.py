@@ -203,7 +203,7 @@ class CommentPrivacyTests(K12TestCase):
         baseline = Counter(map(tuple, case["baseline_hits"]))
         removed = Counter(map(tuple, case["remove"]))
         added = Counter(map(tuple, case["add"]))
-        self.assertLessEqual(removed, baseline)
+        self.assertFalse(removed - baseline, (removed, baseline))
         self.assertEqual(rule_hits(report), baseline - removed + added)
 
     def check_review_cases(self, *, word):

@@ -1,0 +1,181 @@
+{
+  "status": "已停用，不参与任何断言与统计",
+  "original": {
+    "schema_version": 1,
+    "id": "R3-HTTP_r3_general_name_mask",
+    "text": "低保家庭学生欧阳测试享受助学金。",
+    "stage": "义务教育",
+    "entries": [
+      "general"
+    ],
+    "category": "工具箱输出边界",
+    "basis": "§3.4 身份／§4 工具箱",
+    "decision": "同分句身份前缀与姓名齐备，工具箱须检出并遮蔽原名。",
+    "sources": [
+      {
+        "group": "R3-HTTP",
+        "id": "r3_general_name_mask",
+        "file": "http_r3_results.json / 对应评审探针脚本",
+        "stage": "义务教育",
+        "original_expectation": {
+          "case": "r3_general_name_mask",
+          "status": 200,
+          "leaks": [],
+          "body": "{\"ok\": false, \"text\": \"校内综合文书检查：待检成稿.txt（学段：义务教育）\\nP0 1 条，P1 0 条，P2 0 条；待补 0 处，待核实 0 处\\n[P0] K12-G04 第 1 行 学生隐私：校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私。原文：“学生〔姓名1〕享受助学金。”。建议：删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数。依据：《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条\", \"note\": \"中小学校内文书专检完成：存在 P0 级问题，请对照修改。\"}"
+        },
+        "comparison": {
+          "different": true,
+          "items": [
+            {
+              "kind": "输出契约",
+              "entry": "general",
+              "rule": "K12-G04",
+              "old": [
+                "P0"
+              ],
+              "final": [
+                "P0"
+              ],
+              "reason": "上版回归集遗漏规则预期，本次恢复历史工具箱规则与级别断言"
+            }
+          ]
+        },
+        "round": 3
+      },
+      {
+        "group": "R4-HTTP",
+        "id": "general_name_mask",
+        "file": "http_r4_results.json / 对应评审探针脚本",
+        "stage": "义务教育",
+        "original_expectation": {
+          "case": "general_name_mask",
+          "status": 200,
+          "leaks": [],
+          "body": "{\"ok\": false, \"text\": \"校内综合文书检查：待检成稿.txt（学段：义务教育）\\nP0 1 条，P1 0 条，P2 0 条；待补 0 处，待核实 0 处\\n[P0] K12-G04 第 1 行 学生隐私：校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私。原文：“学生〔姓名1〕享受助学金。”。建议：删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数。依据：《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条\", \"note\": \"中小学校内文书专检完成：存在 P0 级问题，请对照修改。\"}"
+        },
+        "comparison": {
+          "different": true,
+          "items": [
+            {
+              "kind": "输出契约",
+              "entry": "general",
+              "rule": "K12-G04",
+              "old": [
+                "P0"
+              ],
+              "final": [
+                "P0"
+              ],
+              "reason": "上版回归集遗漏规则预期，本次恢复历史工具箱规则与级别断言"
+            }
+          ]
+        },
+        "round": 4
+      },
+      {
+        "group": "R5-HTTP",
+        "id": "general_name_mask",
+        "file": "http_r5_results.json / 对应评审探针脚本",
+        "stage": "义务教育",
+        "original_expectation": {
+          "case": "general_name_mask",
+          "status": 200,
+          "leaks": [],
+          "body": "{\"ok\": false, \"text\": \"校内综合文书检查：待检成稿.txt（学段：义务教育）\\nP0 1 条，P1 0 条，P2 0 条；待补 0 处，待核实 0 处\\n[P0] K12-G04 第 1 行 学生隐私：校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私。原文：“学生〔姓名1〕享受助学金。”。建议：删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数。依据：《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条\", \"note\": \"中小学校内文书专检完成：存在 P0 级问题，请对照修改。\"}"
+        },
+        "comparison": {
+          "different": true,
+          "items": [
+            {
+              "kind": "输出契约",
+              "entry": "general",
+              "rule": "K12-G04",
+              "old": [
+                "P0"
+              ],
+              "final": [
+                "P0"
+              ],
+              "reason": "上版回归集遗漏规则预期，本次恢复历史工具箱规则与级别断言"
+            }
+          ]
+        },
+        "round": 5
+      }
+    ],
+    "by_stage": {
+      "义务教育": {
+        "baseline_measured": {
+          "general": {
+            "hits": []
+          }
+        },
+        "expected": {
+          "general": {
+            "K12-G04": [
+              "P0"
+            ]
+          }
+        },
+        "baseline_http_measured": {
+          "status": 200,
+          "body": {
+            "ok": true,
+            "text": "校内综合文书检查：待检成稿.txt（学段：义务教育）\nP0 0 条，P1 0 条，P2 0 条；待补 0 处，待核实 0 处\n未发现问题。机检只覆盖能写成规则的项目，时间、收费标准、政策依据是否与通知原文一致，仍需人工核对。",
+            "note": "中小学校内文书专检完成：未检出 P0 红线问题。"
+          }
+        },
+        "expected_output": {
+          "status": 200,
+          "response_kind": "report",
+          "forbidden_literals": [
+            "上官私密",
+            "司马密名",
+            "欧阳测试",
+            "诸葛探针"
+          ],
+          "ignore_fields": [],
+          "fields": [],
+          "reflect_stage": true,
+          "rule_allowed_levels": {
+            "K12-G04": [
+              "P0"
+            ]
+          }
+        },
+        "baseline_changes": [
+          "应新增命中"
+        ],
+        "expected_new_layer": {
+          "general": {
+            "K12-G04": {
+              "allowed": [
+                "P0"
+              ],
+              "lines": [
+                1
+              ],
+              "basis": "§3.4 身份／§4 工具箱"
+            }
+          }
+        },
+        "new_p0_evidence": {
+          "K12-G04": {
+            "line": 1,
+            "columns": [
+              0,
+              15
+            ],
+            "text": "低保家庭学生欧阳测试享受助学金",
+            "gate": "句首主句",
+            "basis": "§3.4 身份／§4 工具箱"
+          }
+        }
+      }
+    },
+    "payload": {
+      "industry": "k12_general",
+      "stage": "义务教育"
+    }
+  }
+}

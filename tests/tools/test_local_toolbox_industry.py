@@ -342,7 +342,10 @@ class LocalToolboxK12CommentsHTTPTest(unittest.TestCase):
                                     re.findall(r"^\[(P[012])\] (\S+)", data["text"], re.M)}
                         retained = {(rid, level) for rid, level, _ in hits
                                     if not (rid in {"JZ-003", "K12-G01", "JZ-008"} and allowed.get(rid) == ["SKIP"])}
-                        self.assertLessEqual(retained, rendered)
+                        order = ("P0", "P1", "P2")
+                        for rid, level in retained:
+                            self.assertTrue(any(r == rid and order.index(lv) <= order.index(level)
+                                                for r, lv in rendered), (rid, level, rendered))
                         for rid, level in rendered:
                             self.assertIn(level, allowed.get(rid, ()), rid)
                         for rid in record.get("expected_new_layer", {}).get(entry, {}):

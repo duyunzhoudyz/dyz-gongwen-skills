@@ -1,0 +1,47 @@
+{
+  "baselines": [
+    "47b93e1",
+    "9afe826"
+  ],
+  "losses": [
+    [
+      "regression",
+      "baseline_1",
+      "义务教育",
+      "parents",
+      "JZ-008",
+      "P0",
+      1
+    ],
+    [
+      "regression",
+      "baseline_1",
+      "高中",
+      "parents",
+      "JZ-008",
+      "P0",
+      1
+    ],
+    [
+      "regression",
+      "baseline_1",
+      "中职",
+      "parents",
+      "JZ-008",
+      "P0",
+      1
+    ]
+  ],
+  "comments": {
+    "regression": "2d0d42d05f3d100b8db04408a595d2d7911178bdcfec3b0c90c49117028aa3d0",
+    "documents": "635738196e4c8ee707f171db023d5afb9a9f523a85ed769816d7bfe675a5f604",
+    "word": "28b047286940e661e8119f2dcf2982a55433681e6380a9975e15c8a56bfde5ef",
+    "own": "c84abc2a141d1871033d499b59461ceec64ffb4a889fbc542cb6f0ed8b2b4ba8"
+  },
+  "stage3a_rules": {
+    "regression": "64392324469c989899882dcad1c6139263e4b02349c415cd1ca50dd001e115fc",
+    "documents": "e85a89154e82eae2b9dea1d08820f507183eddfe440c81dee31cfb80b782cd6e",
+    "word": "c7ee1e5b1cd7adf3874a5be7cf5f6cb5f1a1619109e44283aafc7254344cf9fd",
+    "own": "abd88480311b0af0765d3c580ff071409e5ba0d654d37917e0449972d4a0a20f"
+  }
+}

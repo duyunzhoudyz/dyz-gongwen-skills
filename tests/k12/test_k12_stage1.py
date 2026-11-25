@@ -264,7 +264,7 @@ class K12Stage1Tests(K12TestCase):
         rc, out, err = self.run_main("--list-rules", "--json")
         self.assertEqual((rc, err), (0, ""))
         rules = {rule["id"]: rule for rule in json.loads(out)["rules"]}
-        self.assertEqual(len(rules), 37)
+        self.assertEqual(len(rules), 38)
         self.assertEqual(set(rules) - (
             {rule.id for rule in k12_check.PARENT_RULES}
             | {rule[0] for rule in k12_check.GENERAL_RULES}

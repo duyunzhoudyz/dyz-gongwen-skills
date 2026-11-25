@@ -198,10 +198,7 @@ class Stage3aTests(unittest.TestCase):
 
     def test_stage3b_pending_ids_match_the_two_deferred_rules(self):
         pending = json.loads((SAMPLES / "stage3b_pending.json").read_text(encoding="utf8"))
-        self.assertEqual(set(pending), {"K12-G04", "K12-G06"})
-        for rule, ids in pending.items():
-            self.assertEqual(ids, [p["id"] for p in regression_probes() if any(
-                rule in m for d in p["by_stage"].values() for m in d["expected"].values())])
+        self.assertEqual(pending, {})
 
     def test_stage2_review_warnings_at_rule_entry_points(self):
         suppressed = (
@@ -726,5 +723,8 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
                         self.assert_preserved_with_witness(path, stage, before)
                 for entry, expected in case.get("table_body", {}).items():
                     issues = getattr(k12_check, f"check_{entry}")(path, "义务教育")["issues"]
-                    self.assertEqual([[i[k] for k in ("id", "level", "line", "excerpt")] for i in issues],
-                                     expected, (case["id"], entry))
+                    actual = [[i[k] for k in ("id", "level", "line", "excerpt")] for i in issues]
+                    rules_3b = {"K12-G04", "K12-G06"}
+                    self.assertEqual([row for row in actual if row[0] not in rules_3b], expected, (case["id"], entry))
+                    stage3b = json.loads((SAMPLES / "stage3b_word.json").read_text(encoding="utf8"))
+                    self.assertEqual([row for row in actual if row[0] in rules_3b], stage3b[case["id"]][entry])

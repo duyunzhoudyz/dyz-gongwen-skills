@@ -937,7 +937,7 @@ COMMENT_TAGGED_ID_RE = re.compile(
     rf"(?:[为是][ \t]*[：:]?|[：:])[ \t]*"
 )
 COMMENT_TAG_END_RE = re.compile(
-    r"[,，．。;；:：?？!！()（）\[\]［］【】〔〕〖〗《》〈〉「」『』“”‘’\"'＂＇|｜—"
+    r"[,，．。;；:：?？!！()（）\[\]［］【】〔〕〖〗《》〈〉「」『』“”‘’\"'＂＇|｜—…"
     r"\r\n\v\f\x1c-\x1e\x85\u2028\u2029〇"
     r"\u3400-\u9fff\uf900-\ufaff\U00020000-\U000323af]"
     r"|(?<![0-9])\.|\.(?![0-9])"
@@ -963,7 +963,7 @@ COMMENT_COMPARE_CHARS = str.maketrans({
     ch: chr(0xE000 + ord(ch)) for ch in "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 })
 COMMENT_TABLE_SEPARATOR_RE = re.compile(r"\|?\s*:?-{2,}:?(?:\s*\|\s*:?-{2,}:?)+\s*\|?")
-COMMENT_MIXED_VALUE_RE = re.compile(rf"(?<!\d)\d{{4}}/\d{{1,2}}/\d{{1,2}}(?!\d)|{COMMENT_ID_VALUE}")
+COMMENT_MIXED_VALUE_RE = re.compile(rf"(?<!\d)\d{{4}}/\d{{1,2}}/\d{{1,2}}(?!\d)|[A-Za-z0-9]*\d(?:\.\d+[A-Za-z0-9]*)+|{COMMENT_ID_VALUE}")
 COMMENT_PRIVACY_RULES = ((ID_RE, "身份证号"), (MOBILE_RE, "手机号"), (STUDENT_NO_RE, "学号等编号"))
 
 
@@ -1125,6 +1125,7 @@ class CommentNumbers:
         self.register_compact(value, token)
         # 证件号和手机号的固定形态能区分仅用空格分隔的多个分段号码。
         for start, end in _comment_certain_ids(value):
+            self.filename_parts.setdefault(value[start:end], token)
             self.register_compact(value[start:end], token)
         return token
 
@@ -1925,6 +1926,42 @@ def _parent_matches(rule, line):
         yield m
 
 
+def _review_tables(doc, lines):
+    """原生表格行号从所有正文段落之后起算，起草说明后的表不参与判定。"""
+    if doc.kind not in ("docx", "table"):
+        return
+    start = len(doc.lines) if doc.kind == "docx" else 0
+    for i, rows in enumerate(doc.tables):
+        if doc.kind == "docx" and doc.table_after_paragraph[i] > len(lines):
+            break
+        if rows:
+            rendered = render_md_table(rows)
+            row_numbers = [start + 1, start + 1, *range(start + 2, start + len(rows) + 1)]
+            if len(rows) == 1 or not load_clause_module().table_heading(rows[0]):
+                rendered.pop(1)
+                row_numbers.pop(1)
+            yield rendered, row_numbers
+        start += len(rows)
+
+
+def _word_table_names(doc, lines, names, table, gw, lex):
+    issues = []
+    if doc.kind == "docx":
+        for rendered, row_numbers in _review_tables(doc, lines):
+            recognized = gw.find_table_names(rendered, lex, "k12")
+            for index, raw in enumerate(rendered):
+                line = row_numbers[index]
+                positions = _g04_analyze(raw)[1] + names.get(line, [])
+                if index in recognized:
+                    issues.extend(_table_name_issues(recognized[index], table, line, positions, gw,
+                                                     precise=False))
+                else:
+                    for _, name in positions:
+                        table.add(name)
+            table.add_table_masks(recognized.values())
+    return issues
+
+
 def check_parents(path: Path, stage: str = "义务教育") -> dict:
     """面向家长文书检查。识别出的学生姓名（敏感身份锚点、JZ-012 点名批评）进全文姓名表，excerpt 统一遮蔽。"""
     gw, lex = shared_names()
@@ -1937,13 +1974,14 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     compulsory = stage == "义务教育"
     evidence = _ClauseEvidence(doc, lines)
     issues: List[Issue] = []
+    new_names, privacy_issues = evidence.privacy_and_amounts(doc, lines, "parents")
     exemptions = []
     table_rows = gw.find_table_names(lines, lex, "k12")
     seen = set()
     for index, line in enumerate(lines, start=1):
         if not line.strip():
             continue
-        names = _g04_analyze(line)[1]
+        names = _g04_analyze(line)[1] + new_names.pop(index, [])
         row = table_rows.get(index - 1)
         if row:
             issues.extend(_table_name_issues(row, table, index, names, gw))
@@ -1972,7 +2010,11 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
                 else:
                     seen.add(key)
                     break
-    added = evidence.added("parents", stage)
+    privacy_issues.extend(_word_table_names(doc, lines, new_names, table, gw, lex))
+    for positions in new_names.values():
+        for _, name in positions:
+            table.add(name)
+    added = evidence.added("parents", stage) + privacy_issues
     issues = merge_rule_issues(issues, added, exemptions)
     table.add_table_masks(table_rows.values())
     for it in issues:
@@ -1993,6 +2035,12 @@ G04_RULE = (
     "校内计划总结或自评材料中疑似外露学生家庭、健康或处分等敏感隐私",
     "删去具体学生姓名与敏感背景关联，确需说明整体情况的改用汇总人数",
     "《未成年人保护法》第四条；gongwen-k12 references/redlines.md 第一条",
+)
+
+G06_RULE = (
+    "K12-G06", "P1", "P1", "收费依据", None,
+    "有具体收费金额，同段或同一表格行未见适用的收费依据",
+    "核对该项目的收费文件、文号或外部批准标准", "gongwen-k12 references/redlines.md 第五条",
 )
 
 GENERAL_RULES = (
@@ -2018,6 +2066,7 @@ GENERAL_RULES = (
         "中办发〔2021〕40号；gongwen-k12 references/redlines.md 第六条",
     ),
     G04_RULE,
+    G06_RULE,
 )
 
 
@@ -2141,7 +2190,8 @@ def _g04_pick(line: str, cands: Sequence[dict], rule_level: str) -> Optional[Tup
     return best[2], mask_digits((line[c["start"]:c["end"]] + tail).strip())
 
 
-def _table_name_issues(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]], gw: Any) -> List[Issue]:
+def _table_name_issues(row: Any, table: Any, line: int, prose_names: Sequence[Tuple[int, str]],
+                       gw: Any, *, precise: bool = True) -> List[Issue]:
     rid, _lv_c, _lv_o, category, _pattern, _message, suggest, basis = G04_RULE
     positions = list(prose_names) + [(hit.start, hit.name) for hit in row.hits if not hit.table_only]
     for _, name in sorted(positions):
@@ -2149,7 +2199,8 @@ def _table_name_issues(row: Any, table: Any, line: int, prose_names: Sequence[Tu
     issues = []
     reported = [hit for hit in row.hits if not hit.table_only]
     if reported:
-        level = "P0" if max(hit.score for hit in reported) >= gw.SCORE_HIGH else "P1"
+        # 新读入的 Word 姓名列只给表格证据；表头本身没有本人身份直接陈述的准入。
+        level = "P0" if precise and max(hit.score for hit in reported) >= gw.SCORE_HIGH else "P1"
         shown = sorted([*prose_names, *((h.start, h.name) for h in reported)])
         excerpt = "、".join(dict.fromkeys(table.placeholder(name) for _, name in shown))
         issues.append(Issue(id=rid, level=level, category=category, message="表格姓名列出现真实姓名",
@@ -2172,6 +2223,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
         lines, _ = cut_at_boundary(doc.lines)
     compulsory = stage == "义务教育"
     evidence = _ClauseEvidence(doc, lines)
+    new_names, privacy_issues = evidence.privacy_and_amounts(doc, lines, "general")
     issues: List[Issue] = []
     table = gw.NameTable()
     table_rows = gw.find_table_names(lines, lex, "k12")
@@ -2181,8 +2233,11 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
             continue
         for rid, lv_c, lv_o, cat, pat, msg, sug, basis in GENERAL_RULES:
             level = lv_c if compulsory else lv_o
+            if rid == "K12-G06":
+                continue
             if pat is None:  # K12-G04：锚点 + 候选姓名 + 打分
                 cands, names = _g04_analyze(line)
+                names.extend(new_names.pop(index, ()))
                 row = table_rows.get(index - 1)
                 picked = _g04_pick(line, cands, level)
                 if row:
@@ -2220,7 +2275,12 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
                 rid = _PAIR_RULES[rule.id]
                 added.append(_clause_issue(rid, "P1", index, excerpt_of(line, match.start(), match.end(), 12)))
     # 同级沿用基线镜像摘录，精确层 P0 仍可覆盖。
+    privacy_issues.extend(_word_table_names(doc, lines, new_names, table, gw, lex))
+    for positions in new_names.values():
+        for _, name in positions:
+            table.add(name)
     added.extend(evidence.added("general", stage))
+    added.extend(privacy_issues)
     issues = merge_rule_issues(issues, added)
     table.add_table_masks(table_rows.values())
     for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
@@ -2351,6 +2411,48 @@ class _ClauseEvidence:
             self.sources.append((self.module.analyze("\n".join(table_text)), offsets, after + row_offset))
             if doc.kind == "table":
                 row_offset += len(table)
+
+    def privacy_and_amounts(self, doc, lines, entry):
+        """共享姓名评分在规则层，关系、准入与收费依据在分句层。"""
+        gw, lex = shared_names()
+        if "identity-fragment" not in _K12_ANCHOR_CACHE:
+            _K12_ANCHOR_CACHE["identity-fragment"] = gw.compile_anchors({
+                "frame": [{"re": r"^(?P<n>[\u3400-\u9fff]{2,4})$", "strength": 1}]})
+        anchors = _K12_ANCHOR_CACHE["identity-fragment"]
+        names = defaultdict(list)
+        issues = []
+        for graph, line_map in self._document_sources(doc, lines):
+            for relation in self.module.identity_relations(graph):
+                clause = graph.clauses[relation.clause]
+                line = line_map[clause.span.line - 1]
+                scores = []
+                for name in relation.names:
+                    if name == "某同学" or re.fullmatch(r"[A-Za-z]同学", name):
+                        scores.append(9 if relation.prefix_identity else gw.SCORE_LOW)
+                        continue
+                    for hit in gw.find_names(name, anchors, lex):
+                        if hit.pseudo:
+                            scores.append(9 if relation.prefix_identity else gw.SCORE_LOW)
+                        elif hit.score >= gw.SCORE_LOW:
+                            names[line].append((clause.span.column - 1, hit.name))
+                            scores.append(hit.score)
+                if entry == "general" and scores:
+                    level = "P0" if (relation.admission and len(scores) == len(relation.names)
+                                     and max(scores) >= gw.SCORE_HIGH) else "P1"
+                    issues.append(Issue("K12-G04", level, G04_RULE[3], G04_RULE[5], G04_RULE[6],
+                                        G04_RULE[7], line=line, excerpt=mask_digits(clause.text)))
+            if entry == "general":
+                for amount in self.module.unsupported_amounts(graph, word_lines=line_map if doc.kind == "docx" else ()):
+                    issues.append(Issue("K12-G06", "P1", G06_RULE[3], G06_RULE[5], G06_RULE[6],
+                                        G06_RULE[7], line=line_map[amount.line - 1], excerpt=mask_digits(amount.text)))
+        return names, issues
+
+    def _document_sources(self, doc, lines):
+        if doc.kind != "table":
+            line_map = [index for index, line in enumerate(lines, 1) for _ in line.split("\n")]
+            yield self.graph, line_map
+        for rendered, row_numbers in _review_tables(doc, lines):
+            yield self.module.analyze("\n".join(rendered)), row_numbers
 
     def exempt(self, rule, line, match):
         return self.exemption_witness(rule, line, match) is not None
@@ -2577,7 +2679,10 @@ def rule_catalog() -> dict:
     for rule in PARENT_RULES:
         add(rule.id, "parents", ((rule.level,), (rule.level_other,), (rule.level_other,)), rule.message)
     for rid, lv_c, lv_o, _cat, pattern, message, _suggestion, _basis in GENERAL_RULES:
-        if pattern is None:  # G04 的低置信度候选和未识别表格值都可能给 P1
+        if rid == "K12-G06":
+            add(rid, "general", (("P1",),) * len(STAGES),
+                message + "；适用依据或收费依据占位、纯免收、退款及历史统计跳过")
+        elif pattern is None:  # G04 的低置信度候选和未识别表格值都可能给 P1
             add(rid, "general", ((lv_c, "P1"), (lv_o, "P1"), (lv_o, "P1")), message)
         else:
             add(rid, "general", ((lv_c,), (lv_o,), (lv_o,)), message)
@@ -2594,6 +2699,8 @@ def rule_catalog() -> dict:
     add("JZ-014", "parents", (("P1",),) * len(STAGES), "独立后项或双重否定恢复的分值提示 P1")
     for rid, entry in (("JZ-003", "parents"), ("K12-G01", "general")):
         add(rid, entry, (("P1",),) * len(STAGES), "基线排名命中全部保留；反转肯定并准入按学段分级")
+    add("K12-G04", "general", (("P0", "P1"),) * len(STAGES),
+        "本人身份与高置信姓名同分句且完整准入才新增 P0；名单继承、低置信或疑似关系 P1，保留帮扶语境的基线命中")
     for command in ("parents", "general"):
         add(G04_RULE[0], command, (("P0", "P1"),) * len(STAGES),
             "表格姓名列含实名或需要人工核对的值")

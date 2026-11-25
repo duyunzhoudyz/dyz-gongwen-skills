@@ -5,7 +5,7 @@ import json
 
 RULES = {
     "parents": frozenset(("JZ-003", "JZ-006", "JZ-008", "JZ-014")),
-    "general": frozenset(("K12-G01", "K12-G05", "K12-G09")),
+    "general": frozenset(("K12-G01", "K12-G04", "K12-G05", "K12-G06", "K12-G09")),
 }
 EXEMPT_RULES = frozenset(("JZ-008",))
 RANK_RULES = frozenset(("JZ-003", "K12-G01"))
@@ -20,7 +20,7 @@ DOCUMENT_ADDITIONS = {
     },
     "tests/k12/samples/parents_must_fail.txt": {
         "parents": {("JZ-006", "P1", 13)},
-        "general": {("K12-G05", "P1", 13), ("K12-G05", "P1", 15), ("K12-G09", "P1", 17)},
+        "general": {("K12-G05", "P1", 13), ("K12-G06", "P1", 13), ("K12-G05", "P1", 15), ("K12-G09", "P1", 17)},
     },
     "tests/k12/samples/parents_must_fail_speech.txt": {
         "general": {("K12-G05", "P1", 11)},
