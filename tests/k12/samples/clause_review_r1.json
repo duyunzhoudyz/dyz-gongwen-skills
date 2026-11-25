@@ -1,0 +1,882 @@
+{
+  "复现实测": [
+    [
+      "B1",
+      "学校统一购买校服是不行的！",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服是绝对不可能的！",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服一律禁止。",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服经核实并不属实。",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服已被否决。",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服已被叫停。",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服不可行。",
+      {}
+    ],
+    [
+      "B1",
+      "学校统一购买校服是不允许的。",
+      {}
+    ],
+    [
+      "B1",
+      "班主任组织学生参加校外有偿补课是不合法的。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，学校不允许。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，学校不予采纳。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，学校未执行。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，但不执行。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，但学校不买。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，学校将制止。",
+      {}
+    ],
+    [
+      "B2",
+      "学校统一购买校服，学校查处了此事。",
+      {}
+    ],
+    [
+      "B2",
+      "班主任把学生电话发给校外培训机构，学校已开展调查。",
+      {}
+    ],
+    [
+      "B3",
+      "严禁以下行为：\n班主任组织学生参加校外有偿补课。",
+      {
+        "paragraph_starts": [
+          1,
+          2
+        ]
+      }
+    ],
+    [
+      "B4",
+      "学校严禁另由班主任统一收取校服费。",
+      {}
+    ],
+    [
+      "B4",
+      "学校不得另由各班统一购买校服。",
+      {}
+    ],
+    [
+      "B4",
+      "如果学校发现违规，另由班主任统一收取校服费。",
+      {}
+    ],
+    [
+      "B4",
+      "网传谣言称，另学校统一购买校服。",
+      {}
+    ],
+    [
+      "B4",
+      "严禁以下行为，另学校统一购买校服。",
+      {}
+    ],
+    [
+      "B6",
+      "成绩排名不得张贴在宣传栏。",
+      {}
+    ],
+    [
+      "B6",
+      "成绩排名不得公布。",
+      {}
+    ],
+    [
+      "B7",
+      "王小明同学系单亲家庭关爱志愿者。",
+      {}
+    ]
+  ],
+  "残余": {
+    "B1": [
+      "是不行的",
+      "是绝对不可能的",
+      "一律禁止",
+      "经核实并不属实",
+      "已被否决",
+      "已被叫停",
+      "不可行",
+      "是不允许的",
+      "是不合法的",
+      "根本不行",
+      "纯属谣言",
+      "属于严重违规行为",
+      "已启动问责",
+      "并非完全不可行"
+    ],
+    "B2": [
+      "学校不允许",
+      "学校不予采纳",
+      "学校未执行",
+      "但不执行",
+      "但学校不买",
+      "学校将制止",
+      "学校查处了此事",
+      "学校已开展调查",
+      "学校将追责",
+      "学校已处分"
+    ],
+    "B5": [
+      "有家长反映",
+      "外校案例",
+      "听说",
+      "作为反面警示",
+      "假设存在如下情况",
+      "严禁以下行为",
+      "关于严禁校外补课的通知要求",
+      "另由班主任"
+    ],
+    "原创": [
+      "校委会已撤销此事",
+      "现已取消",
+      "此举被勒令终止",
+      "教研组拒绝同意",
+      "已经全面搁置",
+      "尚未获审议通过",
+      "实施建议遭退回",
+      "经核对系误传",
+      "此消息来自不实截图",
+      "有关传言已经澄清",
+      "这是虚构情形",
+      "仅为推演用例",
+      "一旦存在类似状况",
+      "设若情况属实",
+      "设想出现这一情形",
+      "据匿名人士转述",
+      "仅供转引",
+      "曾有人如此说过",
+      "此为某校经验",
+      "来自对方来函",
+      "请问是否真实",
+      "究竟有没有办过",
+      "是否应当停止",
+      "难道这项安排有依据吗",
+      "督导组正在核查",
+      "已向有关方面问责",
+      "相关人员接受调查",
+      "现已列入整改清单",
+      "教委正准备约谈",
+      "对此做法不置可否",
+      "该安排属于待议事项",
+      "其合理性尚有争议",
+      "该措施效果有待评估",
+      "暂供讨论",
+      "尚未形成执行意见",
+      "教学会议提及此事",
+      "请于周五前讨论此方案"
+    ]
+  },
+  "执行细化": [
+    "请于周五前交班主任",
+    "请于本周五前缴费",
+    "费用180元交给班主任",
+    "合计180元",
+    "由班主任统一收款",
+    "通过扫码缴费"
+  ],
+  "结构断言": {
+    "r1_b2_m2_fee_24": {
+      "报名": {
+        "condition_objects": [
+          "教辅"
+        ],
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_13": {
+      "收费": {
+        "admission": null
+      },
+      "购买": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_5": {
+      "收费": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_10": {
+      "收费": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_11": {
+      "收费": {
+        "admission": null
+      }
+    },
+    "R2_F12_enrolled_pay_compliant": {
+      "收费": {
+        "admission": null
+      },
+      "缴纳": {
+        "admission": null
+      }
+    },
+    "archived_323": {
+      "收费": {
+        "admission": null
+      },
+      "购买": {
+        "admission": null
+      }
+    },
+    "R5_NT_07": {
+      "组织": {
+        "object": "学生",
+        "binding": "后置禁令",
+        "admission": null
+      }
+    },
+    "R5_NT_08": {
+      "提供给": {
+        "object": "学生名单",
+        "recipient": "校外培训机构",
+        "binding": "后置禁令",
+        "admission": null
+      }
+    },
+    "R5_NT_10": {
+      "办理": {
+        "object": "意外伤害保险",
+        "binding": "提议未实行",
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_19": {
+      "购买": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_20": {
+      "购买": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_2": {
+      "购买": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_4": {
+      "购买": {
+        "admission": null
+      }
+    },
+    "R2_F16_table_two_rows_diff": {
+      "购买": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_1": {
+      "缴纳": {
+        "admission": null
+      }
+    },
+    "R2_F14_compliant_then_force_banfei": {
+      "缴纳": {
+        "admission": null
+      }
+    },
+    "R2_F15_coexist_ambig_unlisted": {
+      "缴纳": {
+        "admission": null
+      }
+    },
+    "baseline_2": {
+      "征订": {
+        "admission": null
+      }
+    },
+    "R3-HTTP_r3_parents_periodical": {
+      "征订": {
+        "admission": null
+      }
+    },
+    "R3-HTTP_r3_general_periodical": {
+      "征订": {
+        "admission": null
+      }
+    },
+    "R3_K1_15": {
+      "订阅": {
+        "admission": null
+      }
+    },
+    "R4_VIO_09": {
+      "取消评先资格": {
+        "admission": null
+      }
+    },
+    "archived_348": {
+      "组织": {
+        "admission": null
+      }
+    },
+    "archived_346": {
+      "组织": {
+        "admission": null
+      }
+    },
+    "R3_K1_12": {
+      "组织": {
+        "admission": null
+      },
+      "开展": {
+        "admission": null
+      }
+    },
+    "R4_VIO_14": {
+      "转交": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_21": {
+      "收取": {
+        "admission": null
+      }
+    },
+    "R2_F02_long_uniform_9c": {
+      "收取": {
+        "admission": null
+      }
+    },
+    "R4_VIO_08": {
+      "收取": {
+        "admission": null
+      }
+    },
+    "R3_SIL_12": {
+      "发给": {
+        "admission": null
+      }
+    },
+    "own_22": {
+      "发给": {
+        "admission": null
+      }
+    },
+    "R2_T04_mianxiang_jiazhang_rec": {
+      "推荐": {
+        "admission": null
+      }
+    },
+    "R2_T07_an_xuesheng_chengji": {
+      "推荐": {
+        "admission": null
+      }
+    },
+    "own_21": {
+      "推荐": {
+        "admission": null
+      }
+    },
+    "r1_b4_tut_8": {
+      "介绍": {
+        "admission": null
+      }
+    },
+    "r1_b1_20": {
+      "宣布": {
+        "admission": null
+      }
+    },
+    "R2_N02_jz014_bing_gaozhi_reg": {
+      "告知": {
+        "admission": null
+      }
+    },
+    "own_34": {
+      "记录": {
+        "admission": null
+      }
+    },
+    "own_38": {
+      "张贴": {
+        "admission": null
+      }
+    },
+    "r1_m1_g06_2": {
+      "收取": {
+        "admission": null
+      }
+    },
+    "r1_m1_g06_14": {
+      "收取": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_27": {
+      "收取": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_28": {
+      "收取": {
+        "object": "资料费",
+        "admission": null
+      }
+    },
+    "r1_m1_g06_11": {
+      "收费": {
+        "admission": null
+      }
+    },
+    "r1_m1_g06_12": {
+      "收费": {
+        "admission": null
+      }
+    },
+    "r1_m1_g06_13": {
+      "收费": {
+        "admission": null
+      }
+    },
+    "archived_397": {
+      "商议": {
+        "admission": null
+      }
+    },
+    "R4_FIN_extra1": {
+      "审议": {
+        "admission": null
+      }
+    },
+    "archived_305": {
+      "购买": {
+        "admission": null
+      }
+    },
+    "r1_b2_m2_fee_15": {
+      "参加": {
+        "admission": null
+      }
+    },
+    "R3_SIL_04": {
+      "交齐": {
+        "admission": null
+      }
+    },
+    "r3_own_fee_11": {
+      "通报": {
+        "admission": null
+      }
+    },
+    "r3_own_fee_07": {
+      "公示": {
+        "admission": null
+      }
+    },
+    "R4_FIN_01": {
+      "公示": {
+        "admission": null
+      }
+    },
+    "R4-HTTP_general_fin_mgmt": {
+      "公示": {
+        "admission": null
+      }
+    },
+    "r1_b3_m2_g04_7": {
+      "系": {
+        "object": "单亲家庭关爱志愿者",
+        "admission": null
+      }
+    },
+    "R5_NT_12": {
+      "发给": {
+        "object": "学生电话",
+        "recipient": "校外培训机构",
+        "binding": "已辟谣",
+        "admission": null
+      }
+    },
+    "R4_FIN_06": {
+      "提出建议": {
+        "object": "课后服务费收取标准",
+        "admission": null
+      }
+    },
+    "archived_308": {
+      "-": {
+        "segments": [
+          "王小明",
+          "你很懒"
+        ]
+      }
+    },
+    "archived_310": {
+      "-": {
+        "segments": [
+          "S01",
+          "希望你向王小明同学学习"
+        ]
+      }
+    },
+    "archived_312": {
+      "-": {
+        "segments": [
+          "S01",
+          "你学王小明",
+          "笨得像猪一样"
+        ]
+      }
+    },
+    "archived_313": {
+      "-": {
+        "segments": [
+          "S01",
+          "王小明同学说你是差生"
+        ]
+      }
+    },
+    "archived_314": {
+      "-": {
+        "segments": [
+          "S01",
+          "王小明同学说你是笨蛋"
+        ]
+      }
+    },
+    "archived_366": {
+      "-": {
+        "segments": [
+          "欧阳测试",
+          "你很懒"
+        ]
+      }
+    },
+    "own_20": {
+      "-": {
+        "segments": [
+          "学生名单由档案员封存",
+          "校外培训机构已经注销"
+        ]
+      }
+    },
+    "archived_303": {
+      "-": {
+        "segments": [
+          "检查通过",
+          "22 份提示词版与源文件一致"
+        ]
+      }
+    },
+    "archived_304": {
+      "-": {
+        "segments": [
+          "校验结束",
+          "检查 22 个 skill",
+          "错误 0 个",
+          "警告 0 个"
+        ]
+      }
+    },
+    "archived_379": {
+      "-": {
+        "segments": [
+          "检查通过",
+          "所有 skill 的共享资料与 shared/ 一致"
+        ]
+      }
+    },
+    "R2_I13_list_ruxia_three_names": {
+      "-": {
+        "segments": [
+          "受助学生名单如下",
+          "王小明、李文静、陈子豪"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_01": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "S02",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_02": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "王小明",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_03": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "S02",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_04": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "王小明",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_07": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "S02",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_08": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "王小明",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_09": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "S02",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_10": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "王小明",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_11": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "S02",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R1-HTTP复跑_after_12": {
+      "-": {
+        "segments": [
+          "S01",
+          "你很笨",
+          "王小明",
+          "王小明说你很懒"
+        ]
+      }
+    },
+    "R4_NEG_03": {
+      "办理": {
+        "object": "意外伤害保险",
+        "recipient": "所有未参保的新生",
+        "admission": null
+      }
+    },
+    "R4_NEG_04": {
+      "收取": {
+        "object": "班费",
+        "recipient": "有困难的家庭",
+        "admission": null
+      }
+    },
+    "R4_NEG_05": {
+      "收取": {
+        "object": "资料费",
+        "recipient": "本年级的班级",
+        "admission": null
+      }
+    },
+    "R4_NEG_10": {
+      "透露": {
+        "object": "学生电话",
+        "recipient": "校外辅导机构",
+        "admission": null
+      }
+    },
+    "R4_NEG_14": {
+      "购买": {
+        "object": "指定物品",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "R4_NEG_15": {
+      "推荐": {
+        "object": "任何学生",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "R2_N10_compliant_long_prep": {
+      "公布": {
+        "object": "学生期末考试成绩",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "R2_N14_g01_compliant_long": {
+      "张贴": {
+        "object": "考试成绩",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "archived_365": {
+      "张贴": {
+        "object": "成绩排名",
+        "recipient": "在宣传栏",
+        "admission": null
+      }
+    },
+    "R3_FP_03": {
+      "参加": {
+        "object": "校外有偿补课",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "R3_FP_07": {
+      "参加": {
+        "object": "校外有偿补课",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "r4_own_compliant_20": {
+      "动员": {
+        "object": "学生",
+        "recipient": "",
+        "admission": null
+      }
+    },
+    "r4_own_compliant_29": {
+      "输送": {
+        "object": "生源",
+        "recipient": "校外培训机构",
+        "admission": null
+      }
+    },
+    "R5_EDG_06": {
+      "提供给": {
+        "object": "学生学籍号",
+        "recipient": "校外培训机构",
+        "admission": "句首主句"
+      }
+    },
+    "R2_T03_jiazhanghui_mobilize": {
+      "动员": {
+        "object": "学生",
+        "recipient": "",
+        "admission": "句首主句"
+      }
+    },
+    "R2_T08_xuanchuan_dongyuan": {
+      "动员": {
+        "object": "学生",
+        "recipient": "",
+        "admission": "句首主句"
+      }
+    },
+    "R4_VIO_04": {
+      "收取": {
+        "object": "资料费50元",
+        "recipient": "",
+        "admission": "句首主句"
+      }
+    },
+    "r1_b1_31": {
+      "公布": {
+        "object": "考试成绩",
+        "recipient": "",
+        "admission": "句首主句"
+      }
+    },
+    "archived_385": {
+      "上传到": {
+        "object": "成绩单",
+        "recipient": "班级群",
+        "admission": "句首主句"
+      }
+    },
+    "r1_b1_30": {
+      "发到": {
+        "object": "成绩单",
+        "recipient": "家长群",
+        "admission": "句首主句"
+      }
+    }
+  }
+}

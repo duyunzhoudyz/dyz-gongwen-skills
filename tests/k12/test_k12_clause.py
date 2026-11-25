@@ -1,8 +1,10 @@
 """分句图结构契约，回归断言只涉及分句、语境、极性与角色。"""
 from __future__ import annotations
 
+from collections import defaultdict
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -38,6 +40,75 @@ def regression_cases():
             yield json.loads(line)
 
 
+P0_RULES = {
+    "JZ-006": "fee", "K12-G05": "fee",
+    "JZ-008": "tutoring", "K12-G09": "tutoring",
+    "JZ-003": "parents_rank", "K12-G01": "general_rank", "K12-G04": "identity",
+}
+FEE_ACTIONS = {"收取", "代收", "收缴", "缴纳", "交纳", "上交", "交齐", "缴齐",
+               "购买", "订购", "征订", "订阅", "办理", "收费", "缴费", "交费", "付款", "缴", "买", "收", "订"}
+TUTOR_ACTIONS = {"组织", "推荐", "安排", "动员", "要求", "介绍", "联系", "强迫", "强制", "让"}
+TRANSFER_ACTIONS = {"提供", "提供给", "发给", "发送", "发送给", "透露", "泄露", "转交", "移交", "推荐", "输送"}
+RANK_ACTIONS = {"公布", "张贴", "通报", "公示", "发布", "晒", "排名", "发到", "发成绩", "上传到", "分班", "排座"}
+IDENTITY_ACTIONS = {"属于", "系", "是", "认定为", "登记为", "确诊为", "患有",
+                    "享受助学金", "受处分", "被处分", "被记过", "受到处分"}
+
+
+def _ancestors(graph, action):
+    while action.parent is not None:
+        action = graph.actions[action.parent]
+        yield action
+
+
+def p0_shapes(graph, family):
+    """首版结构门禁对照。证据只来自当前动作及其控制链。"""
+    by_root = defaultdict(list)
+    for action in graph.actions:
+        if action.admission and action.polarity == P.POSITIVE and not action.binding:
+            chain = (action, *_ancestors(graph, action))
+            by_root[chain[-1].id].append(action)
+    for chain in by_root.values():
+        school = any(a.school_agent for a in chain)
+        for action in chain:
+            verb = action.predicate
+            if family == "fee":
+                forced = any(a.mandatory or a.predicate == "要求" for a in (action, *_ancestors(graph, action)))
+                uniform = any(a.uniform for a in (action, *_ancestors(graph, action)))
+                if (verb in FEE_ACTIONS and (school or action.fixed_notice) and action.object
+                        and action.project is not None and "报刊" not in graph.projects[action.project].label
+                        and (forced or uniform and not action.voluntary)):
+                    yield action
+            elif family == "tutoring" and school:
+                if (verb in TRANSFER_ACTIONS and re.fullmatch(r"校外(?:培训机构|辅导机构|补习班)", action.recipient)
+                        and re.fullmatch(r"生源|(?:学生和家长|学生|家长)(?:的)?(?:电话(?:号码)?|微信号|学籍号|学号|名单|通讯录|联系方式|信息)", action.object)):
+                    yield action
+                elif verb in TUTOR_ACTIONS:
+                    controlled = [a for a in chain if a is action or action in _ancestors(graph, a)]
+                    roles = " ".join(a.agent + " " + a.object + " " + a.recipient for a in controlled)
+                    if (re.search(r"学生|同学|新生", roles)
+                            and any(re.search(r"校外.*(?:有偿|付费|收费).*(?:补课|补习|辅导|培训)", a.object)
+                                    for a in controlled)):
+                        yield action
+            elif family in {"parents_rank", "general_rank"} and verb in RANK_ACTIONS:
+                if verb in {"排名", "分班", "排座"}:
+                    head = graph.text[action.extent.start:action.span.start]
+                    if re.search(r"按(?:考试)?成绩", head) or family == "parents_rank" and action.negation:
+                        yield action
+                elif re.search(r"成绩|分数|排名|名次", action.object) and (
+                    family == "parents_rank" or verb in {"公布", "张贴", "通报", "公示"}
+                ):
+                    yield action
+            elif family == "identity" and verb in IDENTITY_ACTIONS and action.agent:
+                # 沿用本步报告的现行姓名置信门槛。身份前缀与新锚点由 3b 接入。
+                matches, _ = CHECK._g04_analyze(graph.clauses[action.clause].text)
+                if any(m["score"] >= 6 for m in matches):
+                    yield action
+
+
+def _probe_samples():
+    return json.loads((SAMPLES / "clause_review_r1.json").read_text(encoding="utf8"))
+
+
 class ClauseTest(unittest.TestCase):
     def test_numbering_quotes_list_close_and_word_paragraphs(self):
         text = ('严禁以下行为：\r\n1）教师推荐学生参加校外有偿补课。\r\n'
@@ -61,7 +132,8 @@ class ClauseTest(unittest.TestCase):
         self.assertEqual(len(quote.groups), 1)
         group = quote.groups[0]
         self.assertEqual(text[group.content.start:group.content.end], "第1组,第2组")
-        self.assertEqual(last.connector, "另")
+        self.assertEqual(last.text, "另学校统一购买校服")
+        self.assertIsNone(last.admission)
         for clause in graph.clauses:
             self.assertEqual(text[clause.span.start:clause.span.end], clause.text)
 
@@ -102,6 +174,9 @@ class ClauseTest(unittest.TestCase):
         self.assertEqual(top.context, C.NOTICE)
         self.assertEqual(first.admission, CLAUSE.Admission.NOTICE)
         self.assertIsNone(second.admission)
+        named = CLAUSE.analyze("关于课后服务收费的通知：学校必须收取课后服务费。")
+        self.assertEqual(named.clauses[0].context, C.NOTICE)
+        self.assertEqual(named.actions[0].admission, CLAUSE.Admission.NOTICE)
         unknown = CLAUSE.analyze("经验分享：学校统一收取资料费。")
         self.assertEqual(unknown.clauses[1].context, C.UNKNOWN)
         self.assertEqual(unknown.polarity(1, "收取"), P.UNKNOWN)
@@ -149,7 +224,8 @@ class ClauseTest(unittest.TestCase):
         self.assertEqual(local.actions[-1].admission, CLAUSE.Admission.PARALLEL)
         self.assertEqual(CLAUSE.analyze("学校未神秘地统一购买校服。").polarity(0, "购买"), P.UNKNOWN)
         earlier = CLAUSE.analyze("学校取消减免后统一收取校服费。")
-        self.assertEqual(earlier.actions[-1].polarity, P.POSITIVE)
+        self.assertEqual(earlier.actions[-1].local_polarity, P.POSITIVE)
+        self.assertEqual(earlier.actions[-1].polarity, P.UNKNOWN)
         self.assertIsNone(earlier.actions[-1].admission)
 
     def test_double_negation_correction_and_questions(self):
@@ -173,6 +249,8 @@ class ClauseTest(unittest.TestCase):
             self.assertEqual(graph.clauses[1].tail, CLAUSE.Tail.DETAIL, tail)
             self.assertEqual(graph.polarity(0, "购买"), P.POSITIVE, tail)
             self.assertEqual(graph.clauses[0].admission, CLAUSE.Admission.MAIN, tail)
+        inline = CLAUSE.analyze("学校统一购买校服费用180元交给班主任。").actions[0]
+        self.assertEqual((inline.object, inline.admission), ("校服", CLAUSE.Admission.MAIN))
         for tail in ("此方案周五再讨论", "该做法由班主任研究", "传闻周五前缴费", "未说明性质的附加段"):
             graph = CLAUSE.analyze("学校统一购买校服，" + tail + "。")
             self.assertEqual(graph.clauses[1].tail, CLAUSE.Tail.EVALUATION, tail)
@@ -253,14 +331,147 @@ class ClauseTest(unittest.TestCase):
                 sys.modules.pop(copy.__name__, None)
                 sys.modules.pop(second.__name__, None)
 
+    def test_all_regression_p0_upper_bounds(self):
+        checked = widening = 0
+        for case in regression_cases():
+            graph = CLAUSE.analyze(case["text"])
+            if case.get("candidate_for_widening"):
+                widening += 1
+                self.assertFalse(any(a.admission for a in graph.actions), case["id"])
+            shapes = {family: tuple(p0_shapes(graph, family)) for family in set(P0_RULES.values())}
+            for stage, data in case["by_stage"].items():
+                for entry, expected in data.get("expected", {}).items():
+                    new_layer = data.get("expected_new_layer", {}).get(entry, {})
+                    for rule, levels in expected.items():
+                        family = P0_RULES.get(rule)
+                        if family is None or "P0" in new_layer.get(rule, {}).get("allowed", levels):
+                            continue
+                        checked += 1
+                        if stage == "义务教育" or family in {"tutoring", "identity"}:
+                            self.assertFalse(shapes[family], (case["id"], stage, entry, rule, case["text"]))
+        self.assertGreater(checked, 2000)
+        self.assertEqual(widening, 16)
+
+    def test_every_admitted_regression_sentence_consumes_all_mutations(self):
+        sample = _probe_samples()
+        residuals = [text for key in ("B1", "B2", "B5", "原创") for text in sample["残余"][key]]
+        self.assertGreaterEqual(len(sample["残余"]["原创"]), 30)
+        admitted = set()
+        for case in regression_cases():
+            graph = CLAUSE.analyze(case["text"])
+            sentences = defaultdict(list)
+            for clause in graph.clauses:
+                if clause.parent is None:
+                    sentences[clause.sentence].append(clause)
+            for clauses in sentences.values():
+                if any(c.admission for c in clauses):
+                    admitted.add(graph.text[clauses[0].span.start:clauses[-1].span.end])
+        self.assertGreaterEqual(len(admitted), 30)
+        for text in sorted(admitted):
+            for residual in residuals:
+                for changed in (text+residual, text+"，"+residual, residual+"，"+text, residual+text):
+                    graph = CLAUSE.analyze(changed+"。")
+                    self.assertFalse(any(a.admission for a in graph.actions), changed)
+            for detail in sample["执行细化"]:
+                graph = CLAUSE.analyze(text+"，"+detail+"。")
+                self.assertTrue(any(a.admission for a in graph.actions), (text, detail))
+                self.assertEqual(graph.clauses[-1].tail, CLAUSE.Tail.DETAIL)
+
+    def test_review_blockers_end_to_end(self):
+        probes = _probe_samples()["复现实测"]
+        for blocker, text, options in probes:
+            with self.subTest(blocker=blocker, text=text):
+                graph = CLAUSE.analyze(text, **options)
+                self.assertFalse(any(action.admission for action in graph.actions))
+        self.assertEqual(len(probes), 26)  # 报告写 24，评审脚本实含 26。
+
+    def test_review_list_hierarchy_and_word_colon_scope(self):
+        for parent, children, next_item in [
+            ("（一）", ("1）", "2）"), "（二）"),
+            ("1. ", ("（1）", "（2）"), "2. "),
+            ("（1）", ("①", "②"), "（2）"),
+        ]:
+            text = (parent+"严禁以下行为：\n"+children[0]+"学校统一购买校服。\n"
+                    +children[1]+"班主任组织学生参加校外有偿补课。\n"+next_item+"学校统一购买校服。")
+            split = CLAUSE.split_clauses(text)
+            colon = next(f for f in split.frames if f.kind == "colon")
+            self.assertEqual(colon.clauses, [1, 2])
+            graph = CLAUSE.analyze(text)
+            self.assertEqual([c.context for c in graph.clauses], [C.NEGATION] * 3 + [C.ASSERTION])
+        text = "反面案例如下：\n学校统一购买校服。教师向校外培训机构透露学生电话。\n学校统一购买校服。"
+        graph = CLAUSE.analyze(text, paragraph_starts=(1, 2, 3))
+        self.assertEqual([c.context for c in graph.clauses], [C.UNKNOWN] * 3 + [C.ASSERTION])
+        self.assertEqual([a.admission for a in graph.actions], [None, None, CLAUSE.Admission.MAIN])
+
+    def test_review_scopes_lexical_boundaries_and_refusal(self):
+        for source, obj in [
+            ("拒不缴纳班费者", "班费"),
+            ("所有未缴纳校服费的学生", "校服费"),
+            ("未缴纳校服费和资料费的学生", "校服费和资料费"),
+        ]:
+            graph = CLAUSE.analyze(source+"不得报名。")
+            prior, result = graph.actions
+            self.assertEqual((prior.polarity, prior.object, prior.refusal), (P.NEGATIVE, obj, True))
+            self.assertEqual((result.polarity, result.conditions), (P.NEGATIVE, (prior.id,)))
+        graph = CLAUSE.analyze("各班没有不购买校服的。")
+        self.assertEqual([(a.polarity, a.refusal) for a in graph.actions], [(P.POSITIVE, False)])
+        for stub in ("不同意", "不及时", "绝不", "从未", "坚决反对", "严厉杜绝"):
+            graph = CLAUSE.analyze("学校"+stub+"公布考试成绩。")
+            self.assertEqual(graph.polarity(0, "公布"), P.NEGATIVE, stub)
+        graph = CLAUSE.analyze("成绩不理想的学生一律交由班主任组织参加校外收费补习。")
+        self.assertEqual([(a.predicate, a.agent, a.polarity) for a in graph.actions],
+                         [("组织", "班主任", P.POSITIVE), ("参加", "班主任", P.POSITIVE)])
+        graph = CLAUSE.analyze("学校不但组织学生参加校外有偿补课，还收取高额补课费。")
+        self.assertEqual(graph.clauses[0].text, "学校不但组织学生参加校外有偿补课")
+        self.assertEqual(graph.actions[0].agent, "学校")
+        self.assertFalse(any(a.polarity == P.POSITIVE for a in CLAUSE.analyze(
+            "学校神秘地要求班主任组织学生参加校外有偿补课。").actions))
+        for text in ("学校（是否采纳尚待讨论）统一购买校服。", "学校把学生电话统一购买校服。"):
+            graph = CLAUSE.analyze(text)
+            self.assertEqual(graph.clauses[0].context, C.UNKNOWN, text)
+            self.assertIsNone(graph.clauses[0].admission, text)
+        for text, predicate in [("学校统一代收费的项目必须列出明细。", "代收"), ("家委会收到材料。", "收")]:
+            self.assertNotIn(predicate, {a.predicate for a in CLAUSE.analyze(text).actions})
+        self.assertEqual(CLAUSE.analyze("王小明同学系单亲家庭关爱志愿者。").actions[0].object, "单亲家庭关爱志愿者")
+
+    def test_review_groups_unheaded_tables_and_rank_destinations(self):
+        graph = CLAUSE.analyze('网传"班主任组织学生参加校外有偿补课。请尽快报名。"，经核实并不属实。')
+        self.assertFalse(any(c.malformed for c in graph.clauses))
+        self.assertEqual(graph.actions[0].binding, CLAUSE.Binding.REFUTED)
+        graph = CLAUSE.analyze("| 校服 | 统一购买校服 | 课后服务 | 自愿参加，不参加不收费 |")
+        self.assertEqual([item.label for item in graph.projects], ["校服", "课后服务"])
+        self.assertEqual(graph.actions[0].project, graph.clauses[0].project)
+        headed = CLAUSE.analyze("| 费用名称 | 要求 | 项目名 | 要求 |\n| --- | --- | --- | --- |\n"
+                               "| 校服 | 统一购买校服 | 课后服务 | 自愿参加 |")
+        self.assertEqual([item.label for item in headed.projects], ["校服", "课后服务"])
+        graph = CLAUSE.analyze("学校严禁组织学生参加校外有偿补课、向校外培训机构提供学生电话。")
+        self.assertEqual(graph.polarity(1, "提供"), P.NEGATIVE)
+        for text, obj, recipient in [
+            ("成绩单不会不发到家长群。", "成绩单", "家长群"),
+            ("成绩单不能不上传到班级群。", "成绩单", "班级群"),
+            ("教师把学生学籍号提供给校外培训机构。", "学生学籍号", "校外培训机构"),
+        ]:
+            action = CLAUSE.analyze(text).actions[0]
+            self.assertEqual((action.object, action.recipient, action.admission), (obj, recipient, CLAUSE.Admission.MAIN))
+
+    def test_review_voluntary_correction_and_questions(self):
+        graph = CLAUSE.analyze("不是不统一购买校服，而是自愿购买，不参加不收费。")
+        self.assertEqual(graph.actions[0].binding, CLAUSE.Binding.ALTERNATIVE)
+        self.assertTrue(graph.actions[1].voluntary and graph.actions[1].exit)
+        self.assertEqual(graph.actions[0].project, graph.actions[1].project)
+        for text in ("不公布成绩怎么行呢？", "学校统一购买校服，？", "学校统一购买校服并学校代收资料费？"):
+            self.assertFalse(any(a.admission for a in CLAUSE.analyze(text).actions), text)
+
     def test_regression_structure(self):
         cases = {case["id"]: case for case in regression_cases()}
+        structural_details = _probe_samples()["结构断言"]
         checked = set()
         categories = set()
         for line in (SAMPLES / "clause_structure.tsv").read_text(encoding="utf-8").splitlines():
             if not line or line.startswith("#"):
                 continue
             case_id, predicate, context, polarity, school = line.split("\t")
+            expected = structural_details.get(case_id, {}).get(predicate, {})
             with self.subTest(id=case_id, predicate=predicate):
                 case = cases[case_id]
                 checked.add(case_id)
@@ -268,11 +479,19 @@ class ClauseTest(unittest.TestCase):
                 graph = CLAUSE.analyze(case["text"])
                 if predicate == "-":
                     self.assertFalse(graph.actions)
-                    self.assertTrue(graph.clauses)
+                    self.assertEqual([c.text for c in graph.clauses], expected["segments"])
                     self.assertTrue(all(clause.context == context for clause in graph.clauses))
+                    self.assertTrue(all(clause.admission is None for clause in graph.clauses))
                 else:
-                    hit = [(a.context, a.polarity, a.school_agent) for a in graph.actions if a.predicate == predicate]
-                    self.assertIn((context, polarity, school == "1"), hit, (case["text"], hit))
+                    hits = [a for a in graph.actions if (a.predicate, a.context, a.polarity, a.school_agent) ==
+                            (predicate, context, polarity, school == "1")]
+                    self.assertTrue(hits, (case["text"], graph.actions))
+                    if expected:
+                        def fields(action):
+                            return {key: ([graph.actions[i].object for i in action.conditions]
+                                           if key == "condition_objects" else getattr(action, key))
+                                    for key in expected}
+                        self.assertIn(expected, [fields(a) for a in hits], case["text"])
         self.assertGreaterEqual(len(checked), 150)
         self.assertEqual(categories, {case["category"] for case in cases.values()})
 
