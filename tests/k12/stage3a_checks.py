@@ -52,8 +52,6 @@ def assert_probe_additions(test, entry, before, after, new_layer):
 
 
 def document_exemptions(record, entry, before):
-    if record["file"] == "tests/industry_corpus/k12/A_k02_致家长的一封信.txt" and entry == "general":
-        return {hit for hit in hits(before) if hit[0] == "K12-G01" and hit[2] == 11}
     return set()
 
 

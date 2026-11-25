@@ -64,7 +64,8 @@ comments、parents 只检查【起草说明】之前的内容。
     复合或按期计费单位（如每生每月、按学期）可能漏报；非后果动词用“不许”或带引号的部分
     条文引用可能报 P1。教师受训的修饰语或地点超出封闭清单时，仍可能保留基线 P0 或报 P1。
     无发布动词的隐性排名（如全班第一名、倒数第三名）只由 parents 基线检查。
-    排名否定只在整句符合封闭文法时豁免。含时间词、目的分句或转述后项的否定句仍保留基线命中。
+    排名否定只在框外且整行符合封闭文法时豁免。含时间词、目的分句、转述后项、其他句子、
+    序号或括注的行，以及冒号引出的条目和跨行引文，仍保留基线命中。
 
 退出码：0 正常；--strict 时存在 P0 返回 1；输入错误、缺少共享模块返回 2。
 只用标准库，不联网；文件一律按 UTF-8 读写；输出文件已存在时加 -v2、-v3，不覆盖。
@@ -241,9 +242,10 @@ class Document:
     tables: List[List[List[str]]] = field(default_factory=list)
     kind: str = "text"                                      # text / table / docx
     table_after_paragraph: List[int] = field(default_factory=list)  # Word 表格前的正文段落数
+    ranking_cells: Optional[List[List[str]]] = None  # 表格排名豁免所需的原始单元格换行
 
 
-def load_document(path: Path) -> Document:
+def load_document(path: Path, *, ranking_cells: bool = False) -> Document:
     if not path.is_file():
         raise InputError(f"找不到文件：{path}")
     suffix = path.suffix.lower()
@@ -259,6 +261,10 @@ def load_document(path: Path) -> Document:
         text = read_text_file(path)
         rows = [[_cell(c) for c in row] for row in csv.reader(text.splitlines())]
         doc.tables = [[r for r in rows if any(r)]]
+        if ranking_cells:
+            raw_rows = list(csv.reader(text.splitlines(keepends=True)))
+            if [[_cell("".join(c.splitlines())) for c in row] for row in raw_rows] == rows:
+                doc.ranking_cells = [raw for row, raw in zip(rows, raw_rows) if any(row)]
         doc.kind = "table"
     elif suffix == ".docx":
         try:
@@ -290,9 +296,17 @@ def load_document(path: Path) -> Document:
         except Exception as exc:
             raise InputError(f"无法读取 {path.name}：{exc}") from exc
         ws = wb.worksheets[0]
-        rows = [[_cell(c) for c in row] for row in ws.iter_rows(values_only=True)]
+        rows, raw_rows = [], []
+        for raw in ws.iter_rows(values_only=True):
+            row = [_cell(c) for c in raw]
+            if any(row):
+                rows.append(row)
+                if ranking_cells:
+                    raw_rows.append(["" if c is None else str(c) for c in raw])
         wb.close()
-        doc.tables = [[r for r in rows if any(r)]]
+        doc.tables = [rows]
+        if ranking_cells:
+            doc.ranking_cells = raw_rows
         doc.kind = "table"
     return doc
 
@@ -809,8 +823,8 @@ def summarize(issues: Sequence[Issue], marker_text: str) -> dict:
 
 
 BASELINE_EXEMPTIONS = {
-    "JZ-003": "旧命中所在整句完整匹配排名直接否定文法",
-    "K12-G01": "旧命中所在整句完整匹配排名直接否定文法",
+    "JZ-003": "旧命中所在框外物理行完整匹配排名直接否定文法",
+    "K12-G01": "旧命中所在框外物理行完整匹配排名直接否定文法",
     "JZ-008": "旧命中落在明确面向教师的受训动作内",
     "K12-G04": "旧命中落在同一连续组织角色短语或本人确定主动施助的结构内",
 }
@@ -1912,7 +1926,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     """面向家长文书检查。识别出的学生姓名（敏感身份锚点、JZ-012 点名批评）进全文姓名表，excerpt 统一遮蔽。"""
     gw, lex = shared_names()
     table = gw.NameTable()
-    doc = load_document(path)
+    doc = load_document(path, ranking_cells=True)
     if doc.kind == "table":
         lines = [" ".join(row) for table in doc.tables for row in table]
     else:
@@ -2148,7 +2162,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
 
     K12-G04 由 _g04_analyze 识别学生实名（锚点 + 打分）；识别出的姓名进全文姓名表，所有 excerpt 在输出前统一遮蔽。"""
     gw, lex = shared_names()
-    doc = load_document(path)
+    doc = load_document(path, ranking_cells=True)
     if doc.kind == "table":
         lines = [" ".join(row) for table in doc.tables for row in table]
     else:
@@ -2319,6 +2333,8 @@ class _ClauseEvidence:
             self.offsets.append(self.offsets[-1] + len(line) + 1)
         self.graph = self.module.analyze("\n".join(lines), paragraph_starts=(
             tuple(range(1, len(lines) + 1)) if doc.kind == "docx" else ()))
+        self.doc = doc
+        self.rank_denials = None
         self.by_line = defaultdict(list)
         for action in self.graph.actions:
             self.by_line[bisect_right(self.offsets, action.span.start)].append(action)
@@ -2342,17 +2358,49 @@ class _ClauseEvidence:
     def exempt(self, rule, line, match):
         return self.exemption_witness(rule, line, match) is not None
 
+    def _ranking_denial_spans(self):
+        if self.doc.kind != "table":
+            yield from self.module.ranking_denial_spans(self.graph, markdown_tables=self.doc.kind == "text")
+            return
+        if self.doc.ranking_cells is None:
+            return
+        for index, (row, raw_row) in enumerate(zip(self.doc.tables[0], self.doc.ranking_cells)):
+            offset = self.offsets[index]
+            for cell, raw in zip(row, raw_row):
+                # 基线仍在旧行文本上匹配。把单元格原文的准入区间映回该文本。
+                if cell:
+                    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
+                    graph = self.module.analyze(raw)
+                    spans = set(self.module.ranking_denial_spans(graph))
+                    pos = raw_offset = 0
+                    mapped = []
+                    for physical in raw.split("\n"):
+                        part = physical.strip()
+                        if part:
+                            index_in_cell = cell.find(part, pos)
+                            if index_in_cell < 0:
+                                break
+                            start = raw_offset + len(physical) - len(physical.lstrip())
+                            if (start, start + len(part)) in spans:
+                                mapped.append((offset + index_in_cell, offset + index_in_cell + len(part)))
+                            pos = index_in_cell + len(part)
+                        raw_offset += len(physical) + 1
+                    else:
+                        yield from mapped
+                offset += len(cell) + 1
+
     def exemption_witness(self, rule, line, match):
         if rule not in {"JZ-003", "K12-G01", "JZ-008"}:
             return None
         graph = self.graph
         start, end = (self.offsets[line - 1] + index for index in match.span())
         if rule != "JZ-008":
-            offset = self.offsets[line - 1]
-            raw = graph.text[offset:self.offsets[line] - 1]
-            return next(((offset + left, offset + right)
-                         for left, right in self.module.ranking_denial_spans(raw)
-                         if offset + left <= start < end <= offset + right), None)
+            if self.rank_denials is None:
+                self.rank_denials = defaultdict(list)
+                for left, right in self._ranking_denial_spans():
+                    self.rank_denials[bisect_right(self.offsets, left)].append((left, right))
+            return next(((left, right) for left, right in self.rank_denials[line]
+                         if left <= start < end <= right), None)
         for action in self.by_line[line]:
             clause = graph.clauses[action.clause]
             if not clause.span.start <= start or end > clause.span.end:
@@ -2586,7 +2634,7 @@ def rule_catalog() -> dict:
             ]
     add("JZ-014", "parents", (("P1",),) * len(STAGES), "独立后项或双重否定恢复的分值提示 P1")
     for rid, entry in (("JZ-003", "parents"), ("K12-G01", "general")):
-        add(rid, entry, (("P1",),) * len(STAGES), "整句完整匹配直接否定文法才豁免；反转肯定并准入按学段分级")
+        add(rid, entry, (("P1",),) * len(STAGES), "框外物理行完整匹配直接否定文法才豁免；反转肯定并准入按学段分级")
     for command in ("parents", "general"):
         add(G04_RULE[0], command, (("P0", "P1"),) * len(STAGES),
             "表格姓名列含实名或需要人工核对的值")
