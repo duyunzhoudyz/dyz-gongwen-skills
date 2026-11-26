@@ -43,7 +43,8 @@
     2. 身份词与姓名之间夹班号时，已覆盖“身份＋班级＋学生姓名＋列入名册”等关系；缺少明确谓词或隔分句时仍可能漏报。
     3. 与常用词同形的姓名（刘海、林海、黎明、高峰）只在有强证据时识别（姓名后紧跟“同学”等）；其余写法漏报。
     4. 两字少见姓或歧义姓的姓名、名字里含“会”“山”等非名用字的姓名、名字用字不在常见名用字表里的三字名，
-       在词表外的后续动词下可能漏报；全文遮蔽是整串替换，可能多遮。
+       在词表外的后续动词下可能漏报；全文遮蔽是整串替换，可能多遮。共享姓名模块误把表格里的普通词当作姓名时，
+       规则自带的建议文字里同样的字也会被替换成占位符。
     5. 带“·”的姓名、外文名和昵称依赖共享姓名识别能力。
     6. 正文支持本人家庭、资助、健康和处分关系。含实名的禁令、假设、疑问句可能在 K12-G04 宽层报 P1，需人工排除。亲属身份和跨分句指代仍需人工核对。
     7. Markdown 姓名列按共享模块分级。Word 姓名列宽层报 P1；CSV、XLSX 姓名列仅登记遮蔽；表头不在共享模块支持范围内可能漏认。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
@@ -1976,26 +1977,57 @@ def _word_table_names(doc, lines, names, table, gw, lex):
 
 # 新增摘录保留固定业务词、金额和姓名占位，未分类的原文区间由一个省略号代替。
 _REPORT_WORD = re.compile(
-    r"〔姓名\d+〕|[\d.,、，。：:；;\s]+|[一二三四五六七八九十]+、|收费安排|"
-    r"班主任|教务处|年级组|学校|各班|教师|全体|学生|家长|必须|一律|要求|统一|须|"
-    r"缴纳|缴齐|交齐|收取|代收|购买|订购|订阅|办理|组织|参加|提供|向(?=校外(?:培训|辅导)机构)|"
-    r"校外|有偿|培训机构|补课|学生名单|名单|电话|学习用品费|演出服装费用|"
-    r"意外伤害保险|保险|研学费|校服费|校服|教辅资料|报刊|讲义费|资料费|"
-    r"交通费|活动费|班费|练习册|教材|(?<=\d)元|普通|内容|属于|资助对象|课后服务|在籍|通报批评|"
-    r"总分|前十名|的|学生名单|一并|张贴|在|校门口|宣传栏"
+    r"〔姓名\d+〕|[\d.,、，。：:；;\s]+|(?P<ordinal>^[一二三四五六七八九十]+、)|收费安排|"
+    r"班主任|教务处|年级组|学校|各班|教师|全体|学生名单|学生|家长|必须|一律|要求|统一|"
+    r"须(?=缴纳|交齐|缴齐|购买|订购|订阅|办理|参加)|"
+    r"(?:收取|缴纳)班费|缴纳|缴齐|交齐|收取|代收|购买|订购|订阅|办理|组织|参加|提供|向(?=校外(?:培训|辅导)机构)|"
+    r"校外|有偿|培训机构|辅导机构|补课|名单|电话|学习用品费|演出服装费用|"
+    r"校园意外险|意外伤害保险|意外险|保险|保费|研学费|校服费|校服|教辅资料|报刊|讲义费|资料费|"
+    r"交通费|活动费|练习册|教材|每套|每生|每人|每月|每学期|(?<=\d)元|"
+    r"普通|内容|属于|资助对象|课后服务费?|在籍|通报批评|同学|留守|残疾|受助|"
+    r"记过|警告|处分|患有|孤独症|焦虑症|抑郁症|自愿|"
+    r"总分|前十名(?:的(?=学生名单))?|一并|张贴在(?=校门口|宣传栏)|校门口|宣传栏"
 )
 
 
-_REPEATED_PAIR = re.compile(r"([\u3400-\u9fff]{2,4})[和与及、]([\u3400-\u9fff]{2,4}?)(?=的|等|[，。；])")
+_REPEATED_PAIR = re.compile(r"([\u3400-\u9fff]{2,4})[和与及、]([\u3400-\u9fff]{2,4}?)(?=的|等|获发|[，。；])")
 
 
 def _review_report(doc, lines, entry, stage, issues, added, table):
     """姓名表先补齐，新增摘录只复制固定词或姓名占位，最后递归遮蔽全部字段。"""
     gw, lex = shared_names()
     if "review-roles" not in _K12_ANCHOR_CACHE:
+        # 普通称谓比敏感身份弱：姓后须有名字用字，且人名后复用共享模块的结构右界或常见学生动作。
+        given = "[" + re.escape("".join(sorted(lex.given | lex.soft_given))) + "]"
+        family = "(?:" + "|".join(sorted(lex.compound)) + "|[" + "".join(sorted(lex.surnames)) + "])"
+        name = family + given + "{1,2}"
+        func1 = "[" + re.escape("".join(sorted(gw.FUNC1))) + "]"
+        gw_right = "|".join(re.escape(w) for w in sorted(set(lex.right_strong) | set(lex.right_weak), key=len, reverse=True))
+        k12_right = (r"统一|参加|收取|购买|订购|订阅|办理|缴纳|交齐|缴齐|须|必须|均须|本次|每晚|"
+                     r"申请|是否|完成|以及|学习|获发|一定|考了|成绩|作业|表现|连续|屡次|屡教|缺交|迟到|请假")
+        right = (f"(?:$|[^\\u3400-\\u9fff]|{gw.R3}|{gw.TIME}|{gw.KIN}|{gw.PEOPLE_RE.pattern}"
+                 f"|{func1}|{gw_right}|{k12_right})")
+        role = r"(?:学生|同学)[：:]?\s*[（(“\"]?(?![和与及](?:家长|监护人|老师|教师|班主任|学校|校方|同学|教职工))"
+        # 动词/班级/数字后接“姓名+同学”用强度 2，靠歧义姓减分自然挡掉“向阳/平安/安康/和平同学”，
+        # 同时排除年级称谓和学生干部职务称谓。
+        non_person_role = r"(?:[高初][一二三]|(?:班|队|组)长)同学"
+        verb_lead = (r"(?:检查|批改|批阅|核对|督促|辅导|公布|公示|通报|表扬|批评|点名|要求|通知|安排|组织|提醒|告知|"
+                     r"本班|(?<=[）)一二三四五六七八九十\d]班)|(?<=\d))")
         _K12_ANCHOR_CACHE["review-roles"] = gw.compile_anchors({
-            "prefix": [{"re": r"(?:学生|同学)[：:]?\s*", "strength": 3}],
-        }) + _k12_anchors(gw)[1]
+            "frame": [
+                {"re": role + "(?P<n>" + name + r")(?=\d+(?:分|元))", "strength": 3},
+                {"re": K12_ROLE + "(?P<n>" + name + r")(?=[由被])", "strength": 3},
+            ],
+            "prefix": [
+                {"re": role + "(?=" + name + right + ")", "strength": 3},
+                {"re": verb_lead + "(?!" + non_person_role + ")(?=" + name + r"同学(?!们))", "strength": 2},
+            ],
+            # 两字称谓可与校名、群体称呼同形，弱后锚点需要明确个人学业或违纪动作作右界。
+            "postfix": [
+                {"re": r"(?=同学(?:考了|数学|语文|被|屡次|屡教|获奖|又一次|成绩|作业|连续))", "strength": 3},
+                {"re": r"(?<=[一-鿿]{3})(?=同学(?!们))", "strength": 2},
+            ],
+        })
     anchors = _K12_ANCHOR_CACHE["review-roles"]
     for raw in lines:
         table.add_hits(gw.find_names(raw, anchors, lex))
@@ -2003,14 +2035,33 @@ def _review_report(doc, lines, entry, stage, issues, added, table):
         for rendered, _ in _review_tables(doc, lines):
             for raw in rendered:
                 table.add_hits(gw.find_names(raw, anchors, lex))
-    # 遮蔽入口额外接受明确的“名字”表头；仍由共享模块判断格内候选，不能据此生成告警。
+    # 投影学生列后交共享模块识别人名。其余列不应改变遮蔽结果或触发新告警。
+    # Markdown/Word 里的公开表或分工表在无任何违规告警时保持跳过（避免误遮公开署名文件名）。
     native = (doc.tables if doc.kind == "table" else parse_md_tables(lines) if doc.kind == "text" else
               [rows for rows, after in zip(doc.tables, doc.table_after_paragraph) if after <= len(lines)])
+    student_headers = ("学生姓名", "姓名", "学生", "名字", "学生名字", "幼儿姓名")
     for rows in native:
-        if rows and (doc.kind == "table" or "名字" in rows[0]):
-            header = ["姓名" if label == "名字" else label for label in rows[0]]
-            for row in gw.find_table_names(render_md_table([header, *rows[1:]]), lex, "k12").values():
-                table.add_hits(row.hits)
+        if not rows:
+            continue
+        if (len(rows) > 2 and rows[0] and not any(cell.strip() for cell in rows[0][1:])
+                and gw._md_header_label(rows[0][0]) not in student_headers):
+            rows = rows[1:]  # 第一行只有跨列的表题，第二行才是列名。
+        header = [gw._md_header_label(label) for label in rows[0]]
+        if doc.kind != "table" and not issues and any(
+                label in lex.table_public or gw._TABLE_PUBLIC_RE.search(label) or gw._TABLE_DUTY_RE.search(label)
+                for label in header):
+            continue
+        columns = [i for i, label in enumerate(header)
+                   if label in student_headers
+                   and not re.search(
+                       r"教师|老师|校长|班主任|负责人|联系人|填报人|审核人|家长|监护人|教职工|签发人|经办人|授课人|主讲人|记录人|值班人",
+                       re.sub(r"\s+", "", rows[0][i]))]
+        if columns:
+            selected = [["学生姓名"] * len(columns)]
+            selected.extend([row[i] if i < len(row) else "" for i in columns] for row in rows[1:])
+            found = gw.find_table_names(render_md_table(selected), lex, "k12")
+            table.add_hits(hit for row in found.values() for hit in row.hits if not hit.table_only)
+            table.add_table_masks(found.values())
     # 并列后项可能多取一个动词字。另一处相同并列组有明确右界时补登记较短姓名。
     registered = set(table.names())
     shorter = {name[:end] for name in registered for end in range(2, len(name))}
@@ -2026,6 +2077,9 @@ def _review_report(doc, lines, entry, stage, issues, added, table):
             position = 0
             pieces = []
             for token in _REPORT_WORD.finditer(excerpt):
+                if token.lastgroup == "ordinal" and not (
+                        0 < item.line <= len(lines) and lines[item.line - 1].lstrip().startswith(token[0])):
+                    continue  # 摘录可能从正文半句开始，行中序号不放行。
                 if token.start() > position:
                     pieces.append("…")
                 pieces.append(token[0])
@@ -2771,6 +2825,7 @@ def rule_catalog() -> dict:
                 for row in (_FEE_MATRIX if fee else _TUTOR_MATRIX)
             ]
     add("JZ-014", "parents", (("P1",),) * len(STAGES), "独立后项或双重否定恢复的分值提示 P1")
+    add("K12-G03", "general", (("P1",),) * len(STAGES), "课后服务强制全员参加的宽层提示 P1")
     for rid, entry in (("JZ-003", "parents"), ("K12-G01", "general")):
         add(rid, entry, (("P1",),) * len(STAGES), "基线排名命中全部保留；反转肯定并准入按学段分级")
     add("K12-G04", "general", (("P0", "P1"),) * len(STAGES),

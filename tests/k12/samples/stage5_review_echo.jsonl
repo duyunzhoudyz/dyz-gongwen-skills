@@ -1,0 +1,96 @@
+{"id": "A01_compound_anchor_G01", "names": ["欧阳明月"], "identified": ["欧阳明月"], "text": "低保家庭学生欧阳明月成绩进步明显。\n学校在大会公布欧阳明月的考试成绩。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A02_compound_student_prefix_G05", "names": ["司马承祯"], "identified": ["司马承祯"], "text": "学校要求学生司马承祯统一购买教辅资料，每套80元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A03_compound_postfix_G09", "names": ["诸葛清风"], "identified": ["诸葛清风"], "text": "诸葛清风同学被推荐参加校外有偿补课班。\n学校要求诸葛清风家长批改作业。", "baseline": {"general": [[0, 0, 0]], "parents": [[2, 2, 2]]}}
+{"id": "A04_compound_bare_G05", "names": ["上官婉儿"], "text": "学校强制上官婉儿统一购买校服，每套180元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A05_compound_bare_JZ003", "names": ["慕容青云"], "text": "学校在家长群公布慕容青云的期末考试排名。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A06_compound_csv", "names": ["欧阳明月"], "identified": ["欧阳明月"], "filename": "A06_欧阳明月.csv", "table": [["学生姓名", "收费项目", "收费金额"], ["欧阳明月", "学校统一购买教辅资料", "120元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "A07_twochar_prefix_G05", "names": ["李华"], "identified": ["李华"], "text": "班主任要求学生李华必须购买校园意外险100元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A08_twochar_postfix_JZ001", "names": ["王磊"], "identified": ["王磊"], "text": "请家长每天检查王磊同学的数学作业并签字。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A09_twochar_bare_G06", "names": ["张伟"], "text": "班主任代收张伟的资料费60元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A10_twochar_parallel_reorder", "names": ["郑晓峰", "高峰"], "identified": ["郑晓峰", "高峰"], "text": "特困学生郑晓峰和高峰获发助学金。\n年级大会公布高峰和郑晓峰的考试成绩。", "baseline": {"general": [[0, 0, 0], [1, 1, 1]], "parents": [[0, 0, 0], [1, 1, 1]]}}
+{"id": "A11_twochar_parallel_no_de", "names": ["郑晓峰", "高峰"], "identified": ["郑晓峰", "高峰"], "text": "特困学生郑晓峰和高峰获发助学金。\n年级大会公布郑晓峰和高峰考试成绩。", "baseline": {"general": [[0, 0, 0], [1, 1, 1]], "parents": [[0, 0, 0], [1, 1, 1]]}}
+{"id": "A12_twochar_parallel_solo_later", "names": ["郑晓峰", "高峰"], "identified": ["郑晓峰", "高峰"], "text": "特困学生郑晓峰和高峰获发助学金。\n年级大会公布高峰的考试成绩。", "baseline": {"general": [[0, 0, 0], [1, 1, 1]], "parents": [[0, 0, 0], [1, 1, 1]]}}
+{"id": "A13_homograph_student_prefix", "names": ["高峰"], "text": "学校要求学生高峰参加校外有偿补课班。\n学校公布高峰的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "A14_homograph_postfix_tongxue", "names": ["林海"], "identified": ["林海"], "text": "林海同学考了全班第1名，学校在家长群公布林海的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[2, 2, 2]]}}
+{"id": "A15_report_word_collision_name", "names": ["须在"], "text": "学校要求学生须在统一购买校服180元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A16_space_between_anchor_name", "names": ["周明宇"], "identified": ["周明宇"], "text": "学校要求学生 周明宇 统一购买教辅资料，并在大会公布周明宇的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[2, 2, 2]]}}
+{"id": "A17_colon_anchor_name", "names": ["许嘉豪"], "identified": ["许嘉豪"], "text": "学生：许嘉豪。\n请家长检查许嘉豪的作业并签字。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A18_paren_after_student", "names": ["韩志远"], "identified": ["韩志远"], "text": "学校要求学生（韩志远）统一购买教辅资料。\n年级大会公布韩志远的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[2, 2, 2]]}}
+{"id": "A19_quote_after_student", "names": ["唐子墨"], "identified": ["唐子墨"], "text": "学校要求学生“唐子墨”参加校外有偿补课。\n年级大会公布唐子墨的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "A20_space_split_name", "names": ["王小明", "王 小 明"], "text": "学生王 小 明参加校外有偿补课。\n学校在家长群公布王 小 明的考试成绩。", "baseline": {"general": [[0, 0, 0], [1, 1, 1]], "parents": [[0, 0, 0], [1, 1, 1]]}}
+{"id": "A21_middle_dot_name", "names": ["买买提·艾力"], "text": "低保家庭学生买买提·艾力获发补助。\n学校公布买买提·艾力的考试成绩排名。\n学校强制买买提·艾力购买校服180元。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "A22_punct_split_name", "names": ["陈、嘉、树"], "text": "学校在大会公布陈、嘉、树的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "A23_bare_first_anchor_later", "names": ["沈梦琪"], "identified": ["沈梦琪"], "text": "请家长检查沈梦琪的作业并签字。\n班主任代收沈梦琪的课后服务费180元。\n另：低保家庭学生沈梦琪已登记。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A24_repeated_5_rules", "names": ["曹宇轩"], "identified": ["曹宇轩"], "text": "曹宇轩同学屡教不改。\n学校公布曹宇轩的考试成绩。\n教务处补造曹宇轩的家访记录。\n课后服务要求曹宇轩必须参加。\n学校组织曹宇轩参加校外有偿补课。\n请家长检查批改曹宇轩的作业。", "baseline": {"general": [[2, 2, 2]], "parents": [[0, 0, 0]]}}
+{"id": "A25_multi_names_same_line", "names": ["邓博文", "冯梓萱", "郭雨泽"], "identified": ["邓博文", "冯梓萱", "郭雨泽"], "text": "学生邓博文、冯梓萱、郭雨泽均须购买校服180元。\n学校公布邓博文、冯梓萱、郭雨泽的考试成绩排名。", "baseline": {"general": [[0, 0, 0], [0, 0, 0], [0, 0, 0]], "parents": [[1, 1, 1], [1, 1, 1], [1, 1, 1]]}}
+{"id": "A26_digit_before_tongxue", "names": ["张伟"], "identified": ["张伟"], "text": "01张伟同学屡教不改，现予以批评。\n年级大会公布01张伟的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[0, 0, 0]]}}
+{"id": "A27_digit_after_student_name_score", "names": ["陈泽宇"], "identified": ["陈泽宇"], "text": "班主任公布了学生陈泽宇95分的期末考试成绩。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A28_digit_after_student_name_fee", "names": ["宋思涵"], "identified": ["宋思涵"], "text": "班主任代收学生宋思涵180元校服费。\n年级大会公布宋思涵的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[2, 2, 2]]}}
+{"id": "A29_student_name_paren_id", "names": ["卢浩宇"], "identified": ["卢浩宇"], "text": "学生卢浩宇（20260108）须缴纳教辅资料费120元。\n学校公布卢浩宇的期末排名。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A30_id_colon_name_bare", "names": ["马诗涵"], "text": "学号20260109马诗涵统一购买教辅资料60元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A31_filename_with_anchor_in_body", "names": ["袁思琪"], "identified": ["袁思琪"], "filename": "袁思琪_缴费及成绩情况.txt", "text": "学生袁思琪须购买校服180元。\n年级大会公布袁思琪的考试成绩。", "baseline": {"general": [[2, 2, 1]], "parents": [[2, 2, 1]]}}
+{"id": "A32_filename_bare_only_no_body_name", "names": ["严语桐"], "filename": "严语桐_课后服务通知.txt", "text": "高年级各班课后服务全体在籍学生必须参加。", "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "A33_name_inside_doc_title_and_basis", "names": ["叶明轩"], "identified": ["叶明轩"], "text": "低保家庭学生叶明轩已入册。\n按《关于叶明轩同学帮扶及校服代收通知》每生收取校服费180元。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A34_name_in_org_phrase", "names": ["向阳"], "identified": ["向阳"], "text": "低保家庭学生向阳由外婆照料。\n向阳小学要求全体学生统一购买教辅资料80元，并公布向阳的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[2, 2, 2]]}}
+{"id": "A35_csv_header_mingzi", "names": ["王小明"], "identified": ["王小明"], "filename": "A35_王小明.csv", "table": [["名字", "收费项目", "收费金额"], ["王小明", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A36_csv_header_xuesheng_mingzi", "names": ["王小明"], "identified": ["王小明"], "filename": "A36_王小明.csv", "table": [["学生名字", "收费项目", "收费金额"], ["王小明", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A37_csv_header_mingzi_note", "names": ["王小明"], "identified": ["王小明"], "filename": "A37_王小明.csv", "table": [["名字（实名）", "收费项目", "收费金额"], ["王小明", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A38_csv_header_xuesheng", "names": ["王小明"], "identified": ["王小明"], "filename": "A38_王小明.csv", "table": [["学生", "收费项目", "收费金额"], ["王小明", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A39_csv_header_name_en", "names": ["王小明"], "filename": "A39_王小明.csv", "table": [["name", "收费项目", "收费金额"], ["王小明", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A40_csv_title_row_before_header", "names": ["王小明"], "identified": ["王小明"], "filename": "A40_王小明.csv", "table": [["2026年秋季收费明细表", "", ""], ["学生姓名", "收费项目", "收费金额"], ["王小明", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A41_csv_with_public_award_col", "names": ["王小明"], "identified": ["王小明"], "filename": "A41_王小明.csv", "table": [["姓名", "获奖情况", "备注"], ["王小明", "三等奖", "学校在家长群公布王小明的考试成绩排名"]], "baseline": {"general": [[2, 2, 1]], "parents": [[3, 3, 1]]}}
+{"id": "A42_xlsx_header_mingzi", "names": ["赵雨桐"], "identified": ["赵雨桐"], "filename": "A42_赵雨桐.xlsx", "table": [["名字", "收费项目", "收费金额"], ["赵雨桐", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A43_xlsx_header_xuesheng_mingzi", "names": ["赵雨桐"], "identified": ["赵雨桐"], "filename": "A43_赵雨桐.xlsx", "table": [["学生名字", "收费项目", "收费金额"], ["赵雨桐", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A44_xlsx_title_row_before_header", "names": ["赵雨桐"], "identified": ["赵雨桐"], "filename": "A44_赵雨桐.xlsx", "table": [["2026年缴费台账", "", ""], ["学生姓名", "收费项目", "收费金额"], ["赵雨桐", "学校统一购买校服", "180元"]], "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "A45_xlsx_rank_and_fee", "names": ["孙志强"], "identified": ["孙志强"], "filename": "A45_孙志强.xlsx", "table": [["学生姓名", "情况说明"], ["孙志强", "学校在大会通报孙志强的考试成绩排名并统一订购校服180元"]], "baseline": {"general": [[3, 3, 0]], "parents": [[4, 4, 0]]}}
+{"id": "A46_docx_mingzi_and_baseline_rank", "names": ["钟语嫣"], "identified": ["钟语嫣"], "filename": "A46_钟语嫣.docx", "table": [["名字", "收费项目", "收费金额"], ["钟语嫣", "冬季校服", "180元"]], "paragraph": "年级大会拟公布钟语嫣的期末考试成绩排名。", "baseline": {"general": [[2, 2, 1]], "parents": [[2, 2, 1]]}}
+{"id": "A47_docx_xuesheng_mingzi_and_rank", "names": ["郑子轩"], "identified": ["郑子轩"], "filename": "A47_郑子轩.docx", "table": [["学生名字", "收费项目", "收费金额"], ["郑子轩", "冬季校服", "180元"]], "paragraph": "年级大会拟公布郑子轩的期末考试成绩排名。", "baseline": {"general": [[2, 2, 1]], "parents": [[2, 2, 1]]}}
+{"id": "A48_docx_table_inline_anchor_then_para", "names": ["吴俊杰"], "identified": ["吴俊杰"], "filename": "A48_吴俊杰.docx", "table": [["事项", "说明"], ["资助", "学生吴俊杰申请生活补助"]], "paragraph": "教务处要求补造吴俊杰的家访记录。", "baseline": {"general": [[2, 2, 1]], "parents": [[1, 1, 0]]}}
+{"id": "A49_docx_after_draft_note_table", "names": ["钱子墨"], "filename": "A49_钱子墨.docx", "table": [["学生姓名", "备注"], ["钱子墨", "测试"]], "paragraph": "学校要求钱子墨购买校服180元。\n【起草说明】", "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "A50_md_table_mingzi_and_rank", "names": ["冯诗涵"], "identified": ["冯诗涵"], "filename": "A50_冯诗涵.md", "table": [["名字", "备注"], ["冯诗涵", "学校公布冯诗涵的考试成绩排名"]], "baseline": {"general": [[3, 3, 2]], "parents": [[3, 3, 2]]}}
+{"id": "A51_md_table_bold_mingzi_and_rank", "names": ["蒋宇轩"], "identified": ["蒋宇轩"], "filename": "A51_蒋宇轩.md", "table": [["**名字**", "备注"], ["蒋宇轩", "学校公布蒋宇轩的考试成绩排名"]], "baseline": {"general": [[3, 3, 2]], "parents": [[3, 3, 2]]}}
+{"id": "A52_md_table_xuesheng_mingzi", "names": ["韩梦瑶"], "identified": ["韩梦瑶"], "filename": "A52_韩梦瑶.md", "table": [["学生名字", "备注"], ["韩梦瑶", "学校公布韩梦瑶的考试成绩排名"]], "baseline": {"general": [[3, 3, 2]], "parents": [[3, 3, 2]]}}
+{"id": "A53_md_table_html_split_name", "names": ["谢思远"], "filename": "A53_谢思远.md", "text": "| 学生姓名 | 备注 |\n|---|---|\n| <span>谢</span><span>思远</span> | 学校公布谢思远的考试成绩排名 |", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A54_md_table_nbsp_split_name", "names": ["罗浩然"], "filename": "A54_罗浩然.md", "text": "| 学生姓名 | 备注 |\n|---|---|\n| 罗&nbsp;浩然 | 学校公布罗浩然的考试成绩排名 |", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A55_JZ002_parent_hw", "names": ["林晓峰"], "identified": ["林晓峰"], "text": "学生林晓峰的亲子作业须每晚拍照上传打卡。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A56_JZ004_lowgrade_hw", "names": ["苏婉宁"], "identified": ["苏婉宁"], "text": "一年级学生苏婉宁每晚完成家庭作业和书面作业。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A57_JZ005_hw_volume", "names": ["赵启铭"], "identified": ["赵启铭"], "text": "请学生赵启铭完成5套试卷练习。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A58_JZ007_parents_fee_basis", "names": ["何佳琪"], "identified": ["何佳琪"], "text": "请学生何佳琪家长缴纳校服费180元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A59_JZ009_JZ010_afterschool", "names": ["钟沐宸"], "identified": ["钟沐宸"], "text": "课后服务要求学生钟沐宸必须参加，并利用课后服务讲新课。", "baseline": {"general": [[0, 0, 0]], "parents": [[2, 2, 2]]}}
+{"id": "A60_JZ011_promise", "names": ["罗一凡"], "identified": ["罗一凡"], "text": "学校保证学生罗一凡一定能考上重点高中。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A61_JZ012_long_window_K34", "names": ["高铭泽"], "identified": ["高铭泽"], "text": "六（3）班高铭泽同学连续三周缺交数学作业，多次谈话仍无改善，现予以通报批评；请高铭泽的家长假期到校面谈。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A62_JZ013_forward_like", "names": ["冯子睿"], "identified": ["冯子睿"], "text": "请学生冯子睿的家长转发点赞并下载指定App。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A63_JZ014_score", "names": ["卫昭然"], "identified": ["卫昭然"], "text": "学生卫昭然本次期末数学考了92分。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A64_K11p_K28b_with_bare_name", "names": ["陈嘉树"], "text": "陈嘉树所在高年级课后服务全体在籍学生必须参加。\n总分前十名的学生名单一并张贴在校门口宣传栏，含陈嘉树。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A65_K14a_K15b_with_bare_name", "names": ["邵知远"], "text": "无论是否入社，每位学生（含邵知远）都必须购买校园意外险，每套45元，由班主任代收。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "A66_excerpt_boundary_truncation", "names": ["陶欣悦"], "identified": ["陶欣悦"], "text": "低保家庭学生陶欣悦情况正常。\n本学期学校明确规定严禁各种拖延行为并且将在全校大会公布全体年级前十名和陶欣悦的成绩情况请周知。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "A67_baseline_and_added_same_line_merge", "names": ["万俊熙"], "identified": ["万俊熙"], "text": "学校统一购买校服，要求学生万俊熙缴纳180元，每套180元，由班主任代收。", "baseline": {"general": [[0, 0, 0]], "parents": [[2, 2, 2]]}}
+{"id": "A68_baseline_same_line_bare_vs_added", "names": ["魏嘉怡"], "text": "学校统一购买校服，要求魏嘉怡缴纳180元，不交不发教材。", "baseline": {"general": [[0, 0, 0]], "parents": [[2, 2, 2]]}}
+{"id": "A69_err_bad_utf8_filename", "names": ["夏宇辰"], "filename": "夏宇辰_非utf8.txt", "invalid": true, "baseline": {"general": [[1, 1]], "parents": [[1, 1]]}}
+{"id": "A70_err_bad_docx_filename", "names": ["严语桐"], "filename": "严语桐_损坏.docx", "invalid": true, "baseline": {"general": [[2, 2]], "parents": [[2, 2]]}}
+{"id": "A71_err_bad_xlsx_filename", "names": ["叶明轩"], "filename": "叶明轩_损坏.xlsx", "invalid": true, "baseline": {"general": [[1, 1]], "parents": [[1, 1]]}}
+{"id": "RW01_xuzai", "names": ["须在"], "text": "学校要求学生须在统一购买校服180元。", "filename": "通知.txt", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "RW02_xuyi", "names": ["须一"], "text": "学校要求须一、王小明统一购买校服180元。", "filename": "通知.txt", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "RW03_xuer", "names": ["须二"], "text": "班主任代收须二、王小明的课后服务费180元。", "filename": "通知.txt", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "RW04_xusan", "names": ["须三"], "text": "学校组织须三、王小明参加校外有偿补课。", "filename": "通知.txt", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "RW05_zhangtie", "names": ["张贴"], "text": "学校要求张贴购买校园意外险100元。", "filename": "通知.txt", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "RW06_banfei", "names": ["班费"], "text": "学校要求班费购买校园意外险100元。", "filename": "通知.txt", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "词表_须在", "names": ["须在"], "text": "学校要求须在统一购买校服180元。", "filename": "rw_须在.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "词表_须一", "names": ["须一"], "text": "学校要求须一、王小明统一购买校服180元。", "filename": "rw_须一.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "词表_须二", "names": ["须二"], "text": "班主任代收须二、王小明的课后服务费180元。", "filename": "rw_须二.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "词表_须三", "names": ["须三"], "text": "学校组织须三、王小明参加校外有偿补课。", "filename": "rw_须三.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "词表_须十", "names": ["须十"], "text": "学校要求须十、王小明缴纳资料费80元。", "filename": "rw_须十.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "词表_张贴", "names": ["张贴"], "text": "学校要求张贴购买校园意外险100元。", "filename": "rw_张贴.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "词表_齐在", "names": ["齐在"], "text": "学校要求齐在统一购买校服180元。", "filename": "rw_齐在.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "词表_于在", "names": ["于在"], "text": "学校要求于在统一购买校服180元。", "filename": "rw_于在.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 1]]}}
+{"id": "post_3char_jiancha", "names": ["王小明"], "identified": ["王小明"], "text": "请家长检查王小明同学的数学作业并签字。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "post_3char_gongbu", "names": ["周明宇"], "identified": ["周明宇"], "text": "学校在大会公布周明宇同学的期末考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "post_3char_tongzhi", "names": ["陈嘉树"], "identified": ["陈嘉树"], "text": "教务处通知陈嘉树同学补交资料费60元。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "post_3char_yaoqui", "names": ["苏婉宁"], "identified": ["苏婉宁"], "text": "班主任要求苏婉宁同学统一购买校服180元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "post_2char_gongbu", "names": ["王磊"], "identified": ["王磊"], "text": "学校在大会公布王磊同学的期末考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "post_2char_jiancha", "names": ["李华"], "identified": ["李华"], "text": "请家长检查李华同学的数学作业并签字。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "post_3char_punct_ok", "names": ["王小明"], "identified": ["王小明"], "text": "本班王小明同学成绩优异，请家长检查王小明的数学作业并签字。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "D01_student_name_digit_score", "names": ["陈泽宇"], "identified": ["陈泽宇"], "text": "学校公布学生陈泽宇95分考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "D02_student_name_digit_fee", "names": ["宋思涵"], "identified": ["宋思涵"], "text": "学生宋思涵180元。\n学校公布宋思涵的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "D03_student_name_paren_id", "names": ["卢浩宇"], "identified": ["卢浩宇"], "text": "学生卢浩宇（20260108）交费。\n学校公布卢浩宇的期末排名。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "D04_digit_before_tongxue_parents", "names": ["张伟"], "identified": ["张伟"], "text": "01张伟同学屡教不改，现予以批评。\n年级大会公布01张伟的考试成绩。", "baseline": {"general": [[1, 1, 1]], "parents": [[0, 0, 0]]}}

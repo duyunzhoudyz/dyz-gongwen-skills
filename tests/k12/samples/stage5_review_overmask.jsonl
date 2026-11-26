@@ -1,0 +1,42 @@
+{"id": "OM01_student_phrases_1", "text": "学生安全工作由学校统一部署，学生健康档案严格保密。学校公布学生成绩排名。"}
+{"id": "OM02_student_phrases_2", "text": "学生家长须知：学生常规管理要求学生文明礼仪、学生自主学习、学生全面发展。请家长检查作业并签字。"}
+{"id": "OM03_student_phrases_3", "text": "学生高年级与学生低年级分别排课，学生成长记录由班主任填写，学校要求统一购买校服180元。"}
+{"id": "OM04_student_phrases_4", "text": "学生明晰作业要求，学生高峰期错峰放学，学生方圆百米内设护学岗。学校公布期末考试成绩排名。"}
+{"id": "OM05_student_phrases_5", "text": "学生安康成长、学生向阳而生、学生文具统一摆放、学生花名册不得外传。教务处补造家访记录。"}
+{"id": "OM06_student_phrases_6", "text": "学生常年坚持锻炼，学生日常行为规范落实到位，学生周一至周五开展课后服务。课后服务统一讲新课。"}
+{"id": "OM07_student_phrases_7", "text": "学生白板演示、学生黄码排查、学生平安返校、学生阳光体育活动有序开展。学校要求统一购买教辅资料60元。"}
+{"id": "OM08_student_phrases_8", "text": "学生秋游活动、学生春游活动、学生夏令营、学生文体活动均为自愿。班主任代收活动费80元。"}
+{"id": "OM09_tongxue_phrases_1", "text": "全体同学、各位同学、其他同学、其余同学、部分同学、个别同学、少数同学、多数同学均应遵守纪律。请家长检查作业并签字。"}
+{"id": "OM10_tongxue_phrases_2", "text": "高一同学、初二同学、优秀同学、困难同学、获奖同学、进步同学、参赛同学、报名同学、住校同学、走读同学共同参与。学校公布考试成绩排名。"}
+{"id": "OM11_tongxue_phrases_3", "text": "班长同学、值日同学、领操同学、朗诵同学、合唱同学、发言同学、文明同学、三好同学、标兵同学、模范同学、骨干同学上台领奖。请家长检查作业并签字。"}
+{"id": "OM12_tongxue_phrases_4", "text": "明德同学、向阳同学、阳光同学、平安同学、安康同学、和平同学、光明同学、先锋同学、春蕾同学展现良好风貌。学校公布考试成绩排名。"}
+{"id": "OM13_places_and_schools", "text": "海淀区教委、朝阳区教育局、浦东新区教育局、高明区教育局、安宁市教育局、中山市实验中学、向阳小学、明德中学、育才学校、岳麓区白云路。学校要求统一购买教辅资料80元。"}
+{"id": "OM14_policies_and_docs", "text": "落实“双减”政策和五项管理要求，执行《义务教育课程方案》《中小学教材管理办法》，建设平安校园、文明校园、阳光校园。学校公布期末考试成绩排名。"}
+{"id": "OM15_principal_teacher_prose", "text": "校长王建国在会上强调，副校长李明华分管德育，教务主任张敏、班主任赵志强、任课教师刘海燕具体落实。学校要求统一购买校服180元。"}
+{"id": "OM16_teacher_signature", "text": "联系人：陈建军（13800138000）\n审核人：周永康\n签发人：吴志明校长\n学校公布期末考试成绩排名。"}
+{"id": "OM17_md_teacher_table", "text": "| 教师姓名 | 任教学科 | 备注 |\n|---|---|---|\n| 王建国 | 语文 | 班主任代收教辅资料费60元 |\n| 李明华 | 数学 | 学校组织参加校外有偿补课 |"}
+{"id": "OM18_md_principal_table", "text": "| 校长姓名 | 职务 | 备注 |\n|---|---|---|\n| 张明德 | 校长 | 学校公布期末考试成绩排名 |"}
+{"id": "OM19_md_homeroom_table", "text": "| 班主任姓名 | 班级 | 备注 |\n|---|---|---|\n| 赵志强 | 三班 | 课后服务要求全体学生必须参加 |"}
+{"id": "OM20_md_reporter_table", "text": "| 填报人姓名 | 部门 | 收费项目 | 收费金额 |\n|---|---|---|---|\n| 刘文静 | 总务处 | 冬季校服 | 180元 |"}
+{"id": "OM21_md_parent_table", "text": "| 家长姓名 | 联系方式 | 备注 |\n|---|---|---|\n| 陈大勇 | 微信群 | 请家长检查批改家庭作业 |"}
+{"id": "OM22_csv_teacher_table", "table": [["教师姓名", "任教学科", "备注"], ["王建国", "语文", "学校公布期末考试成绩排名"], ["李明华", "数学", "学校统一购买校服180元"]], "filename": "OM22_csv_teacher_table.csv"}
+{"id": "OM23_csv_principal_table", "table": [["校长姓名", "职务", "备注"], ["张明德", "校长", "学校统一购买教辅资料80元"]], "filename": "OM23_csv_principal_table.csv"}
+{"id": "OM24_csv_contact_table", "table": [["联系人姓名", "部门", "备注"], ["周志刚", "德育处", "学校公布期末考试成绩排名"]], "filename": "OM24_csv_contact_table.csv"}
+{"id": "OM25_csv_duty_table", "table": [["负责人姓名", "整改任务", "备注"], ["吴建平", "规范收费", "班主任代收校服费180元"]], "filename": "OM25_csv_duty_table.csv"}
+{"id": "OM26_student_homograph_place", "text": "低保家庭学生安宁在安宁市就读，学校在家长群公布安宁的考试成绩。"}
+{"id": "OM27_student_homograph_school", "text": "低保家庭学生向阳在向阳小学就读，向阳小学公布考试成绩。"}
+{"id": "OM28_student_homograph_policy", "text": "低保家庭学生文明参加了文明校园创建，学校公布文明的考试成绩。"}
+{"id": "OM29_student_homograph_report_msg", "text": "低保家庭学生高明学习认真，学校在大会公布高明的考试成绩排名。"}
+{"id": "OM30_student_named_gaozhong", "text": "学生高明、文静同学参加活动。学校公布考试成绩排名。"}
+{"id": "OM_X1_xuesheng_he_jiazhang_jz003", "text": "考试结果应当单独告知学生和家长。学校在家长群公布期末考试成绩排名。"}
+{"id": "OM_X2_xuesheng_he_jiazhang_jz014", "text": "本班数学平均分85分，请单独告知学生和家长。"}
+{"id": "OM_X3_xuesheng_he_jiazhang_g01", "text": "学校面向学生和家长，将在大会公布期末考试成绩排名。"}
+{"id": "OM_X4_xuesheng_he_jiazhang_comma", "text": "请通知学生和家长，校服统一购买180元。"}
+{"id": "OM_X5_xuesheng_yangguang", "text": "学校开展学生阳光体育活动，严禁阳光体育流于形式；学校在大会公布期末考试成绩排名。"}
+{"id": "OM_X6_xuesheng_ankang", "text": "保障学生安康成长是头等大事。安康成工作纳入考核，学校公布期末考试成绩排名。"}
+{"id": "OM_X7_tongxue_mingde", "text": "明德同学在活动中表现积极，明德中学公布期末考试成绩排名。"}
+{"id": "OM_X8_xuesheng_he_laoshi", "text": "请学生和老师共同参与，学校统一购买教辅资料，并在大会公布期末考试成绩排名。"}
+{"id": "OM_X9_xuesheng_he_xuexiao", "text": "这是学生和学校共同的责任，学校公布考试成绩排名。"}
+{"id": "OM_X10_xuesheng_yu_jiazhang", "text": "学校将有关事项告知学生与家长，同时公布学生成绩排名。"}
+{"id": "OM_X11_xuesheng_ji_jiazhang", "text": "学校面向学生及家长发布通知，要求家长检查作业并签字。"}
+{"id": "OM_X12_csv_teacher_name_in_msg", "table": [["教师姓名", "学科", "说明"], ["高明", "数学", "学校公布高明班级考试成绩排名"]], "filename": "OM_X12_csv_teacher_name_in_msg.csv"}
