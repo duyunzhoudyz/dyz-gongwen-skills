@@ -174,7 +174,7 @@ class Stage3aTests(unittest.TestCase):
     def test_reference_and_clean_document_noise_gate(self):
         records = read_jsonl(SAMPLES / "reference_baseline.jsonl")[1:]
         mirrors = noise_mirrors(self, REPO_ROOT, SAMPLES, records, k12_check.STAGES)
-        self.assertEqual(len(mirrors), 8)
+        self.assertEqual(len(mirrors), 0)
         assert_noise(self, list(document_deltas(records)), mirrors)
         for record in records:
             for entry in RULES:

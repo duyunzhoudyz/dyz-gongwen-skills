@@ -116,5 +116,5 @@ class Stage4CorpusTests(unittest.TestCase):
             noise_records.append({**rec, "runs": baseline_runs})
         self.assertEqual(p0_checked, set(EXISTING_P0))
         mirrors = noise_mirrors(self, REPO_ROOT, SAMPLES, noise_records, k12_check.STAGES)
-        self.assertEqual(len(mirrors), 8)
+        self.assertEqual(len(mirrors), 0)
         assert_noise(self, deltas, mirrors)

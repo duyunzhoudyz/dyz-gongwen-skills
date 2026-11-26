@@ -22,9 +22,7 @@ def read_jsonl(path):
 
 
 def frozen_document_path(filename):
-    # 说明文档第 4 步修订。原始输入和断言继续用于复跑前几步快照。
-    if filename == REVIEW_ADDON:
-        return SAMPLES / "stage4_original" / "review-addon.md"
+    # 语料 README 为测试手册。原始输入继续用于复跑前几步快照。
     if filename == "tests/industry_corpus/README.md":
         return SAMPLES / "stage4_original" / "README.md"
     return REPO_ROOT / filename
