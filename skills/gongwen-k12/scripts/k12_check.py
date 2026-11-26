@@ -48,6 +48,9 @@
     5. 带“·”的姓名、外文名和昵称依赖共享姓名识别能力。
     6. 正文支持本人家庭、资助、健康和处分关系。含实名的禁令、假设、疑问句可能在 K12-G04 宽层报 P1，需人工排除。亲属身份和跨分句指代仍需人工核对。
     7. Markdown 姓名列按共享模块分级。Word 姓名列宽层报 P1；CSV、XLSX 姓名列仅登记遮蔽；表头不在共享模块支持范围内可能漏认。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+    8. 没有被识别为姓名、又恰好与固定业务词同形的名字（如“张贴”“班费”），新增规则的摘录会按业务词原样保留。
+    9. 评语入口的表格表头只写“学生”时，事实表对账提示（PY-017）可能引用评语里出现的其他学生姓名，与此前版本一致；评语入口结果仅供教师本人核对。
+    10. “班长同学”“高一同学”这类称呼、与地名校名同形的名字、以及“姓名（校医）”等带非学生角色括注的姓名列，可能被当作学生姓名遮蔽，只影响文件名与摘录里的显示，不影响检查结果。
     缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 评语编号遮蔽的已知局限：
@@ -301,13 +304,34 @@ def load_document(path: Path) -> Document:
             import openpyxl  # type: ignore
         except ImportError as exc:
             raise InputError("读取 .xlsx 需要 openpyxl，请先运行：pip install openpyxl") from exc
+        import xml.etree.ElementTree as ET
+        import zipfile
+        import zlib
+        from openpyxl.utils.exceptions import InvalidFileException, ReadOnlyWorkbookException  # type: ignore
+
+        xlsx_errors: Tuple[Any, ...] = (
+            InvalidFileException, ReadOnlyWorkbookException,
+            zipfile.BadZipFile, zipfile.LargeZipFile, zlib.error,
+            ET.ParseError, KeyError, IndexError, ValueError, OSError, EOFError,
+        )
+        try:
+            from lxml.etree import LxmlError  # type: ignore
+        except ImportError:
+            pass
+        else:
+            xlsx_errors = (*xlsx_errors, LxmlError)
+        wb = None
         try:
             wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
-        except Exception as exc:
+            if not wb.worksheets:
+                raise InputError(f"无法读取 {path.name}：工作簿中没有工作表")
+            ws = wb.worksheets[0]
+            rows = [[_cell(c) for c in row] for row in ws.iter_rows(values_only=True)]
+        except xlsx_errors as exc:
             raise InputError(f"无法读取 {path.name}：{exc}") from exc
-        ws = wb.worksheets[0]
-        rows = [[_cell(c) for c in row] for row in ws.iter_rows(values_only=True)]
-        wb.close()
+        finally:
+            if wb is not None:
+                wb.close()
         doc.tables = [[r for r in rows if any(r)]]
         doc.kind = "table"
     return doc

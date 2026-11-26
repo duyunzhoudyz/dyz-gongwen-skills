@@ -8,6 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import re
 import unittest
+import zipfile
 
 from tests.k12.test_k12_stage1 import REPO_ROOT, SAMPLES, k12_check, read_jsonl, stage4_corpus
 from tests.tools import test_local_toolbox_industry as toolbox_tests
@@ -98,7 +99,7 @@ COMMENT_PATHS = {
     "issues[PY-007].message": "基线即如此，相似度提示引用两个定位标签；逐字兼容硬规则（47b93e1、口径第 82、89 行、test_k12_stage1.py:217）",
     "issues[PY-008].message": "基线即如此，共用套句提示列举学生定位标签；逐字兼容硬规则（47b93e1、口径第 82、89 行、test_k12_stage1.py:217）",
     "issues[PY-015].message": "基线即如此，事实表对账提示引用未配对定位标签；逐字兼容硬规则（47b93e1、口径第 82、89 行、test_k12_stage1.py:217）",
-    "issues[PY-017].message": "基线即如此，仅限纯文本无表格 --facts 对账提示引用原引号/书名号或奖项名；逐字兼容硬规则（47b93e1、口径第 82、89 行、test_k12_stage1.py:217）",
+    "issues[PY-017].message": "基线即如此，仅限纯文本无表格或表头为“学生”的表格评语带 --facts 对账提示引用原引号/书名号或奖项名；逐字兼容硬规则（与 47b93e1 逐字一致，口径第 82、89 行、test_k12_stage1.py:217）",
 }
 
 
@@ -333,10 +334,106 @@ class Stage5Tests(unittest.TestCase):
                             rule = report["issues"][int(message[1])]["id"]
                             self.assertIn(f"issues[{rule}].message", COMMENT_PATHS)
                             if rule == "PY-017":
-                                self.assertTrue(facts and not k12_check._comment_tables(k12_check.load_document(path)))
+                                doc = k12_check.load_document(path)
+                                tables = k12_check._comment_tables(doc)
+                                student_header_only = bool(tables) and all(
+                                    any(re.sub(r"\s+", "", cell) == "学生" for cell in tbl[0])
+                                    and not any("姓名" in re.sub(r"\s+", "", cell) or "名字" in re.sub(r"\s+", "", cell)
+                                                for cell in tbl[0])
+                                    for tbl in tables if tbl
+                                )
+                                self.assertTrue(facts and (not tables or student_header_only))
                         else:
                             self.assertIn(re.sub(r"\[\d+\]", "[]", key), COMMENT_PATHS)
                     channels = outputs(k12_check, http, path, body, "comments", facts)
                     self.assertEqual(len(row["baseline"]), len(row["names"]))
                     for name, before in zip(row["names"], row["baseline"]):
                         self.assertEqual([channel.count(name) for channel in channels], before)
+
+    def test_review_r2_registered_name_precedes_report_word(self):
+        """B1：已登记姓名优先于 _REPORT_WORD（0 回显）；原样 W31-W34 为未识别同形词的已登记已知局限。"""
+        cases = (
+            ("W31", "张贴", "本班花名册登记的学生名字是张贴。",
+             "学校要求全体学生统一购买校服，张贴在校门口等候家长。"),
+            ("W32", "班费", "本班花名册登记的学生名字是班费。",
+             "学校要求教师收取班费的电话号码，再联系班费的家长。"),
+            ("W33", "保费", "本班花名册登记的学生名字是保费。",
+             "学校通知，保费必须购买校园意外险。"),
+            ("W34", "须办理", "本班花名册登记的学生名字是须办理。",
+             "学校通知各班必须统一购买校服，须办理负责接收登记表。"),
+        )
+        toolbox_tests.LocalToolboxK12CommentsHTTPTest.setUpClass()
+        self.addCleanup(toolbox_tests.LocalToolboxK12CommentsHTTPTest.tearDownClass)
+        http = toolbox_tests.LocalToolboxK12CommentsHTTPTest()
+        gw, _ = k12_check.shared_names()
+        with TemporaryDirectory() as tmp:
+            for cid, name, lead, line2 in cases:
+                # 1. 姓名已登记（学生姓名表）：先遮已登记姓名、再按保留词取摘录，三通道 0 回显。
+                reg_body = f"| 学生姓名 | 备注 |\n|---|---|\n| {name} | 正常 |\n{line2}"
+                reg_path = Path(tmp) / f"{cid}_registered.md"
+                reg_path.write_text(reg_body, encoding="utf8")
+                for mode in ("general", "parents"):
+                    with self.subTest(case=cid, variant="registered", entry=mode):
+                        channels = outputs(k12_check, http, reg_path, reg_body, mode)
+                        self.assertEqual([ch.count(name) for ch in channels], [0, 0, 0])
+                        issues = json.loads(channels[0])["issues"]
+                        target = "K12-G05" if mode == "general" else "JZ-006"
+                        excerpts = [i["excerpt"] for i in issues if i["id"] == target]
+                        self.assertTrue(any("〔姓名1〕" in ex for ex in excerpts), (cid, mode, issues))
+                # 2. 原样 W31-W34（已登记已知局限）：姓名表为空，新增摘录原样保留第二行固定业务词。
+                raw_body = f"{lead}\n{line2}"
+                raw_path = Path(tmp) / f"{cid}.txt"
+                raw_path.write_text(raw_body, encoding="utf8")
+                for mode in ("general", "parents"):
+                    with self.subTest(case=cid, variant="unregistered_known_limit", entry=mode):
+                        seen = []
+                        orig_add = gw.NameTable.add
+
+                        def record_add(table_obj, word):
+                            seen.append(word)
+                            return orig_add(table_obj, word)
+
+                        gw.NameTable.add = record_add
+                        try:
+                            report = getattr(k12_check, "check_" + mode)(raw_path)
+                        finally:
+                            gw.NameTable.add = orig_add
+                        self.assertEqual(seen, [], (cid, mode, seen))
+                        if mode == "general":
+                            excerpts = [i["excerpt"] for i in report["issues"] if i["id"] == "K12-G05"]
+                            self.assertTrue(any(name in ex for ex in excerpts), (cid, excerpts))
+
+    def test_review_r2_corrupt_xlsx_returns_input_error(self):
+        """B3：损坏工作表 XML 的 XLSX 在三个入口均返回退出码 2、无 traceback 且关闭工作簿句柄。"""
+        if not find_spec("openpyxl"):
+            self.skipTest("openpyxl 未安装")
+        from openpyxl import Workbook
+        with TemporaryDirectory() as tmp:
+            src = Path(tmp) / "X01-source.xlsx"
+            wb = Workbook()
+            wb.active.append(["学生姓名", "内容"])
+            wb.active.append(["周晓宁", "考了98分"])
+            wb.save(src)
+            wb.close()
+            bad = Path(tmp) / "X01-周晓宁.xlsx"
+            with zipfile.ZipFile(src) as zin, zipfile.ZipFile(bad, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+                for info in zin.infolist():
+                    data = zin.read(info)
+                    if info.filename == "xl/worksheets/sheet1.xml":
+                        data = data.replace(b"</sheetData>", b"</wrongSheetData>")
+                    zout.writestr(info, data)
+            for entry in ("general", "parents", "comments"):
+                for extra in (["--json"], []):
+                    with self.subTest(entry=entry, extra=extra):
+                        out, err = io.StringIO(), io.StringIO()
+                        with redirect_stdout(out), redirect_stderr(err):
+                            rc = k12_check.main([entry, str(bad), *extra])
+                        stderr = err.getvalue()
+                        self.assertEqual(rc, 2, (entry, extra, stderr))
+                        self.assertTrue(stderr.startswith("错误："), (entry, extra, stderr))
+                        self.assertNotIn("Traceback", stderr)
+                        self.assertNotIn("ParseError", stderr)
+                        if entry == "comments":
+                            self.assertNotIn("周晓宁", stderr)
+            # Windows 下若工作簿句柄未关闭，直接删除文件会触发 PermissionError。
+            bad.unlink()
