@@ -538,10 +538,10 @@ Further notes are in [使用须知](使用须知.md) (in Chinese).
 
 ## Releases and roadmap
 
-Current development version: `v1.3.0` (unreleased; `CHANGELOG.md` entry dated 2026-11-25). Latest published release: `v1.2.0` (2026-11-22). Full release history: [CHANGELOG.md](CHANGELOG.md).
+Current version: `v1.3.0` (released 2026-11-27). Previous release: `v1.2.0` (2026-11-22). Full release history: [CHANGELOG.md](CHANGELOG.md).
 
 <details>
-<summary>v1.3.0 changes (in development, unreleased)</summary>
+<summary>v1.3.0 changes</summary>
 
 - Classified-content gate hardened: the lightweight fast path no longer skips classification scanning; `secret_check.py` detects standalone and term-bearing classification marks, header/footer marks, markings such as `此件机密` ("this copy is secret") or `保密期限：10年` ("retention period: 10 years"), and trade-secret labels without false-flagging policy enumerations; the gate, general linter rules `PRI-005`/`PRI-006`, and org profile rules are generated from a single pattern source verified by a three-way consistency test (5 documented exception classes remain, such as quoted examples; see `CHANGELOG.md`). Standalone classification words on table or ledger rows are blocked for manual review.
 - Personal-name detection rebuilt as a shared module (`gw_names.py`) across the hospital, SOE, and K-12 checkers (anchor + candidate scoring, high confidence -> P0, low confidence -> P1), masking matched names in excerpts as `〔姓名N〕`. Clause-level exemptions and procedural-inversion rules are unified across the hospital and SOE packs on a conservative basis: disposal exemptions look only at the hit clause, source exemptions look at the hit clause and the immediately preceding clause, and "already executed + submitted for deliberation" combinations emit a P1 prompt while P0 is reserved for explicit phrases such as "started construction ahead of approval, completing procedures retroactively". These checks match surface wording and cover common paraphrases without guaranteeing exhaustiveness.
@@ -568,7 +568,7 @@ Current development version: `v1.3.0` (unreleased; `CHANGELOG.md` entry dated 20
 - [x] v1.0.0: all 22 skills released together; real-model benchmark; one-line installers and sector-pack flags
 - [x] v1.1.0: all five sector packs promoted to `Stable`; repository and suite renamed to `dyz-gongwen-skills`
 - [x] v1.2.0 (2026-11-22): Xinchuang air-gapped intranet suite, lightweight fast path & single-file HTML layout, prose engine & 300-doc corpus calibration, sector-pack checker upgrades (see expandable details above)
-- [ ] v1.3.0 (in development, unreleased): three-way classified-gate hardening, shared personal-name detector and expanded rules across hospital/SOE/K-12, 59-doc whole-text regression corpus, prompt omission markers (see expandable details above)
+- [x] v1.3.0 (2026-11-27): three-way classified-gate hardening, shared personal-name detector and expanded rules across hospital/SOE/K-12, 59-doc whole-text regression corpus, prompt omission markers (see expandable details above)
 
 **Planned**
 
