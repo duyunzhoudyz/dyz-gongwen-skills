@@ -7,7 +7,8 @@ import sys
 import tarfile
 
 from tests.k12.test_k12_check import HAS_DOCX, HAS_OPENPYXL, K12TestCase, SAMPLES, k12_check
-from tests.k12.test_k12_stage1 import frozen_document_path, probe_hits
+from tests.k12.test_k12_stage1 import REPO_ROOT, frozen_document_path, probe_hits
+from tests.k12.stage5_checks import stage5_expected
 
 
 def own_questions():
@@ -71,7 +72,14 @@ class Stage3bReview2Tests(K12TestCase):
                                 measured(k12_check, entry, path)
                         else:
                             result = measured(k12_check, entry, path)
-                            self.assertEqual(result, snapshots["values"][index])
+                            expected = snapshots["values"][index]
+                            if member.name.startswith("drafts_6337a43/") and isinstance(expected, list):
+                                # 同一整文的归档副本，核对字节后复用逐行迁移，独立探针仍逐项比原值。
+                                corpus = REPO_ROOT / "tests/industry_corpus/k12" / path.name
+                                self.assertEqual(path.read_bytes().replace(b"\r\n", b"\n"),
+                                                 corpus.read_bytes().replace(b"\r\n", b"\n"))
+                                expected = stage5_expected(path.name, entry, "义务教育", {"hits": expected})["hits"]
+                            self.assertEqual(result, expected)
                             # 七类空白 × 六条规则；JZ-006 在冻结基线已有 P0，仍由完整快照核对。
                             if (path.name[:3] in {"P22", "P23", "P24", "P25", "P26", "P27", "P28"}
                                     and "_JZ006" not in path.name and ("_JZ" in path.name) == (entry == "parents")):

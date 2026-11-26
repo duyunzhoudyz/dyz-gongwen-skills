@@ -10,6 +10,7 @@ from tests.k12.test_k12_stage1 import (
 )
 from tests.k12.test_k12_stage3a import baseline_losses, document_deltas
 from tests.k12.test_k12_stage3b import comment_digest
+from tests.k12.stage5_checks import stage5_expected
 
 
 CORPUS = "tests/industry_corpus/k12"
@@ -68,9 +69,7 @@ class Stage4CorpusTests(unittest.TestCase):
         for rec in records:
             filename = rec["file"]
             path = REPO_ROOT / filename
-            # 语料原文冻结。核稿清单允许修订说明，现行文本仍核对命中、评语摘要、镜像和噪声。
-            if filename != REVIEW_ADDON:
-                self.assertEqual(sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest(), rec["sha256"], filename)
+            self.assertEqual(sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest(), rec["sha256"], filename)
             lines = path.read_text(encoding="utf8").splitlines()
             entries = set(RULES)
             if filename in facts or filename == REVIEW_ADDON:
@@ -91,7 +90,7 @@ class Stage4CorpusTests(unittest.TestCase):
                         expected = second if expected is None else expected
                         baseline_runs[mode][stage] = base
                         actual = run_entry(k12_check, entry, path, stage, facts_path)
-                        self.assertEqual(actual, expected)
+                        self.assertEqual(actual, stage5_expected(path.name, mode, stage, expected))
                         for before in (base, second):
                             self.assertEqual(actual.get("error"), before.get("error"))
                             self.assertEqual(baseline_losses(before, actual), [])

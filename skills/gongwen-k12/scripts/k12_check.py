@@ -39,14 +39,14 @@
     K12-G04 敏感身份词除“低保家庭”“特困”等外，还含“受到（警告、记过等）处分的”后接“学生、同学”的写法
     （“受到警告处分的学生孙浩宇”）；“受到处分的学生名单已按规定报送”这类没有姓名的汇总写法不报。
     已知局限：
-    1. 没有敏感身份词等锚点的裸姓名识别不了，只有同一姓名在别处被锚点识别过，才靠全文姓名表遮蔽。
+    1. 没有锚点的裸姓名可能出现在旧规则摘录；称谓、身份关系或表格中已登记的姓名全文遮蔽。
     2. 身份词与姓名之间夹班号时，已覆盖“身份＋班级＋学生姓名＋列入名册”等关系；缺少明确谓词或隔分句时仍可能漏报。
     3. 与常用词同形的姓名（刘海、林海、黎明、高峰）只在有强证据时识别（姓名后紧跟“同学”等）；其余写法漏报。
     4. 两字少见姓或歧义姓的姓名、名字里含“会”“山”等非名用字的姓名、名字用字不在常见名用字表里的三字名，
        在词表外的后续动词下可能漏报；全文遮蔽是整串替换，可能多遮。
     5. 带“·”的姓名、外文名和昵称依赖共享姓名识别能力。
     6. 正文支持本人家庭、资助、健康和处分关系。含实名的禁令、假设、疑问句可能在 K12-G04 宽层报 P1，需人工排除。亲属身份和跨分句指代仍需人工核对。
-    7. Markdown 姓名列按共享模块分级。Word 姓名列宽层报 P1；仅有“名字”表头和 CSV、XLSX 姓名列可能漏报。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
+    7. Markdown 姓名列按共享模块分级。Word 姓名列宽层报 P1；CSV、XLSX 姓名列仅登记遮蔽；表头不在共享模块支持范围内可能漏认。锚点之后由“、”（名单语境下还有“，”）和连词“和、与、及、同、跟”连接的并列链：只要链中任一项已识别，链上其余姓氏开头的 2～4 字项（含与常用词同形的、复姓的）一律登记进姓名表并遮蔽，首项未识别而后项识别时回溯登记首项（宁可多遮，“单亲”“杜鹃花”可能被遮成〔姓名N〕）；边界：整条链上没有任何一项被识别时不登记；并列链之外的同形名、无锚点的姓名仍识别不了；同一锚点下的并列姓名合并成一条（摘录含全部占位符）。姓名表覆盖全部隐私规则，不分文书类型（是否报出仍按文书类型）。
     缺少 scripts/gw_names.py 或 gw_names.json、数据损坏时，所有子命令（含 mask、unmask）退出码 2，不静默降级。
 
 评语编号遮蔽的已知局限：
@@ -54,11 +54,12 @@
     长度小于 5 的确认编号只在确认位置遮蔽，正文重复的短编号可能原样回显。
     长度不少于 5 且含数字的确认编号会全文遮蔽，即使同值也出现在年月、次数等普通数量里。
     带标签的编号后面，取值区间内的数字会一并遮蔽，包括作为整体处理的小数和点分编号。
-    想保留的数量请用逗号隔开或写在汉字之后。
+    评语里没有明确分段的空格串按一个编号处理。想保留的数量请用逗号隔开或写在汉字之后。
     全角数字、QQ 号或微信号等未约定的标签、用等号分隔的短编号、拆在两列再连写的超短编号可能无法识别。
     真实学号或考号形如 S 加 2～4 位数字时，会按本机脱敏定位码保留。只出现在文件名里的手机号也可能原样回显。
 
 输入：.txt、.md、.csv；.docx 需要 python-docx，.xlsx 需要 openpyxl，未安装时给出安装提示并返回 2。
+Python 3.9 读取含 NUL 字节的畸形 CSV 会报输入错误并退出。
 三个检查入口均按现有起草说明标记截断正文。收费、姓名和编号的已知局限见本包 README。
 
 收费、补课与排名宽层的已知局限：
@@ -66,11 +67,11 @@
     校外非典型班名与信息移交表达（如衔接班、强化班、特训班、共享花名册）可能漏报。
     显式收费后紧接“免费发放”等尾句时，前项收费可能被压制；“未报名学生须缴纳研学费”
     省去“的”字时可能漏报。转告禁止参加校外收费补习班后加收尾分句，可能触发 P1。
-    句尾“吧、呀”加句号仍可在完整消费的反转构式中产生新增 P0。
+    排名反转句尾“吗！”“呢！”在义务教育仍可能保留 P0；句尾“吧、呀”加句号也可能产生新增 P0。
     复合或按期计费单位（如每生每月、按学期）可能漏报；非后果动词用“不许”或带引号的部分
     条文引用可能报 P1。教师受训的修饰语或地点超出封闭清单时，仍可能保留基线 P0 或报 P1。
     无发布动词的隐性排名（如全班第一名、倒数第三名）只由 parents 基线检查。
-    收费表逐行检查正金额。明确项目列认“收费项目、收费项目名称、费用名称、费用项目、收费名称、收费科目、收费明细、
+    没有收费动词的冒号单价可能漏报。收费表逐行检查正金额。明确项目列认“收费项目、收费项目名称、费用名称、费用项目、收费名称、收费科目、收费明细、
     缴费项目、缴费明细、缴费名称、代收项目、代收名称”。可配“金额、费用、单价、标准、费用标准”，也可配明确金额列
     （“收费、缴费、代收”之一加“标准、金额、单价、价格、费用”之一）。泛称“项目、名称、类别”只能配明确金额列。
     比较前去除列头空白及“（元）”“（元/人）”等计价单位。其他组合如“项目｜金额”“项目名称｜收费标准”
@@ -337,10 +338,10 @@ def mask_digits(text: str) -> str:
     return re.sub(r"\d{6,}", lambda m: m.group(0)[:3] + "*" * (len(m.group(0)) - 5) + m.group(0)[-2:], text)
 
 
-def mask_names(table: Any, text: str) -> str:
+def mask_names(table: Any, text: str, *, fragment: bool = True) -> str:
     """用全文姓名表遮蔽摘录里的姓名。摘录两端可能把姓名截断（如“……低保户王小”），
     端点处残留的姓名片段（至少 2 字）也一并换成占位符（实现在共享模块 NameTable.mask_fragment）。"""
-    return table.mask_fragment(text)
+    return table.mask_fragment(text) if fragment else table.mask(text)
 
 
 def excerpt_of(text: str, start: int, end: int, radius: int = 10) -> str:
@@ -1721,8 +1722,8 @@ def check_comments(path: Path, facts_path: Optional[Path] = None, stage: str = "
 
     def mask_input_names(value: str, *, fragment: bool = False) -> str:
         parts = COMMENT_OUTPUT_TOKEN_RE.split(value)
-        mask = table.mask_fragment if fragment else table.mask
-        return "".join(mask(part) if i % 2 == 0 else part for i, part in enumerate(parts))
+        return "".join(part if i % 2 else mask_names(table, part, fragment=fragment)
+                       for i, part in enumerate(parts))
 
     for it in issues:
         it.excerpt = mask_input_names(it.excerpt, fragment=True)
@@ -1973,6 +1974,76 @@ def _word_table_names(doc, lines, names, table, gw, lex):
     return issues
 
 
+# 新增摘录保留固定业务词、金额和姓名占位，未分类的原文区间由一个省略号代替。
+_REPORT_WORD = re.compile(
+    r"〔姓名\d+〕|[\d.,、，。：:；;\s]+|[一二三四五六七八九十]+、|收费安排|"
+    r"班主任|教务处|年级组|学校|各班|教师|全体|学生|家长|必须|一律|要求|统一|须|"
+    r"缴纳|缴齐|交齐|收取|代收|购买|订购|订阅|办理|组织|参加|提供|向(?=校外(?:培训|辅导)机构)|"
+    r"校外|有偿|培训机构|补课|学生名单|名单|电话|学习用品费|演出服装费用|"
+    r"意外伤害保险|保险|研学费|校服费|校服|教辅资料|报刊|讲义费|资料费|"
+    r"交通费|活动费|班费|练习册|教材|(?<=\d)元|普通|内容|属于|资助对象|课后服务|在籍|通报批评|"
+    r"总分|前十名|的|学生名单|一并|张贴|在|校门口|宣传栏"
+)
+
+
+_REPEATED_PAIR = re.compile(r"([\u3400-\u9fff]{2,4})[和与及、]([\u3400-\u9fff]{2,4}?)(?=的|等|[，。；])")
+
+
+def _review_report(doc, lines, entry, stage, issues, added, table):
+    """姓名表先补齐，新增摘录只复制固定词或姓名占位，最后递归遮蔽全部字段。"""
+    gw, lex = shared_names()
+    if "review-roles" not in _K12_ANCHOR_CACHE:
+        _K12_ANCHOR_CACHE["review-roles"] = gw.compile_anchors({
+            "prefix": [{"re": r"(?:学生|同学)[：:]?\s*", "strength": 3}],
+        }) + _k12_anchors(gw)[1]
+    anchors = _K12_ANCHOR_CACHE["review-roles"]
+    for raw in lines:
+        table.add_hits(gw.find_names(raw, anchors, lex))
+    if doc.kind == "docx":
+        for rendered, _ in _review_tables(doc, lines):
+            for raw in rendered:
+                table.add_hits(gw.find_names(raw, anchors, lex))
+    # 遮蔽入口额外接受明确的“名字”表头；仍由共享模块判断格内候选，不能据此生成告警。
+    native = (doc.tables if doc.kind == "table" else parse_md_tables(lines) if doc.kind == "text" else
+              [rows for rows, after in zip(doc.tables, doc.table_after_paragraph) if after <= len(lines)])
+    for rows in native:
+        if rows and (doc.kind == "table" or "名字" in rows[0]):
+            header = ["姓名" if label == "名字" else label for label in rows[0]]
+            for row in gw.find_table_names(render_md_table([header, *rows[1:]]), lex, "k12").values():
+                table.add_hits(row.hits)
+    # 并列后项可能多取一个动词字。另一处相同并列组有明确右界时补登记较短姓名。
+    registered = set(table.names())
+    shorter = {name[:end] for name in registered for end in range(2, len(name))}
+    for raw in (lines if shorter else ()):
+        for match in _REPEATED_PAIR.finditer(raw):
+            first, second = match.groups()
+            if second in shorter and any(first[-n:] in registered for n in (2, 3, 4)):
+                table.add(second)
+    new_items = {id(item) for item in added}
+    for item in issues:
+        excerpt = mask_names(table, item.excerpt)
+        if id(item) in new_items:
+            position = 0
+            pieces = []
+            for token in _REPORT_WORD.finditer(excerpt):
+                if token.start() > position:
+                    pieces.append("…")
+                pieces.append(token[0])
+                position = token.end()
+            if position < len(excerpt):
+                pieces.append("…")
+            excerpt = "".join(pieces)
+        item.excerpt = excerpt
+    issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
+    return table.mask_output({
+        "mode": entry,
+        "file": table.mask(doc.path.name),
+        "stage": stage,
+        "summary": summarize(issues, "\n".join(lines)),
+        "issues": [i.to_dict() for i in issues],
+    })
+
+
 def check_parents(path: Path, stage: str = "义务教育") -> dict:
     """面向家长文书检查。识别出的学生姓名（敏感身份锚点、JZ-012 点名批评）进全文姓名表，excerpt 统一遮蔽。"""
     gw, lex = shared_names()
@@ -2028,16 +2099,7 @@ def check_parents(path: Path, stage: str = "义务教育") -> dict:
     added = evidence.added("parents", stage) + privacy_issues
     issues = merge_rule_issues(issues, added, exemptions)
     table.add_table_masks(table_rows.values())
-    for it in issues:
-        it.excerpt = mask_names(table, it.excerpt)
-    issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
-    return table.mask_output({
-        "mode": "parents",
-        "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
-        "stage": stage,
-        "summary": summarize(issues, "\n".join(lines)),
-        "issues": [i.to_dict() for i in issues],
-    })
+    return _review_report(doc, lines, "parents", stage, issues, added, table)
 
 
 G04_RULE = (
@@ -2294,16 +2356,7 @@ def check_general(path: Path, stage: str = "义务教育") -> dict:
     added.extend(privacy_issues)
     issues = merge_rule_issues(issues, added)
     table.add_table_masks(table_rows.values())
-    for it in issues:  # 全文姓名表定稿后再统一遮蔽，保证后文单独出现的姓名也被遮住
-        it.excerpt = mask_names(table, it.excerpt)
-    issues.sort(key=lambda i: (LEVELS.index(i.level), i.line))
-    return table.mask_output({
-        "mode": "general",
-        "file": table.mask(path.name),  # 文件名里与正文已识别姓名相同的部分也遮蔽
-        "stage": stage,
-        "summary": summarize(issues, "\n".join(lines)),
-        "issues": [i.to_dict() for i in issues],
-    })
+    return _review_report(doc, lines, "general", stage, issues, added, table)
 
 
 _PAIR_RULES = {"JZ-006": "K12-G05", "JZ-008": "K12-G09"}
@@ -2350,7 +2403,7 @@ def _clause_issue(rule, level, line, excerpt):
         metadata = paired or next(item for item in PARENT_RULES if item.id == rule)
         return Issue(rule, level, metadata.category, metadata.message, metadata.suggestion, metadata.basis,
                      line=line, excerpt=excerpt)
-    _, _, _, category, _, message, suggestion, basis = GENERAL_RULES[0]
+    _, _, _, category, _, message, suggestion, basis = next(item for item in GENERAL_RULES if item[0] == rule)
     return Issue(rule, level, category, message, suggestion, basis, line=line, excerpt=excerpt)
 
 
@@ -2506,6 +2559,12 @@ class _ClauseEvidence:
                         key = ("sentence", clause.sentence)
                     groups[key].append(clause)
             for clauses in groups.values():
+                for c, kind in self.module.school_notice_evidence(graph, clauses):
+                    rule = ({"posted_roster": "JZ-003", "public_criticism": "JZ-012"} if entry == "parents"
+                            else {"after_school": "K12-G03"}).get(kind)
+                    if rule:
+                        line = bisect_right(offsets, c.span.start) + row_offset
+                        results.append(_clause_issue(rule, "P1", line, c.text))
                 visible = {clause.id: self.module.visible_evidence(clause) for clause in clauses}
                 combined = " ".join(visible.values())
                 actions = [action for clause in clauses for action in graph.actions_for(clause.id)]
@@ -2888,6 +2947,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         else:
             report = check_parents(Path(args.file), args.stage)
             text = render_check_text(report)
+    except csv.Error:
+        print("错误：CSV 格式错误，无法读取表格", file=sys.stderr)
+        return 2
     except InputError as exc:
         print(f"错误：{exc}", file=sys.stderr)
         return 2

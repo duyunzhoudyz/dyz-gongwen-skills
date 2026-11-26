@@ -1,0 +1,6 @@
+{"id": "C01", "names": ["王小明", "李小红"], "text": "王小明：你这次画的示意图很清楚，下次试试自己检查最后一步。\n李小红：你这次画的示意图很清楚，下次试试自己检查最后一步。", "baseline_fields": {"entries[0].label": "王小明", "entries[1].label": "李小红", "similar_pairs[0].a": "王小明", "similar_pairs[0].b": "李小红", "issues[0].label": "李小红", "issues[0].message": "王小明 与 李小红 相似度 1.00，读起来像同一条评语", "issues[1].label": "王小明", "issues[2].label": "李小红"}, "baseline": [[4, 2, 0], [5, 3, 0]]}
+{"id": "C02", "names": ["杨晓芸"], "text": "杨晓芸：你太笨了。别再这样说杨晓芸。", "baseline_fields": {"entries[0].label": "杨晓芸", "issues[0].label": "杨晓芸", "issues[1].label": "杨晓芸"}, "baseline": [[3, 2, 0]]}
+{"id": "C03", "names": ["马小明"], "text": "S01：低保家庭学生马小明这学期进步明显。", "baseline_fields": {}, "baseline": [[0, 0, 0]]}
+{"id": "C04", "names": ["吴雨桐"], "filename": "吴雨桐.md", "table": [["学生姓名", "评语"], ["吴雨桐", "你要认真。"]], "baseline_fields": {}, "baseline": [[0, 0, 0]]}
+{"id": "C05", "names": ["李小红"], "text": "李小红：你很认真，学号：202612312。", "baseline_fields": {"entries[0].label": "李小红", "issues[0].label": "李小红", "issues[1].label": "李小红"}, "baseline": [[3, 2, 0]]}
+{"id": "C06", "names": ["刘文静"], "text": "S01：你和低保家庭学生刘文静一起完成了板报。", "baseline_fields": {}, "baseline": [[0, 0, 0]]}

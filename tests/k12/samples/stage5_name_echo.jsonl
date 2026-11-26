@@ -1,0 +1,92 @@
+{"id": "P01_lowincome_then_rank", "names": ["周明宇"], "text": "低保家庭学生周明宇近期表现稳定。\n年级大会拟公布周明宇的期末考试成绩和排名。", "identified": ["周明宇"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P02_poor_colon_then_crit", "names": ["林佳悦", "陈泽宇"], "text": "特困学生名单：林佳悦、陈泽宇。\n请家长检查林佳悦、陈泽宇的作业并签字。", "identified": ["林佳悦", "陈泽宇"], "baseline": {"general": [[0, 0, 0], [0, 0, 0]], "parents": [[0, 0, 0], [0, 0, 0]]}}
+{"id": "P03_singleparent_then_fee", "names": ["许嘉豪"], "text": "单亲家庭学生许嘉豪平时乐于助人。\n学校统一购买校服，要求许嘉豪交费200元。", "identified": ["许嘉豪"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P04_bare_name_in_new_G05_fee", "names": ["韩志远"], "text": "学校要求学生韩志远统一购买教辅资料，每套60元。", "identified": ["韩志远"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P05_bare_name_in_new_G06_fee", "names": ["沈梦琪"], "text": "班主任代收沈梦琪的课后服务费180元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P06_bare_name_in_new_G09_tutor", "names": ["唐子墨"], "text": "学校组织学生唐子墨参加校外有偿补课班。", "identified": ["唐子墨"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P07_bare_name_in_new_JZ006_wide", "names": ["宋思涵"], "text": "家委会向学生宋思涵收取班费150元。", "identified": ["宋思涵"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P08_bare_name_in_new_JZ008_wide", "names": ["曹宇轩"], "text": "班主任推荐曹宇轩去校外辅导机构上课。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P09_bare_name_in_double_neg_rank", "names": ["邓博文"], "text": "学校不会不公布邓博文的考试成绩排名。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P10_bare_name_in_double_neg_score", "names": ["冯梓萱"], "text": "班主任不可能不公开冯梓萱的数学平均分85分。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P11_depression_prefix_then_backdate", "names": ["郭雨泽"], "text": "患有抑郁症的学生郭雨泽需要多鼓励。\n学校要求为郭雨泽倒签家访记录。", "identified": ["郭雨泽"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P12_anxiety_prefix_then_G05", "names": ["胡欣怡"], "text": "患有焦虑症的学生胡欣怡考前紧张。\n学校强制胡欣怡统一购买学习资料。", "identified": ["胡欣怡"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P13_disability_then_G09", "names": ["姜明轩"], "text": "另有残疾学生姜明轩，家长已提交材料。\n学校将姜明轩的电话提供给校外培训机构。", "identified": ["姜明轩"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P14_leftbehind_then_G01", "names": ["康梓涵"], "text": "八年级（1）班留守学生康梓涵由外婆照管。\n拟在班会公布康梓涵等人的考试成绩。", "identified": ["康梓涵"], "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "P15_punish_suffix_then_G02", "names": ["卢浩宇"], "text": "七年级（2）班卢浩宇同学被记过后情绪低落。\n教务处要求补造卢浩宇的谈话记录。", "identified": ["卢浩宇"], "baseline": {"general": [[1, 1, 1]], "parents": [[0, 0, 0]]}}
+{"id": "P16_assisted_gap_then_JZ001", "names": ["马诗涵"], "text": "受助学生马诗涵本学期新增纳入补助名单。\n请家长检查批改马诗涵的家庭作业。", "identified": ["马诗涵"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P17_parallel_names_with_fee", "names": ["彭宇航", "钱佳宁"], "text": "建档立卡学生彭宇航、钱佳宁享受营养餐补助。\n学校强制彭宇航、钱佳宁统一购买教辅。", "identified": ["彭宇航", "钱佳宁"], "baseline": {"general": [[0, 0, 0], [0, 0, 0]], "parents": [[0, 0, 0], [0, 0, 0]]}}
+{"id": "P18_sibling_or_relative_then_G05", "names": ["任思远"], "text": "学生任思远的父亲患有重病。\n学校统一订购校服，要求任思远缴纳120元。", "identified": ["任思远"], "baseline": {"general": [[0, 0, 0]], "parents": [[2, 2, 2]]}}
+{"id": "P19_bare_name_in_info_diversion", "names": ["石子涵"], "text": "学校将石子涵的手机号和名单提供给校外培训机构。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P20_md_table_sensitive_plus_fee", "names": ["陶欣悦"], "text": "| 学生姓名 | 困难类型 | 收费项目 | 收费金额 |\n|---|---|---|---|\n| 陶欣悦 | 低保家庭 | 教辅资料 | 80元 |", "identified": ["陶欣悦"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P21_md_table_plain_name_plus_fee", "names": ["万俊熙"], "text": "| 姓名 | 缴费项目 | 收费标准 |\n|---|---|---|\n| 万俊熙 | 研学活动费 | 300元 |", "identified": ["万俊熙"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P22_md_table_no_name_header_fee", "names": ["魏嘉怡"], "text": "| 参与者 | 收费项目 | 收费金额 |\n|---|---|---|\n| 魏嘉怡 | 冬季校服 | 180元 |", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P23_parents_named_criticism_plus_new_fee", "names": ["夏宇辰"], "text": "夏宇辰同学屡教不改，现予以点名批评。\n家委会向夏宇辰收取资料费50元。", "identified": ["夏宇辰"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P24_weak_anchor_diagnosis_then_rank", "names": ["严语桐"], "text": "严语桐同学属于孤独症谱系，需特殊关照。\n学校在家长群公布严语桐的期末考试排名。", "identified": ["严语桐"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "P25_question_G04_then_G09", "names": ["叶明轩"], "text": "学生叶明轩是否属于低保家庭？\n学校组织叶明轩参加校外有偿补课。", "identified": ["叶明轩"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P26_prohib_G04_then_G05", "names": ["于梓墨"], "text": "严禁公开低保家庭学生于梓墨的信息。\n学校统一订购教辅，要求于梓墨交费40元。", "identified": ["于梓墨"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "P27_filename_bare_name_G05", "names": ["袁思琪"], "text": "学校统一购买校服，每套150元，由班主任代收。", "filename": "P27_filename_bare_name_G05_袁思琪.txt", "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "P28_student_tutor_with_G04_claim", "names": ["曾浩然"], "text": "班主任称曾浩然确诊多动症，同时组织曾浩然参加校外有偿补课。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M01_lowincome_g01", "names": ["张明轩"], "text": "低保家庭学生张明轩本学期进步较大。\n学校在大会通报张明轩的考试成绩。", "identified": ["张明轩"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M02_orphan_jz001", "names": ["李婉清"], "text": "孤儿学生李婉清由班主任结对帮扶。\n请家长检查李婉清的数学作业并签字。", "identified": ["李婉清"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M03_jiandang_list", "names": ["王梓涵", "刘思源", "陈浩宇"], "text": "建档立卡学生名单：王梓涵、刘思源、陈浩宇。\n学校张贴王梓涵、刘思源、陈浩宇的期末排名。", "identified": ["王梓涵", "刘思源", "陈浩宇"], "baseline": {"general": [[0, 0, 0], [0, 0, 0], [0, 0, 0]], "parents": [[0, 0, 0], [0, 0, 0], [0, 0, 0]]}}
+{"id": "M04_depression_g02", "names": ["赵雨桐"], "text": "患有抑郁症的学生赵雨桐近期情绪平稳。\n教务处要求补造赵雨桐的家访记录。", "identified": ["赵雨桐"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M05_punished_g01", "names": ["孙志强"], "text": "因违纪受到警告处分的学生孙志强已写检讨。\n学校公布孙志强的考试分数。", "identified": ["孙志强"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M06_post_anchor_adhd", "names": ["周欣怡"], "text": "周欣怡同学有多动症倾向，任课教师需多提醒。\n请家长每晚批改周欣怡的作业。", "identified": ["周欣怡"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M07_jz012_then_jz001", "names": ["吴俊杰"], "text": "吴俊杰同学多次抄袭作业，现予以批评。\n请家长检查吴俊杰的假期作业。", "identified": ["吴俊杰"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M08_parallel_and_word", "names": ["郑晓峰", "高峰"], "text": "特困学生郑晓峰和高峰获发助学金。\n年级大会公布郑晓峰和高峰的考试成绩。", "identified": ["郑晓峰", "高峰"], "baseline": {"general": [[0, 0, 0], [1, 1, 1]], "parents": [[0, 0, 0], [1, 1, 1]]}}
+{"id": "M09_negated_g04_still_masks", "names": ["钱子墨"], "text": "学校不公开低保家庭学生钱子墨的个人信息。\n学校在家长群公布钱子墨的考试排名。", "identified": ["钱子墨"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M10_md_table_sensitive_col", "names": ["冯诗涵"], "text": "| 学生姓名 | 困难类型 |\n|---|---|\n| 冯诗涵 | 低保家庭 |\n\n学校张贴冯诗涵的期末成绩排名。", "identified": ["冯诗涵"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M11_md_table_plain_col", "names": ["蒋宇轩"], "text": "| 学生姓名 | 班级 |\n|---|---|\n| 蒋宇轩 | 三班 |\n\n学校公布蒋宇轩的考试成绩。", "identified": ["蒋宇轩"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M12_bare_name_JZ006_voluntary_skip_vs_fee", "names": ["韩梦瑶"], "text": "校服补订由学校统一代办，坚持自愿原则，不参加不收费、可自行购买，韩梦瑶可自行决定。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M13_bare_name_JZ008_teacher_exempt", "names": ["谢思远"], "text": "学校组织教师谢思远参加校外急救培训。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "M14_bare_name_G04_word_inline_fee", "names": ["罗浩然"], "text": "学校要求罗浩然购买校园意外伤害保险。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "CSV_fee_name", "names": ["王小明"], "filename": "fee_list.csv", "table": [["学生姓名", "困难类型", "收费项目", "收费金额"], ["王小明", "低保家庭", "学校统一购买教辅资料", "180元"]], "identified": ["王小明"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 0]]}}
+{"id": "XLSX_fee_name", "names": ["王小明"], "filename": "fee_list.xlsx", "table": [["学生姓名", "困难类型", "收费项目", "收费金额"], ["王小明", "低保家庭", "学校统一购买教辅资料", "180元"]], "identified": ["王小明"], "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 0]]}}
+{"id": "DOCX_mingzi_fee", "names": ["王小明"], "filename": "fee_list.docx", "table": [["名字", "收费项目", "收费金额"], ["王小明", "学校统一购买教辅资料", "180元"]], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 1]]}}
+{"id": "DOCX_xingming_fee", "names": ["王小明"], "filename": "fee_list.docx", "table": [["学生姓名", "收费项目", "收费金额"], ["王小明", "学校统一购买教辅资料", "180元"]], "identified": ["王小明"], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N01-1", "names": ["吴雨桐"], "text": "校方要求学生吴雨桐统一购买教辅资料。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N01-2", "names": ["杨雨欣"], "text": "杨雨欣同学被记过后离校。\n校方要求学生杨雨欣统一购买教辅资料。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N01-3", "names": ["沈梦琪"], "text": "校方要求学生沈梦琪统一购买教辅资料。\n患有焦虑症的学生沈梦琪考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N02-1", "names": ["杨雨欣"], "text": "班主任代收杨雨欣的课后服务费125元。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N02-2", "names": ["沈梦琪"], "text": "沈梦琪同学被记过后离校。\n班主任代收沈梦琪的课后服务费125元。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N02-3", "names": ["卫昭然"], "text": "班主任代收卫昭然的课后服务费125元。\n患有焦虑症的学生卫昭然考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N03-1", "names": ["沈梦琪"], "text": "学校推荐沈梦琪参加校外有偿培训。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N03-2", "names": ["卫昭然"], "text": "卫昭然同学被记过后离校。\n学校推荐卫昭然参加校外有偿培训。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N03-3", "names": ["陈嘉树"], "text": "学校推荐陈嘉树参加校外有偿培训。\n患有焦虑症的学生陈嘉树考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N04-1", "names": ["卫昭然"], "text": "年级不会不公布卫昭然的考试成绩排名。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N04-2", "names": ["陈嘉树"], "text": "陈嘉树同学被记过后离校。\n年级不会不公布陈嘉树的考试成绩排名。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N04-3", "names": ["吴雨桐"], "text": "年级不会不公布吴雨桐的考试成绩排名。\n患有焦虑症的学生吴雨桐考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N05-1", "names": ["陈嘉树"], "text": "学校把陈嘉树的学生名单提供给校外培训机构。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N05-2", "names": ["吴雨桐"], "text": "吴雨桐同学被记过后离校。\n学校把吴雨桐的学生名单提供给校外培训机构。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N05-3", "names": ["杨雨欣"], "text": "学校把杨雨欣的学生名单提供给校外培训机构。\n患有焦虑症的学生杨雨欣考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N06-1", "names": ["吴雨桐"], "text": "请家长检查批改吴雨桐的家庭作业。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N06-2", "names": ["杨雨欣"], "text": "杨雨欣同学被记过后离校。\n请家长检查批改杨雨欣的家庭作业。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N06-3", "names": ["沈梦琪"], "text": "请家长检查批改沈梦琪的家庭作业。\n患有焦虑症的学生沈梦琪考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N07-1", "names": ["杨雨欣"], "text": "学校为杨雨欣倒签谈话记录。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[1, 1, 1]], "parents": [[0, 0, 0]]}}
+{"id": "N07-2", "names": ["沈梦琪"], "text": "沈梦琪同学被记过后离校。\n学校为沈梦琪倒签谈话记录。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[1, 1, 1]], "parents": [[0, 0, 0]]}}
+{"id": "N07-3", "names": ["卫昭然"], "text": "学校为卫昭然倒签谈话记录。\n患有焦虑症的学生卫昭然考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[1, 1, 1]], "parents": [[0, 0, 0]]}}
+{"id": "N08-1", "names": ["沈梦琪"], "text": "学校要求沈梦琪参加课后服务，课后服务统一讲新课。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "N08-2", "names": ["卫昭然"], "text": "卫昭然同学被记过后离校。\n学校要求卫昭然参加课后服务，课后服务统一讲新课。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "N08-3", "names": ["陈嘉树"], "text": "学校要求陈嘉树参加课后服务，课后服务统一讲新课。\n患有焦虑症的学生陈嘉树考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[1, 1, 1]], "parents": [[1, 1, 1]]}}
+{"id": "N09-1", "names": ["卫昭然"], "text": "请卫昭然的家长转发点赞。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N09-2", "names": ["陈嘉树"], "text": "陈嘉树同学被记过后离校。\n请陈嘉树的家长转发点赞。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N09-3", "names": ["吴雨桐"], "text": "请吴雨桐的家长转发点赞。\n患有焦虑症的学生吴雨桐考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}
+{"id": "N10-1", "names": ["陈嘉树"], "text": "班主任不可能不公开陈嘉树的数学平均分。", "filename": "正文.txt", "hidden": false, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N10-2", "names": ["吴雨桐"], "text": "吴雨桐同学被记过后离校。\n班主任不可能不公开吴雨桐的数学平均分。", "filename": "正文.txt", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "N10-3", "names": ["杨雨欣"], "text": "班主任不可能不公开杨雨欣的数学平均分。\n患有焦虑症的学生杨雨欣考前紧张。", "filename": "正文.md", "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "T1-1", "names": ["孙小红"], "filename": "回访孙小红.csv", "table": [["学生姓名", "收费项目", "收费金额"], ["孙小红", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "T1-2", "names": ["赵雨桐"], "filename": "回访赵雨桐.csv", "table": [["姓名", "收费项目", "收费金额"], ["赵雨桐", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "T1-3", "names": ["李华"], "filename": "回访李华.csv", "table": [["学生姓名", "收费项目", "收费金额"], ["李华", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "T2-1", "names": ["孙小红"], "filename": "回访孙小红.xlsx", "table": [["学生姓名", "收费项目", "收费金额"], ["孙小红", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "T2-2", "names": ["赵雨桐"], "filename": "回访赵雨桐.xlsx", "table": [["姓名", "收费项目", "收费金额"], ["赵雨桐", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "T2-3", "names": ["李华"], "filename": "回访李华.xlsx", "table": [["学生姓名", "收费项目", "收费金额"], ["李华", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[2, 2, 0]]}}
+{"id": "T3-1", "names": ["孙小红"], "filename": "回访孙小红.docx", "table": [["学生姓名", "收费项目", "收费金额"], ["孙小红", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "T3-2", "names": ["赵雨桐"], "filename": "回访赵雨桐.docx", "table": [["姓名", "收费项目", "收费金额"], ["赵雨桐", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "T3-3", "names": ["李华"], "filename": "回访李华.docx", "table": [["学生姓名", "收费项目", "收费金额"], ["李华", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[1, 1, 0]], "parents": [[1, 1, 0]]}}
+{"id": "T4-1", "names": ["孙小红"], "filename": "回访孙小红.md", "table": [["学生姓名", "收费项目", "收费金额"], ["孙小红", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "T4-2", "names": ["赵雨桐"], "filename": "回访赵雨桐.md", "table": [["姓名", "收费项目", "收费金额"], ["赵雨桐", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "T4-3", "names": ["李华"], "filename": "回访李华.md", "table": [["学生姓名", "收费项目", "收费金额"], ["李华", "全体学生必须购买校服", "180元"]], "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "T5", "names": ["郑子轩"], "filename": "补充.docx", "paragraph": "本学期缴费安排如下：", "table": [["姓名", "收费项目", "收费金额"], ["郑子轩", "冬季校服", "180元"]], "hidden": true, "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "T6", "names": ["钟语嫣"], "filename": "补充.docx", "paragraph": "本学期缴费安排如下：", "table": [["名字", "收费项目", "收费金额"], ["钟语嫣", "冬季校服", "180元"]], "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "B01", "names": ["向元"], "text": "学校要求向元购买校园意外险。", "baseline": {"general": [[0, 0, 0]], "parents": [[0, 0, 0]]}}
+{"id": "B02", "names": ["向元"], "text": "班主任代收向元的课后服务费30元。", "baseline": {"general": [[0, 0, 0]], "parents": [[1, 1, 1]]}}

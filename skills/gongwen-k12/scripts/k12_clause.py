@@ -340,7 +340,7 @@ _EXIT = re.compile(r"不参加不收费|不参加不缴费|未报名不收费|�
                    r"可自行(?:购买|订购)|不作强制要求|不强制|可(?:自由)?退出|可自愿选择是否参加")
 _EXIT_WITHOUT_PAYMENT = re.compile(r"不参加不(?:收费|缴费)|(?:不|未)报名不收费|不购买不收费")
 _NON_COMPULSORY = re.compile(r"自愿|可以|可(?:自行|自由|购买|退出)")
-_PROJECT = re.compile(r"课后服务(?:费|收费)?|研学(?:活动|旅行|费|费用)?|意外伤害保险(?:费)?|"
+_PROJECT = re.compile(r"(?:校园)?意外险|课后服务(?:费|收费)?|研学(?:活动|旅行|费|费用)?|意外伤害保险(?:费)?|"
                       r"校服(?:费)?|教辅(?:资料|材料|费)?|资料费|材料费|班费|活动费|报名费|"
                       r"报刊|练习册|安全手册|补习费|保险费|教材")
 _PROJECT_CELL = re.compile(r"(?:[^\d，；：|。]{1,18})(?:费|保险|手册|教材|资料|校服|教辅|报刊|服务|活动|研学|练习册)")
@@ -2368,6 +2368,11 @@ _IDENTITY_PRECISE = tuple(map(re.compile, (
     + r"(?:由(?:祖父母|外祖父母|外婆|祖母|祖父)照料|需要特别照顾)",
 )))
 _IDENTITY_WIDE = tuple(map(re.compile, (
+    _CLASSROOM + _PREFIX_STATUS + _PERSON_SLOT + r"由(?:祖父母|外祖父母|外婆|祖母|祖父)(?:照管|照看)$",
+    _CLASSROOM + _PERSON_SLOT + r"同学被(?:警告|记过|记大过)(?:处分)?后",
+    r"(?:另有|还有)" + _PREFIX_STATUS + _PERSON_SLOT + r"$",
+    _PREFIX_STATUS + _PERSON_SLOT + r"(?:本学期|本学年)(?:新增|新近)?纳入[^，。；]{1,12}(?:名单|名册)$",
+    r"(?:患有|确诊为)" + _HEALTH + r"的学生" + _PERSON_SLOT + r"(?=考试前|考前|近期|目前|需要)",
     _PUPIL + r"(?:疑似|可能)?" + _STATEMENT + r"(?:吗|呢|吧)?$",
     _PUPIL + r"(?:评定为" + _STATUS + r"|登记为(?:可能)?患病|自身患病|因" + _HEALTH + r"住院)",
     _PUPIL + r"为" + _STATUS + r"(?:$|(?:积极)?(?:募集|筹集))",
@@ -2550,6 +2555,8 @@ def _bare_fee_projects(clauses, positions, current, sentence):
 
 
 # 保留金额的符号和中文小数整数部分，避免将“负零点五元”当作“五元”。
+_UNIT_PRICE = re.compile(r"每(?:人|生|份|套|册|件)\s*" + _BASIS_AMOUNT.pattern)
+_COLLECTION_AGENT = re.compile(r"由(?:学校|班主任|财务处|家委会)(?:统一)?代收")
 _TABLE_AMOUNT = re.compile(r"(?P<minus>[-−－负]\s*)?(?:[零〇一二两三四五六七八九十百千万]+点)?" + _BASIS_AMOUNT.pattern)
 
 
@@ -2618,7 +2625,8 @@ def unsupported_amounts(graph, *, word_lines=()):
                         and graph.clauses[c.previous].text.endswith("退")):
                     continue
                 related = [a for a in active if a is c or table is not None and a.project == c.project
-                           or a.previous == c.id and _basis_projects(raw)
+                           or a.previous == c.id and (_basis_projects(raw) or
+                              _UNIT_PRICE.fullmatch(raw) and _COLLECTION_AGENT.fullmatch(a.text))
                            or c.previous == a.id and _BASIS_STANDARD.search(_BASIS_TITLE.sub("", a.text))]
                 # 本句明确以“项目费＋每生／每月……金额”陈列单价。
                 standard = amount and re.search(r"费(?:每生|每人)(?:每月|每学期|每年)?\s*$", raw[:amount.start()])
@@ -2633,6 +2641,28 @@ def unsupported_amounts(graph, *, word_lines=()):
                 if projects and any(projects <= keys for keys in sources):
                     continue
                 yield UnsupportedAmount(c.span.line, c.text)
+
+
+_COMPULSORY_SERVICE = re.compile(r"课后服务(?:全体|所有)(?:在籍|在校)?学生(?:均须|必须|一律)参加")
+_POSTED_ROSTER = re.compile(r"(?:考试)?总分前" + _ORDINAL + r"名的学生名单(?:一并|统一)?"
+                            r"(?:张贴|公示)在(?:校门口|学校|年级)?(?:宣传栏|公告栏)")
+_PUBLIC_CRITICISM = re.compile(r"(?:现|决定)?(?:予以|给予)?通报批评")
+
+
+def school_notice_evidence(graph, clauses):
+    """识别强制参加、张贴名次名单和点名批评。句外引述不能排除，全部仅供宽层。"""
+    named = False
+    for c in clauses:
+        if "同学" in c.text:
+            named = True
+        if wide_suppressed(graph, c):
+            continue
+        if _COMPULSORY_SERVICE.fullmatch(c.text):
+            yield c, "after_school"
+        elif _POSTED_ROSTER.fullmatch(c.text):
+            yield c, "posted_roster"
+        elif named and _PUBLIC_CRITICISM.fullmatch(c.text):
+            yield c, "public_criticism"
 
 
 def split_clauses(text: str, *, paragraph_starts: tuple[int, ...] = ()) -> ClauseGraph:
