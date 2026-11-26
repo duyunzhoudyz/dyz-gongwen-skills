@@ -10,7 +10,7 @@ from tests.k12.stage3a_checks import (
     document_exemptions, hits, noise_mirrors, probe_exemptions,
 )
 from tests.k12.test_k12_stage1 import (
-    REGRESSION, REPO_ROOT, SAMPLES, frozen_document_path, k12_check, read_jsonl, run_entry, stage4_corpus,
+    REGRESSION, REPO_ROOT, REVIEW_ADDON, SAMPLES, frozen_document_path, k12_check, read_jsonl, run_entry, stage4_corpus,
 )
 
 
@@ -175,7 +175,21 @@ class Stage3aTests(unittest.TestCase):
         records = read_jsonl(SAMPLES / "reference_baseline.jsonl")[1:]
         mirrors = noise_mirrors(self, REPO_ROOT, SAMPLES, records, k12_check.STAGES)
         self.assertEqual(len(mirrors), 0)
-        assert_noise(self, list(document_deltas(records)), mirrors)
+        # 噪声门禁对 review-addon.md 取现行文件及其 stage4_corpus 基线，与旧副本回归解耦。
+        live_review = next(rec for rec in stage4_corpus() if rec["file"] == REVIEW_ADDON)
+        live_path = REPO_ROOT / REVIEW_ADDON
+        live_lines = live_path.read_text(encoding="utf8").splitlines()
+        deltas = list(document_deltas([r for r in records if r["file"] != REVIEW_ADDON]))
+        for entry in RULES:
+            for stage in k12_check.STAGES:
+                actual = run_entry(k12_check, entry, live_path, stage)
+                if entry == "general":
+                    self.assertFalse({hit for hit in hits(actual) if hit[2] in {18, 34, 46}}, (stage, actual))
+                before = live_review["runs"][entry][stage][0]
+                for rule, level, line in sorted(hits(actual) - hits(before)):
+                    deltas.append((live_review["category"], REVIEW_ADDON, entry, stage,
+                                   rule, level, line, live_lines[line - 1]))
+        assert_noise(self, deltas, mirrors)
         for record in records:
             for entry in RULES:
                 for stage in k12_check.STAGES:

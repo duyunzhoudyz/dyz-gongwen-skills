@@ -26,6 +26,15 @@ DOCUMENT_ADDITIONS = {
         "general": {("K12-G05", "P1", 11)},
     },
 }
+# 仅作用于第 4 步修订前的旧副本 stage4_original/review-addon.md（按其 SHA-256 绑定，不放行现行文件）。
+ARCHIVE_ADDITIONS = {
+    (
+        "skills/gongwen-k12/references/review-addon.md",
+        "2b43a955dd6872044a44721f96b23360ab757fb40f436920368904dc02d64981",
+    ): {
+        "general": {("K12-G05", "P1", 18), ("K12-G05", "P1", 34), ("K12-G05", "P1", 46)},
+    },
+}
 
 
 def hits(report):
@@ -58,6 +67,8 @@ def document_exemptions(record, entry, before):
 
 def document_additions(filename, entry, stage, records, mirrors):
     allowed = DOCUMENT_ADDITIONS.get(filename, {}).get(entry, set()).copy()
+    archive_sha = records.get(filename, {}).get("sha256")
+    allowed.update(ARCHIVE_ADDITIONS.get((filename, archive_sha), {}).get(entry, ()))
     if entry == "general":
         frozen = records[filename]["runs"]["parents"][stage]
         allowed.update((PAIRS[rule], "P1", line) for rule, _, line in hits(frozen)
