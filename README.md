@@ -1,4 +1,4 @@
-<!-- README_SYNC: source=working-tree; updated=2026-11-26 -->
+<!-- README_SYNC: source=working-tree; updated=2026-11-27 -->
 
 <div align="center">
 
@@ -19,7 +19,7 @@
 [![Skills](https://img.shields.io/badge/skills-22-brightgreen)](#技能地图)
 [![Platforms](https://img.shields.io/badge/platforms-7%20Agent%20tools%20%7C%20web%20LLM%20%7C%20intranet-lightgrey)](#快速开始)
 
-[快速开始](#快速开始) · [技能地图](#技能地图) · [直接这样说](#直接这样说) · [效果](#效果) · [信创内网](#信创与政务内网离线使用) · [常见问题](#常见问题) · [关注与交流](#关注与交流)
+[快速开始](#快速开始) · [信创内网](#信创与政务内网离线使用) · [技能地图](#技能地图) · [直接这样说](#直接这样说) · [效果](#效果) · [常见问题](#常见问题) · [关注与交流](#关注与交流)
 
 </div>
 
@@ -34,12 +34,12 @@
 </div>
 
 <!-- AD-SLOT -->
-## 推广：作者的其他项目
+## 推广
 
 使用本仓库无需购买或注册下列服务。
 
-- [Sub4AI 小铺](https://www.16688.com.cn/shop/SUB4AI)：主营 AI 订阅与数字权益，品类丰富（9 个分类、数十款商品），包括主流 AI 订阅直充（月卡、年卡等多档）、AI 成品号、Notion / Adobe Express / Suno / Tavily 等工具与软件权益、邮箱，帮普通用户解决海外 AI 订阅充值难、支付不便的问题。自助选购，支付宝、微信付款，多数商品付款后自动发货，直充类 24 小时自助、约 1 分钟到账（以商品页为准）；交易由 16688 担保交易平台托管，提供查单与投诉通道，部分直充商品提供 30 天质保，部分商品可联系客服开票。另提供海外 AI 订阅开通、续费与账号交付服务，覆盖个人使用与团队采购；企业、高校与团队采购支持批量采购，配合报价、合同、对公结算与开票（[sub4ai.com](https://sub4ai.com)）。
-- [1KeyAPI](https://1keyapi.com)：稳若基建，并发无阻，专为科研评测与生产构建，一钥汇聚全球前沿模型（Claude、GPT、Gemini、Grok 与通义千问、DeepSeek、Kimi、智谱 GLM），专为大规模科研评测与高并发生产打造。以多线路热备、全协议原生兼容与 Token 级精确对账，为每一次关键推理提供稳定保障；换模型，不改代码，兼容 Anthropic 与 OpenAI 双协议（`/v1/messages`、`/v1/chat/completions`、`/v1/responses`），现有 SDK 与 IDE 插件零改造接入。每一分钱都说得清：人民币按 Token 计费、明码标价，按模型、部门、项目统计，账单可导出，官网公示各模型价格与官方参考价对比并提供月度费用试算；额度收得住，分组消费上限、限流与超额告警，线路波动时多渠道健康检查、故障自动切换。面向高校、科研院所与企业生产，支持按学院 / 课题组 / 项目分配额度、用量报表导出对接财务、长上下文会话保持，支持对公转账、开具发票；中国大陆用户请按所在地法律法规与平台服务条款按需使用。
+- [Sub4AI 小铺](https://www.16688.com.cn/shop/SUB4AI)：主营 AI 订阅与数字权益，品类丰富（9 个分类、数十款商品），含主流 AI 订阅直充（月卡、年卡等多档）、AI 成品号、Notion / Adobe Express / Suno / Tavily 等工具与软件权益、邮箱，帮普通用户解决海外 AI 订阅充值难、支付不便的问题。支持自助选购，支付宝、微信付款，多数商品付款后自动发货，直充类 24 小时自助、约 1 分钟到账（以商品页为准）；交易由 16688 担保交易平台托管并提供查单与投诉通道，部分直充商品提供 30 天质保，部分商品可联系客服开票。团队与机构采购另见 [sub4ai.com](https://sub4ai.com)：提供海外 AI 订阅开通、续费与账号交付服务，支持企业、高校与团队批量采购，配合报价、合同、对公结算与开票。
+- [1KeyAPI](https://1keyapi.com)：稳若基建，并发无阻，专为科研评测与生产构建。一个 Key 接入 Claude、GPT、Gemini、Grok 与通义千问、DeepSeek、Kimi、智谱 GLM 等国内外主流模型系列；换模型不改代码，兼容 Anthropic（`/v1/messages`）与 OpenAI（`/v1/chat/completions`、`/v1/responses`）双协议，现有 SDK 与 IDE 插件零改造接入，以多线路热备、故障自动切换与长上下文会话保持提供稳定保障。每一分钱都说得清：人民币按 Token 计费、明码标价，官网公示各模型价格与官方参考价对比并提供月度费用试算；额度收得住，支持按学院 / 课题组 / 部门 / 项目统计与分配消费上限、限流与超额告警，账单与用量报表可导出对接财务。支持对公转账、开具发票；中国大陆用户请按所在地法律法规与平台服务条款按需使用。
 <!-- /AD-SLOT -->
 
 ---
@@ -54,18 +54,18 @@ dyz-gongwen-skills 是一套公文写作 Skill，共 22 个（17 个核心 + 5 �
 |---|---|---|
 | 数据与案例 | 缺了就编 | 只用你给的材料，缺的标【待补】。v1.0 评测 136 条防编造用例，装 skill 编造 0 次，不装 66 次 |
 | 格式 | 自己排，缺字体易乱版 | GB/T 9704-2012 七种版式 Word；缺字体如实告知，不静默顶替。同台评测版式审计 97.2 分，次优 79.6 分 |
-| 文风 | AI 腔、碎短句、动辄“必须/严禁” | 站位分寸、句子诊所与 6 篇节奏范文；13 类机检覆盖 41 种文书；文风指纹对照 300 篇公开公文语料校准 |
-| 态度 | 对冲、免责声明 | 措辞按行文方向分层；需核实事项外置到起草说明，正文干净 |
+| 文风 | AI 腔、碎短句、动辄“必须/严禁” | 内置开篇站位、长短句改法与 6 篇节奏范文；13 类机检覆盖 41 种文书，对照 300 篇公开公文语料校准句长与强制词密度 |
+| 态度 | 模棱两可（动辄“可能”“建议考虑”）、加免责声明 | 措辞按上行、平行、下行分层明确；需核实事项放到正文外的起草说明，正文干净 |
 | 保密 | 无拦截 | 密级标识、“内部资料”“工作秘密”字样先停手提醒；提示词版与离线包可在内网使用 |
-| 轻重 | 一刀切 | 1000 字内轻快件一步直出；标准件机检门控；重型件八关深审 |
-| 单位差异 | 通用模板 | 7 类单位画像、5 种角色模式、5 个行业包及专用机检（医院 39 条、国企 40 项、高校 11 条） |
+| 轻重 | 一刀切 | 1000 字内轻快件一步直出；标准件先跑机检，超标才加跑润色核稿；重型件八关深审 |
+| 单位差异 | 通用模板 | 7 类单位画像、5 种角色模式、5 个行业包及专用机检（医院 39 条、国企 40 项、中小学 38 条、高校 11 条等） |
 
 可核实的证据：
 
 - 规则可溯源：每条格式、标点、数字规则标注条款号，整理在 [shared/rules/](shared/rules/)；机检引擎 13 类检查、41 种文书（[gongwen_lint.py](shared/scripts/gongwen_lint.py)）。
 - 测试：全仓库 3191 项单元测试通过（1 项 Windows 符号链接用例跳过），CI 门禁含校验、测试与零外联审计。
 - 评测：v1.0 全量 372 条用例、2671 项检查，装 skill 通用检查通过率 99.1%，不装 68.7%；与 8 个同类项目同台对比见[效果](#效果)。
-- 离线：信创工具箱只监听 127.0.0.1，不联网、不保存正文；全部离线脚本经零外联 AST 静态审计并纳入 CI；8 条防线抽测在 deepseek-chat 上双模式 8/8 通过。
+- 离线：信创工具箱只监听 127.0.0.1，不联网、不保存正文；全部离线脚本通过代码级零外联自动审计（`security_audit.py --strict`，每次提交自动拦截任何联网代码）；8 条防线抽测在 deepseek-chat 上双模式 8/8 通过。
 - 局限也写在明处：银河麒麟/统信 UOS 真机验收尚未完成；评测评审是 LLM 不是人工；姓名识别是启发式检查。详见[效果](#效果)与[常见问题](#常见问题)。
 
 怎么用？三步：选环境装好（或复制提示词），直接说需求，要 Word 就说“排成红头”。下面[快速开始](#快速开始)按环境给出可复制的命令。
@@ -116,7 +116,7 @@ bash install.sh
 
 脚本会检查 Python（3.9+），询问是否安装排版依赖，然后把 17 个核心 skill 装进本机找到的全部 Agent 工具。只想预览会装到哪里而不写入文件：Windows 末尾加 `-WhatIf`，macOS/Linux 加 `--dry-run`。
 
-查看支持哪些工具，或只装到某一个工具（以 Qwen Code 为例）：
+查看支持哪些工具，或只装到某一个工具（以 Qwen Code 为例；macOS / Linux 将 python 换为 python3）：
 
 ```bash
 python tools/install.py --list-targets
@@ -148,10 +148,10 @@ npx skills add duyunzhoudyz/dyz-gongwen-skills
 
 ### 方式五：让 Agent 自己装
 
-把这段话直接复制发给你的 Agent：
+把下面这段话发给你的 Agent（按需把最后一行的 `gongwen-hospital` 改成你所在的行业包；不需要行业包就改成“行业包暂不安装”）：
 
 ```text
-请把 https://github.com/duyunzhoudyz/dyz-gongwen-skills 中 skills/ 目录下的 skill 安装到你的 skills 目录。
+请把 https://github.com/duyunzhoudyz/dyz-gongwen-skills 中 skills/ 目录下的核心 skill 安装到你的 skills 目录。
 其中 gongwen-grassroots、gongwen-hospital、gongwen-university、gongwen-k12、gongwen-soe 是行业包，
 只装我需要的 gongwen-hospital。装好后告诉我有哪些可用。
 ```
@@ -196,11 +196,11 @@ bash xinchuang/启动工具箱.sh
 .\xinchuang\启动工具箱.bat
 ```
 
-不想开工具箱，单条命令直接排 HTML / 做机检 / 查 OFD（全零依赖，纯 Python 标准库）：
+不想开工具箱，单条命令直接排 HTML / 做机检 / 查 OFD（全零依赖，纯 Python 标准库；Windows 下把 `python3` 换为 `python`）：
 
 ```bash
 python3 skills/gongwen-format/scripts/build_html.py draft.txt -o output.html
-python3 shared/scripts/gongwen_lint.py draft.txt --fingerprint --baseline
+python3 skills/gongwen-review/scripts/gongwen_lint.py draft.txt --fingerprint --baseline
 python3 skills/gongwen-format/scripts/ofd_check.py output.ofd
 ```
 
@@ -209,7 +209,8 @@ python3 skills/gongwen-format/scripts/ofd_check.py output.ofd
 - 排版：双击打开 [xinchuang/templates/](xinchuang/templates/) 里的 5 套 GB/T 9704 空白 `.docx` 模板（白头、红头、纪要、签报、综合材料）粘贴文字；允许用宏时可用 `skills/gongwen-format/assets/wps_gongwen_macro.js`；Linux 字体与 WPS 菜单对照见 `skills/gongwen-format/references/xinchuang.md`。
 - 写稿：复制 [dist/prompts-bundles/](dist/prompts-bundles/)（4 套单对话合集）或 [dist/prompts-lite/](dist/prompts-lite/)（22 份 ≤4000 字精简版）贴入单位内网大模型对话。
 
-#### 信息中心：离线包构建、入网复核与内网部署
+<details>
+<summary><strong>信息中心管理员：离线包构建、入网复核、防线抽测与内网知识库部署（点击展开）</strong></summary>
 
 外网机一键打包信创离线包（自动附带《安全自查报告.md》《SHA256SUMS.txt》、[入网评估与部署指引](xinchuang/单位信息中心入网评估与部署指引.md) 与 [15 分钟真机验收清单](xinchuang/信创真机验收清单.md)）：
 
@@ -224,20 +225,22 @@ python3 tools/build_wheelhouse.py --arch all
 python3 tools/build_prompts.py --xinchuang --offline
 ```
 
-信息中心 30 秒入网复核（在审核机解压离线包后粘贴：校验完整性 + 零外联 AST 静态审计）：
+信息中心 30 秒入网复核（解压离线包 `dyz-gongwen-skills-offline-*.zip` 后校验文件哈希，并核阅包内根目录自带的《安全自查报告.md》）：
 
 ```bash
 sha256sum -c SHA256SUMS.txt
-python3 tools/security_audit.py --strict
 ```
 
-内网大模型 8 条公文防线一键抽测（适配 vLLM / Ollama / SGLang / 昇腾 MindIE 等 OpenAI 兼容接口；无系统提示词框的内网网页对话保留 `--system-mode first-message`）：
+如使用完整源码仓库（`git clone` 或上方 `Code → Download ZIP`），可独立复跑零外联 AST 静态审计与内网大模型 8 条防线抽测（适配 vLLM / Ollama / SGLang / 昇腾 MindIE 等 OpenAI 兼容接口；无系统提示词框的内网网页对话保留 `--system-mode first-message`）：
 
 ```bash
+python3 tools/security_audit.py --strict
 python3 evals/xinchuang/smoke_eval.py --base-url http://127.0.0.1:8000/v1 --model deepseek-r1-32b --system-mode first-message
 ```
 
 内网知识库统一入口（Dify / MaxKB / FastGPT / 扣子开源版）：导入 [dist/rag-kb/](dist/rag-kb/) 的 16 文件 462 片知识切片（Dify 可直接导入已关闭 Agent 模式的 `dify-app-template.yml`），全单位干部通过内网浏览器访问，个人电脑零安装。详见 [evals/xinchuang/](evals/xinchuang/) 与[入网评估与部署指引](xinchuang/单位信息中心入网评估与部署指引.md)。
+
+</details>
 
 ### 排版依赖与卸载
 
@@ -249,7 +252,7 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple python-docx openpyxl
 
 没有装这些依赖或没有 Python 也能用，见上方信创零依赖方案。
 
-卸载：安装命令末尾加 `--uninstall`，确认清单后再加 `--yes`。
+卸载：通过方式一或 `tools/install.py` 安装的，在原安装命令末尾加 `--uninstall` 预览清单，确认后再加 `--yes` 删除；Claude Code 插件市场安装的用 `/plugin uninstall gongwen@dyz-gongwen-skills`。
 
 ---
 
@@ -374,7 +377,7 @@ dyz-gongwen-skills/
 
 ## 轻重分层流程
 
-按材料轻重自动分流，机检门控按需触发润色与核稿：
+按材料轻重自动分流，标准件先跑机检，只有指标超阈值时才加跑润色与核稿：
 
 | 档位 / 场景 | 路线 |
 |---|---|
@@ -494,16 +497,12 @@ dyz-gongwen-skills/
 
 ## 适用人群
 
-不需要有多好的文笔，也不需要懂编程，只要你在用 AI 写公文：
+不需要有多好的文笔，也不需要懂编程，只要你在用 AI 写材料：
 
-- 机关事业单位文字工作者：通知、请示、报告、函、纪要走量大、时间紧，格式和态度一个不能差。
-- 需要自己写材料的中层干部：讲话稿、述职报告、工作要点，写好了提形象，写差了丢分。
-- 公立医院行政与科室人员：等级评审自评报告、绩效分析、RCA/PDCA、科室主任述职，涉及 DRG、CMI、院感等指标口径，容易写错；医院行业包按公立医院的发文体系和指标规范处理。
-- 高校学院与职能部门：审核评估自评、学科评估材料、申报书形式审查、校内签报和“学校发还是部门发”的判断；高校行业包按两级发文和评估特有的文书逻辑判断发文层级、检查漏项。
-- 国有企业综合与法务部门：“三重一大”议题材料、董事会议案与决议、总经理办公会纪要、ESG 报告、合规管理报告；国企行业包核对前置研究，并区分决议和纪要。
-- 中小学教师与教务：学期计划总结、督导评估自评、家长会讲话、学生评语、致家长一封信，面向家长的文风和督导迎检的口径都有讲究。
-- 乡镇街道社区工作人员：迎检汇报、居民通知、应急通知、工作台账，面向群众的通知要通俗准确，迎检材料要对上检查清单。
-- 被 AI 生成稿折磨过的人：编造、AI 腔、格式错误、态度含糊，每一条都要自己动手改。
+- 机关事业单位文字工作者：通知、请示、报告、函、纪要走量大、时间紧，文种、格式和行文分寸不能出错。
+- 需要自己写材料的中层干部：讲话稿、述职报告、工作要点，缺本人事例时不替你瞎编，先搭准提纲。
+- 医院、高校、中小学、国企、乡镇社区人员：各有专用行业包守住行业口径与红线（如医院 DRG/CMI 与患者脱敏、高校两级发文与活页匿名审查、中小学禁排名与本地脱敏评语、国企“三重一大”前置程序、基层群众通知禁越权处罚），各包覆盖文书见上方[技能地图](#技能地图)。
+- 被 AI 生成稿折磨过的人：编造数据、AI 腔、格式乱版、满篇“仅供参考”，不用再逐句手改。
 
 ---
 
@@ -515,7 +514,7 @@ dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文�
 
 **2. 没有 Claude，能用吗？**
 
-能。Skill 版支持 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Qwen Code、Kimi Code CLI 等工具。没有这些工具的，用提示词版：打开 `dist/prompts/`，复制文件内容粘贴到 DeepSeek、豆包、Kimi 等网页大模型，或单位内网部署的模型。
+能。Skill 版支持 Claude Code、Codex、Cursor、Gemini CLI、GitHub Copilot、Qwen Code、Kimi Code CLI 等工具。没有这些工具的，用提示词版：打开 `dist/prompts-bundles/`（单对话合集）、`dist/prompts-lite/`（≤4000 字精简版）或 `dist/prompts/`（完整版），复制文件内容粘贴到 DeepSeek、豆包、Kimi 等网页大模型，或单位内网部署的模型。
 
 **3. 单位的材料能直接贴进去吗？**
 
@@ -568,8 +567,8 @@ dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文�
 - [x] v0.4「行业包」：基层、医院、高校、中小学、国企
 - [x] v1.0.0：22 个 skill 一次发布；真实模型评测；一键安装脚本和行业包选装
 - [x] v1.1.0：五个行业包均升为 Stable；仓库与套件更名为 dyz-gongwen-skills
-- [x] v1.2.0：国产信创与政务内网全链路适配；轻重分层快路径与单文件 HTML 轻排版；老笔杆子笔力引擎、规范用词库与 300 篇语料校准的文风指纹；五个行业包深度升级、专用机检全覆盖与 6 套实跑示范样本
-- [ ] v1.3.0（开发中，未发布）：涉密闸门加固；通用机检禁用词表与规范用词修正；医院、国企专检补规则（39 条、40 项）；三包共用姓名识别模块与分句豁免、程序倒置口径统一；中小学行业包机检重做与审稿清单同步；入库 59 篇整篇文书回归语料；提示词版省略标记；信创真机验收清单补齐
+- [x] v1.2.0（2026-11-22）：信创与政务内网离线套件、轻快件快路径与 HTML 轻排版、笔力引擎与 300 篇语料文风校准、五行业包机检升级（详见上方展开项）
+- [ ] v1.3.0（开发中，未发布）：涉密闸门三方同源加固、医院/国企/中小学共用实名识别与规则扩充、59 篇整文回归语料、提示词省略标记（详见上方展开项）
 
 **后续计划**
 
@@ -609,6 +608,14 @@ dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文�
 ## 致谢
 
 本项目借鉴了多个开源项目的思路或内容，许可证和借鉴方式见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)，逐条明细见 [docs/借鉴记录/](docs/借鉴记录/)。
+
+---
+
+## 作者的其他开源项目
+
+- [dyz-plain-talk-decoder](https://github.com/duyunzhoudyz/dyz-plain-talk-decoder)（人话解码器）：信息降噪与实质提炼助手。用 AI Agent 自动抓取、分类、祛魅与核查文章、通稿和视频，剥离废话与利益方滤镜，讲清事实、潜台词和建议。
+- [dyz-med-paper-skills](https://github.com/duyunzhoudyz/dyz-med-paper-skills)（医学论文写作 Skills）：面向中国医生与医学研究生的医学论文写作 Agent Skills，32 个技能覆盖 PubMed 文献检索、统计分析、中英写作、选刊投稿与审稿修回，适用于 Claude Code、Codex。
+- [dyz-patent-copyright-skills](https://github.com/duyunzhoudyz/dyz-patent-copyright-skills)（专利与软著 Skills）：专利、软件著作权与技术标准工作的 Agent Skills 与本地工具，只按给定材料起草和核对，产出为待专业审阅的内部候选。
 
 ---
 
