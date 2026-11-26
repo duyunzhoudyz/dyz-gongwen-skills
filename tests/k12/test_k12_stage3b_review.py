@@ -9,9 +9,9 @@ from tests.k12.test_k12_stage1 import probe_hits
 from tests.k12.test_k12_stage3b import comment_digest
 
 
-# 首评样例原封存。复审裁决撤去只有“项目”或“费用”作项目列的表头证据。
+# 首评样例原封存。“项目”配明确收费金额、收费标准可命中；“费用”不是项目列。
 _GENERIC_TABLE_CASES = {"G06_gap_04_col_header_biaozhun_plain"} | {
-    f"新R3-{kind}-{index}" for kind in ("MD", "Word") for index in range(10, 19)
+    f"新R3-{kind}-{index}" for kind in ("MD", "Word") for index in (10, 13, 14, 15, 16, 17, 18)
 }
 
 

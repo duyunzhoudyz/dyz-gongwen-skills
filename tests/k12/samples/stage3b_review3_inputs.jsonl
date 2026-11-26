@@ -1,0 +1,98 @@
+{"id":"S01_bang_sp_g04","text":"学期结束！ 学生王小明属于资助对象。\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"S02_bang_q_sp_g04","text":"第一句！ ？ 学生王小明属于资助对象。\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"S03_bang_q_sp_tutor_g","text":"第一句！ ？   班主任组织学生参加校外有偿补课。\r\n","expected":{"general":[["K12-G09","P0",1]],"parents":[["JZ-008","P0",1]]}}
+{"id":"S04_bang_q_sp_tutor_p","text":"第一句！ ？   班主任组织学生参加校外有偿补课。\r\n","expected":{"general":[["K12-G09","P0",1]],"parents":[["JZ-008","P0",1]]}}
+{"id":"S05_bang_q_tab_fee_g","text":"第一句！ ？\t学校统一购买校服。\r\n","expected":{"general":[["K12-G05","P0",1]],"parents":[["JZ-006","P0",1]]}}
+{"id":"S06_bang_q_tab_fee_p","text":"第一句！ ？\t学校统一购买校服。\r\n","expected":{"general":[["K12-G05","P0",1]],"parents":[["JZ-006","P0",1]]}}
+{"id":"S07_bang_q_ideo_base_g04","text":"第一句！ ？　低保家庭学生周梓涵获得资助。\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"S08_bang_q_nbsp_base_g01","text":"第一句！ ？ 学校按考试成绩排名。\r\n","expected":{"general":[["K12-G01","P0",1]],"parents":[["JZ-003","P0",1]]}}
+{"id":"S09_bang_q_zwsp_base_jz01","text":"第一句！ ？​请家长检查孩子的作业。\r\n","expected":{"general":[],"parents":[["JZ-001","P0",1]]}}
+{"id":"S10_dot_mix_ws_tutor","text":"本学期活动圆满结束。 \t　 班主任组织学生参加校外有偿补课。\r\n","expected":{"general":[["K12-G09","P0",1]],"parents":[["JZ-008","P0",1]]}}
+{"id":"S11_bang_q_lf_g04","text":"学生王小明属于资助对象！ ？\r\n学生李文静患有哮喘。\r\n","expected":{"general":[["K12-G04","P1",1],["K12-G04","P0",2]],"parents":[]}}
+{"id":"S12_bang_sp_lf_two_vio","text":"学校统一购买校服！ \r\n班主任组织学生参加校外有偿补课。\r\n","expected":{"general":[["K12-G05","P0",1],["K12-G09","P0",2]],"parents":[["JZ-006","P0",1],["JZ-008","P0",2]]}}
+{"id":"S13_bang_sp_dot_before_vio","text":"第一句！ .学校统一购买校服。\r\n","expected":{"general":[["K12-G05","P0",1]],"parents":[["JZ-006","P0",1]]}}
+{"id":"S14_bang_q_sp_num_list_inline","text":"第一句！ ？ 1、班主任组织学生参加校外有偿补课。\r\n","expected":{"general":[["K12-G09","P1",1]],"parents":[["JZ-008","P1",1]]}}
+{"id":"S15_base_both_g04_fee","text":"请家长批改作业！ ？ 全体学生必须购买校服。\r\n","expected":{"general":[["K12-G05","P1",1]],"parents":[["JZ-001","P0",1],["JZ-006","P0",1]]}}
+{"id":"S16_base_g04_before_q_after","text":"低保家庭学生周梓涵！ ？ 全体学生必须购买校服。\r\n","expected":{"general":[["K12-G04","P0",1],["K12-G05","P1",1]],"parents":[["JZ-006","P0",1]]}}
+{"id":"W01_space_multi","text":"学生王小明属于资助对象！   ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W02_tab_multi","text":"学生王小明属于资助对象！\t\t？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W03_mix_sp_tab_ideo","text":"学生王小明属于资助对象！ \t　 ​ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W04_nbsp","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W05_narrow_nbsp","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W06_zwnj","text":"学生王小明属于资助对象！‌？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W07_zwj","text":"学生王小明属于资助对象！‍？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W08_word_joiner","text":"学生王小明属于资助对象！⁠？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W09_bom_mid","text":"学生王小明属于资助对象！﻿？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W10_en_quad_2000","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W11_em_quad_2001","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W12_en_space_2002","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W13_em_space_2003","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W14_three_per_em_2004","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W15_four_per_em_2005","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W16_six_per_em_2006","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W17_figure_space_2007","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W18_punct_space_2008","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W19_thin_space_2009","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W20_hair_space_200a","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W21_med_math_205f","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W22_ogham_1680","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W23_soft_hyphen_00ad","text":"学生王小明属于资助对象！­？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W24_lrm_200e","text":"学生王小明属于资助对象！‎？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W25_triple_punct_spaces","text":"学生王小明属于资助对象。 ！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W26_space_before_first_punct","text":"学生王小明属于资助对象 ！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W27_ascii_dots_space_q","text":"学生王小明属于资助对象...  ?\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W28_lf_between_punct","text":"学生王小明属于资助对象！\r\n？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W29_space_lf_punct","text":"学生王小明属于资助对象！ \r\n ？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W30_crlf_space_punct","text":"学生王小明属于资助对象！\r\r\n ？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W31_u2028_between_punct","text":"学生王小明属于资助对象！\u2028？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W32_em_space_3a_fee","text":"学校统一购买校服！ ？\r\n","expected":{"general":[["K12-G05","P1",1]],"parents":[["JZ-006","P0",1]]}}
+{"id":"W33_thin_space_3a_tutor","text":"班主任组织学生参加校外有偿补课！ ？\r\n","expected":{"general":[["K12-G09","P1",1]],"parents":[["JZ-008","P1",1]]}}
+{"id":"W34_en_space_3a_rank","text":"学校不公布考试成绩是不行的！ ？\r\n","expected":{"general":[["K12-G01","P1",1]],"parents":[["JZ-003","P1",1]]}}
+{"id":"M01_nobasis_taos","text":"本学期每生每套收取120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M02_nobasis_keshi","text":"本学期按每生每课时5元标准收取。","expected":{"general":[["K12-G06","P1",1]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M03_nobasis_kefu","text":"每人每学期收取课后服务费200元。","expected":{"general":[["K12-G06","P1",1]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M04_nobasis_xiaofu","text":"本学期收取校服费120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M05_nobasis_yanxue","text":"每生缴纳研学实践费180元。","expected":{"general":[["K12-G06","P1",1]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M06_r1_r2_exact","text":"依据市教育局《校服采购管理办法》（某教装〔2025〕11号），开展校服选购；同期开设的课后托管每生每月收取165元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M07_other_proj_two_sent_named","text":"依据市教育局《关于校服收费标准的通知》（市教发〔2025〕12号），学校规范开展校服选购。同期开设的课后延时托管按每生每学期300元标准收取。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M08_other_proj_tijian","text":"根据《XX市校服管理办法》（市教发〔2025〕12号），另收取体检费35元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M09_other_proj_kefu","text":"根据《XX市校服管理办法》（市教发〔2025〕12号），本学期课后服务费每生收取200元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M10_other_proj_semicolon_bare","text":"依据市教育局《关于校服收费标准的通知》（市教发〔2025〕12号），校服每生120元；另每生每学期收取165元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M11_steal_reverse_two_sent_fee","text":"本学期按每生每月165元标准收取。依据《XX市校服管理办法》（市教发〔2025〕12号），校服每生收取120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M12_steal_reverse_two_sent_prose","text":"本学期按每生每月165元标准收取。依据《XX市校服管理办法》（市教发〔2025〕12号），学校规范开展校服选购服务。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M13_steal_reverse_newline_fee","text":"本学期每生收取80元。\r\n依据《XX市校服管理办法》（市教发〔2025〕12号），校服费每生每套120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M14_steal_reverse_voluntary_mid","text":"本学期每生收取80元，家长自愿参加。依据《XX市校服管理办法》，校服每生120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M15_steal_after_unlisted_sent","text":"本学期开设机器人社团。本学期按每生每学期260元标准收取。收费依据：《XX市校服管理办法》（市教发〔2025〕12号）。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M16_steal_two_bare_one_basis","text":"本学期每生收取80元，另每生收取120元，依据《XX市校服管理办法》。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M17_vague_youguan","text":"依据上级有关规定，本学期每生每套收取校服费120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M18_vague_xiangguan","text":"按照学校相关文件精神，每生收取资料费50元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M19_vague_bare","text":"依据有关规定，本学期按每生每学期120元标准收取。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M20_local_xiaoweihui","text":"根据校委会通过的《校服收费标准》（校字〔2025〕1号），每生收取120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M21_local_jiaweihui","text":"依据家委会拟定的《班费收取办法》（班字〔2025〕3号），每生收取50元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M22_unapproved","text":"根据尚未获批的《研学收费标准通知》，每生收取200元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M23_unrelated_paren_note","text":"依据《XX市校服管理办法》（与校服无关的内部纪要），每生收取120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M24_draft_paren_note","text":"依据《XX市校服管理办法》（暂定稿），每生收取120元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M25_nonfee_title_with_docno","text":"依据《XX市春季安全教育工作通知》（市教安〔2025〕8号），本学期按每生每套120元标准收取。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M26_nonfee_title_yanxue_docno","text":"依据《XX市中小学德育工作意见》（市教德〔2025〕5号），每生收取研学费180元。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M27_nonfee_title_bare_docno_after","text":"本学期每生收取120元，依据《XX市春季安全教育工作通知》（市教安〔2025〕8号）。","expected":{"general":[["K12-G06","P1",1]],"parents":[]}}
+{"id":"M28_tbl_shoufeixiangmu_jine","text":"| 收费项目 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M29_tbl_feiyongmingcheng_jine","text":"| 序号 | 费用名称 | 金额 |\r\n|---|---|---|\r\n| 1 | 校服费 | 180元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[]}}
+{"id":"M30_tbl_shoufeimingcheng_danjia","text":"| 收费名称 | 单价 |\r\n|---|---|\r\n| 春季研学 | 0.5元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M31_tbl_jiaofeixiangmu_feiyong","text":"| 缴费项目 | 费用 |\r\n|---|---|\r\n| 课后托管 | 五十元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M32_tbl_daishouxiangmu_biaozhun","text":"| 代收项目 | 标准 |\r\n|---|---|\r\n| 体检费 | 35元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M33_tbl_jiaofeimingcheng_sfje","text":"| 缴费名称 | 收费金额 |\r\n|---|---|\r\n| 社会实践 | 80元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M34_tbl_daishoumingcheng_sfbz","text":"| 代收名称 | 收费标准 |\r\n|---|---|\r\n| 军训服装 | 85元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M35_docx_feiyongmingcheng_jine","word":[["p","本学期收费明细："],["t",[["费用名称","金额"],["校服费","120元"]]]],"expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M36_tbl_inline_prose_in_generic","text":"| 项目 | 金额 |\r\n|---|---|\r\n| 校服 | 每生收取校服费180元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",3]]}}
+{"id":"M37_syn_shoufeimingxi","text":"| 收费明细 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M38_syn_feiyongxiangmu","text":"| 费用项目 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[]}}
+{"id":"M39_syn_daishoufeixiangmu","text":"| 代收费项目 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[],"parents":[["JZ-007","P1",1]]}}
+{"id":"M40_syn_shoufeikemu","text":"| 收费科目 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M41_syn_shoufeixiangmumingcheng","text":"| 收费项目名称 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M42_syn_jiaofeimingxi","text":"| 缴费明细 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M43_syn_jine_unit_paren","text":"| 收费项目 | 金额（元） |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M44_syn_biaozhun_unit_paren","text":"| 收费项目 | 收费标准（元） |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M45_syn_danjia_unit_paren","text":"| 费用名称 | 单价（元/人） |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M46_syn_space_in_header","text":"| 收费 项目 | 金额 |\r\n|---|---|\r\n| 校服费 | 120元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M47_syn_xiangmu_sfbz","text":"| 项目 | 收费标准 |\r\n|---|---|\r\n| 校服费 | 180元 |\r\n","expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
+{"id":"M48_docx_xiangmu_sfbz","word":[["p","本学期收费如下："],["t",[["项目","收费标准"],["校服费","180元"]]]],"expected":{"general":[["K12-G06","P1",3]],"parents":[["JZ-007","P1",1]]}}
