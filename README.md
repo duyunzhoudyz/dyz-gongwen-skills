@@ -34,12 +34,20 @@
 </div>
 
 <!-- AD-SLOT -->
-## 推广
+## 广告赞助
 
 使用本仓库无需购买或注册下列服务。
 
-- [Sub4AI 小铺](https://www.16688.com.cn/shop/SUB4AI)：主营 AI 订阅与数字权益，品类丰富（9 个分类、数十款商品），含主流 AI 订阅直充（月卡、年卡等多档）、AI 成品号、Notion / Adobe Express / Suno / Tavily 等工具与软件权益、邮箱，帮普通用户解决海外 AI 订阅充值难、支付不便的问题。支持自助选购，支付宝、微信付款，多数商品付款后自动发货，直充类 24 小时自助、约 1 分钟到账（以商品页为准）；交易由 16688 担保交易平台托管并提供查单与投诉通道，部分直充商品提供 30 天质保，部分商品可联系客服开票。团队与机构采购另见 [sub4ai.com](https://sub4ai.com)：提供海外 AI 订阅开通、续费与账号交付服务，支持企业、高校与团队批量采购，配合报价、合同、对公结算与开票。
-- [1KeyAPI](https://1keyapi.com)：稳若基建，并发无阻，专为科研评测与生产构建。一个 Key 接入 Claude、GPT、Gemini、Grok 与通义千问、DeepSeek、Kimi、智谱 GLM 等国内外主流模型系列；换模型不改代码，兼容 Anthropic（`/v1/messages`）与 OpenAI（`/v1/chat/completions`、`/v1/responses`）双协议，现有 SDK 与 IDE 插件零改造接入，以多线路热备、故障自动切换与长上下文会话保持提供稳定保障。每一分钱都说得清：人民币按 Token 计费、明码标价，官网公示各模型价格与官方参考价对比并提供月度费用试算；额度收得住，支持按学院 / 课题组 / 部门 / 项目统计与分配消费上限、限流与超额告警，账单与用量报表可导出对接财务。支持对公转账、开具发票；中国大陆用户请按所在地法律法规与平台服务条款按需使用。
+<table>
+<tr>
+<td width="180"><a href="https://www.16688.com.cn/shop/SUB4AI"><img src="docs/assets/sponsors/sub4ai.png" alt="Sub4AI" width="150"></a></td>
+<td><a href="https://www.16688.com.cn/shop/SUB4AI">Sub4AI</a>：主营 AI 订阅与数字权益（主流 AI 订阅直充、AI 成品号、工具与软件权益），支持自助选购，多数商品自动发货。团队与机构采购见 <a href="https://sub4ai.com">sub4ai.com</a>，支持对公结算与开票。</td>
+</tr>
+<tr>
+<td width="180"><a href="https://1keyapi.com"><img src="docs/assets/sponsors/1keyapi.png" alt="1KeyAPI" width="150"></a></td>
+<td><a href="https://1keyapi.com">1KeyAPI</a>：稳若基建，并发无阻，专为科研评测与生产构建；一个 Key 接入国内外主流模型，兼容 OpenAI 与 Anthropic 协议，人民币按 Token 计费，支持对公转账、开具发票。中国大陆用户请按所在地法律法规与平台服务条款按需使用。</td>
+</tr>
+</table>
 <!-- /AD-SLOT -->
 
 ---
@@ -622,7 +630,5 @@ dyz-gongwen-skills 是给机关事业单位、国企文字工作者用的公文�
 ## 许可证
 
 源码公开。个人、学习、教育、研究及其他非商业用途可按许可证免费使用；商业使用需事先取得商业授权，包括商业集成、付费服务、SaaS、企业内部业务流程或商业再分发。
-
-**在 skill 平台上的免费分发**：允许在扣子、腾讯 SkillHub、腾讯 WorkBuddy、小红书 Red Skill、Kimi 技能商店等平台以免费形式上架和分发，前提是保留作者署名 `duyunzhoudyz` 和本仓库链接，不删除本许可证说明，不向使用者收取费用。**付费上架、代售、打包进收费课程或服务，属于商业使用，需事先取得商业授权。**
 
 [PolyForm Noncommercial 1.0.0](LICENSE)。规则要点整理自公开法规和国家标准，不替代原文。

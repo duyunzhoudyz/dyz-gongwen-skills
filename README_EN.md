@@ -34,12 +34,20 @@ If this project solves a real problem for you, leave a [Star](https://github.com
 </div>
 
 <!-- AD-SLOT -->
-## Sponsored
+## Sponsors
 
 Using this repository does not require purchasing or signing up for any of the services below.
 
-- [Sub4AI Shop](https://www.16688.com.cn/shop/SUB4AI): AI subscriptions and digital memberships across 9 categories and dozens of items: direct AI plan top-ups (monthly, annual, etc.), ready-made AI accounts, Notion / Adobe Express / Suno / Tavily tool memberships, and email accounts, solving overseas AI top-up and payment hassles for everyday users. Self-service checkout via Alipay and WeChat Pay, auto-delivery on many items, and 24/7 top-ups in ~1 minute (per listing), with 16688 platform escrow, order lookup and dispute channels, 30-day warranty on select top-ups, and invoicing via support on eligible items. Team and institutional procurement is at [sub4ai.com](https://sub4ai.com): overseas AI subscription setup, renewals, and account delivery for enterprises, universities, and teams, with bulk quotes, contracts, corporate bank settlement, and invoicing.
-- [1KeyAPI](https://1keyapi.com): Rock-solid stability and smooth high concurrency, built for research benchmarks and production. One key connects Claude, GPT, Gemini, Grok, Qwen, DeepSeek, Kimi, GLM, and other major model families; switch models without code changes via Anthropic (`/v1/messages`) and OpenAI (`/v1/chat/completions`, `/v1/responses`) protocols for existing SDKs and IDE plugins, with multi-route hot standby, auto-failover, and sticky long-context sessions. Transparent per-token RMB pricing is listed against reference rates with a monthly cost estimator, plus spending caps, rate limits, over-quota alerts, and exportable finance reports by school, lab, department, or project. Supports corporate bank transfers and invoices; mainland China users should use the service as needed under local laws, regulations, and platform terms.
+<table>
+<tr>
+<td width="180"><a href="https://www.16688.com.cn/shop/SUB4AI"><img src="docs/assets/sponsors/sub4ai.png" alt="Sub4AI" width="150"></a></td>
+<td><a href="https://www.16688.com.cn/shop/SUB4AI">Sub4AI</a>: AI subscriptions and digital memberships (direct top-ups for major AI plans, ready-made AI accounts, and tool or software memberships), with self-service checkout and automatic delivery on the majority of items. Team and institutional procurement is available at <a href="https://sub4ai.com">sub4ai.com</a>, supporting corporate bank settlement and invoicing.</td>
+</tr>
+<tr>
+<td width="180"><a href="https://1keyapi.com"><img src="docs/assets/sponsors/1keyapi.png" alt="1KeyAPI" width="150"></a></td>
+<td><a href="https://1keyapi.com">1KeyAPI</a>: Steady as infrastructure with smooth concurrency, built for research benchmarks and production; one key connects major Chinese and international models via OpenAI and Anthropic protocols, with per-token RMB billing, corporate bank transfers, and invoicing. Mainland China users should use the service as needed under local laws, regulations, and platform terms.</td>
+</tr>
+</table>
 <!-- /AD-SLOT -->
 
 ---
@@ -622,7 +630,5 @@ This project adapted ideas and reference structures from several open-source pro
 ## License
 
 Source available. Free for personal, learning, educational, research, and other non-commercial uses under the license terms; commercial use requires prior commercial authorization, including commercial integration, paid services, SaaS offerings, internal enterprise business workflows, or commercial redistribution.
-
-**Free distribution on skill platforms**: Free listing and distribution on platforms such as Coze (`扣子`), Tencent SkillHub, Tencent WorkBuddy, Xiaohongshu Red Skill, and Kimi Skill Store are permitted, provided you retain attribution to `duyunzhoudyz` and a link to this repository, keep this license notice intact, and charge end users nothing. **Paid listings, reselling, or bundling into paid courses or paid services constitute commercial use and require prior commercial authorization.**
 
 [PolyForm Noncommercial 1.0.0](LICENSE). Regulatory summaries in this repository are compiled from public regulations and national standards and do not replace the original texts.
