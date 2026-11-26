@@ -11,7 +11,8 @@ cases.json 格式：
     {"file": "V_h02_RCA_输液外渗.txt", "type": "RCA", "kind": "violation", "names": ["赵敏华", "孙丽"],
      "expect": [{"mark": "E5", "id": "HOS-030", "level": "P0", "line": 4}], "allow_extra_p0": [],
      "known_miss": [{"mark": "E3", "id": "HOS-005", "level": "P1", "reason": "……"}]}]}
-可选字段：mode（中小学子命令，general 或 parents，默认 general）、args（附加命令行参数列表，如国企的 --as-of）、
+可选字段：mode（中小学子命令，general、parents 或 comments，默认 general）、args（附加命令行参数列表，如国企的 --as-of）、
+facts（仅中小学 comments，路径相对于文书目录，不得与 args 中的 --facts 并用）、
 known_miss（已知漏检，必须写原因，不参与断言但留在检出率分母里）、leak_known（已知会被规则摘录带出的姓名，见下）、
 shrink_cost（仅规范文书：收缩已知代价。分句豁免取消“后续分句”窗口后，否决、整改、出处写在后一分句的句子会重新被报出（后续分句里有针对该做法的处置词时 P0 降为 P1）；
 把这些命中登记成 [{"id","level","line","reason"}]，它们不计入 P0、P1、P2 基线，但每条登记都必须真的出现，否则登记过期、要求清理。
@@ -40,6 +41,7 @@ import unittest
 from collections import defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -76,15 +78,20 @@ def load_engine(key: str):
 
 
 def build_argv(engine: str, path: Path, doc: Dict[str, Any], as_json: bool) -> List[str]:
+    args = [str(a) for a in doc.get("args") or []]
     if engine == "k12":
         argv = [str(doc.get("mode") or "general"), str(path)]
+        if argv[0] == "comments" and "facts" in doc:
+            if any(arg == "--facts" or arg.startswith("--facts=") for arg in args):
+                raise ValueError(f"{path.name}：facts 字段不能与 args 中的 --facts 并用")
+            argv.extend(["--facts", str(path.parent / doc["facts"])])
     else:
         argv = [str(path)]
         if doc.get("type"):
             argv.append("--type=" + str(doc["type"]))
         if doc.get("external"):
             argv.append("--external")
-    argv += [str(a) for a in doc.get("args") or []]
+    argv += args
     if as_json:
         argv.append("--json")
     return argv
@@ -424,6 +431,47 @@ class EvaluateLogicTest(unittest.TestCase):
         code, out, _err = run_engine(Fake, ["a"])
         self.assertEqual(code, 1)
         self.assertIn("你好", out)
+
+
+class CommentsFactsTest(unittest.TestCase):
+    def test_facts_in_text_and_json(self) -> None:
+        with TemporaryDirectory() as directory:
+            parent = Path(directory) / "评语 文书"
+            parent.mkdir()
+            path = parent / "评语稿.txt"
+            path.write_text("S01：【待补：具体表现】\n", encoding="utf-8")
+            facts = parent / "学生 事实表.md"
+            facts.write_text("S02：参观校史室时为小组记录展品名称。\n", encoding="utf-8")
+            mod = load_engine("k12")
+            for as_json in (False, True):
+                for with_facts in (False, True):
+                    with self.subTest(as_json=as_json, with_facts=with_facts):
+                        doc = {"mode": "comments"}
+                        if with_facts:
+                            doc["facts"] = facts.name
+                        argv = build_argv("k12", path, doc, as_json)
+                        code, out, err = run_engine(mod, argv)
+                        self.assertIn(code, (0, 1), err)
+                        self.assertEqual(err, "")
+                        if as_json:
+                            missing = any(issue["id"] == "PY-015" and issue["label"] == "S02"
+                                          for issue in json.loads(out)["issues"])
+                        else:
+                            self.assertIn("PY-013", out)
+                            missing = "PY-015" in out and "S02" in out
+                        self.assertEqual(missing, with_facts)
+
+    def test_duplicate_facts_argument_is_rejected(self) -> None:
+        for args in (["--facts", "a.md"], ["--facts=a.md"]):
+            with self.subTest(args=args), self.assertRaisesRegex(ValueError, r"facts.*--facts"):
+                build_argv("k12", Path("评语.txt"), {"mode": "comments", "facts": "b.md", "args": args}, True)
+
+    def test_facts_field_has_no_effect_outside_k12_comments(self) -> None:
+        for engine, mode in (("k12", "general"), ("k12", "parents"), ("hospital", "comments"), ("soe", "comments")):
+            with self.subTest(engine=engine, mode=mode):
+                doc = {"mode": mode, "args": ["--external"]}
+                self.assertEqual(build_argv(engine, Path("x.txt"), dict(doc, facts="a.md"), False),
+                                 build_argv(engine, Path("x.txt"), doc, False))
 
 
 class MarksLogicTest(unittest.TestCase):

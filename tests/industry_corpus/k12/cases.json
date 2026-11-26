@@ -168,11 +168,667 @@
    "file": "V_k04_资助回访明细.txt",
    "mode": "general",
    "kind": "violation",
-   "names": ["韩思遥"],
+   "names": [
+    "韩思遥"
+   ],
    "expect": [
-    {"mark": "K10", "id": "K12-G04", "level": "P0", "line": 7}
+    {
+     "mark": "K10",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 7
+    }
    ],
    "allow_extra_p0": []
+  },
+  {
+   "file": "A_k04_课后服务与收费方案.txt",
+   "mode": "general",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "clean",
+   "max_p1": 1,
+   "max_p2": 0,
+   "note": "2026-11-25 实测回填。 P1 含待主控确认的引擎误报，见 observations。",
+   "observations": [
+    {
+     "line": 14,
+     "id": "K12-G05",
+     "level": "P1",
+     "reason": "待主控确认：费用收支纳入财务统一管理是管理约束，没有强制缴费动作。宽层把“费用”与“统一”归为强制收费。"
+    }
+   ]
+  },
+  {
+   "file": "A_k05_学期工作总结与教研记录.txt",
+   "mode": "general",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "note": "2026-11-25 实测回填。"
+  },
+  {
+   "file": "A_k06_安全教育记录.txt",
+   "mode": "general",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "note": "2026-11-25 实测回填。"
+  },
+  {
+   "file": "A_k07_家长会讲话稿.txt",
+   "mode": "parents",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "note": "2026-11-25 实测回填。"
+  },
+  {
+   "file": "A_k08_高中致家长信.txt",
+   "mode": "parents",
+   "args": [
+    "--stage",
+    "高中"
+   ],
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "note": "2026-11-25 实测回填。"
+  },
+  {
+   "file": "A_k09_期末评语规范稿.txt",
+   "mode": "comments",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "facts": "A_k09_事实表.md",
+   "kind": "clean",
+   "max_p1": 0,
+   "max_p2": 0,
+   "note": "2026-11-25 实测回填。"
+  },
+  {
+   "file": "V_k05_课后服务与收费初稿.txt",
+   "mode": "general",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "K11",
+     "id": "K12-G03",
+     "level": "P0",
+     "line": 5
+    },
+    {
+     "mark": "K12",
+     "id": "K12-G03",
+     "level": "P0",
+     "line": 10
+    },
+    {
+     "mark": "K13",
+     "id": "K12-G06",
+     "level": "P1",
+     "line": 15
+    },
+    {
+     "mark": "K14a",
+     "id": "K12-G05",
+     "level": "P0",
+     "line": 16
+    },
+    {
+     "mark": "K14b",
+     "id": "K12-G06",
+     "level": "P1",
+     "line": 16
+    },
+    {
+     "mark": "K15a",
+     "id": "K12-G05",
+     "level": "P1",
+     "line": 17
+    },
+    {
+     "mark": "K15b",
+     "id": "K12-G06",
+     "level": "P1",
+     "line": 17
+    },
+    {
+     "mark": "K16a",
+     "id": "K12-G05",
+     "level": "P0",
+     "line": 18
+    },
+    {
+     "mark": "K16b",
+     "id": "K12-G05",
+     "level": "P0",
+     "line": 19
+    },
+    {
+     "mark": "K16c",
+     "id": "K12-G06",
+     "level": "P1",
+     "line": 19
+    },
+    {
+     "mark": "K17",
+     "id": "K12-G09",
+     "level": "P0",
+     "line": 23
+    }
+   ],
+   "allow_extra_p0": [],
+   "known_miss": [
+    {
+     "mark": "K11p",
+     "id": "K12-G03",
+     "level": "P0",
+     "line": 6,
+     "reason": "正文确为强制全员参加；G03 的强制参加分支未覆盖“课后服务全体在籍学生必须参加”的语序。"
+    }
+   ]
+  },
+  {
+   "file": "V_k06_学生资助与关爱排查稿.txt",
+   "mode": "general",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "K18",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "K19",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 8
+    },
+    {
+     "mark": "K20",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 9
+    },
+    {
+     "mark": "K21",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 10
+    },
+    {
+     "mark": "K21b",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 11
+    },
+    {
+     "mark": "K22",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 17
+    },
+    {
+     "mark": "K23",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 18
+    },
+    {
+     "mark": "K24",
+     "id": "K12-G01",
+     "level": "P0",
+     "line": 26
+    }
+   ],
+   "allow_extra_p0": [],
+   "names": [
+    "杨雨欣",
+    "冯子睿",
+    "卫昭然",
+    "何佳琪",
+    "钟沐宸",
+    "罗一凡",
+    "高铭泽"
+   ]
+  },
+  {
+   "file": "V_k07_寒假致家长信初稿.txt",
+   "mode": "parents",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "K25",
+     "id": "JZ-001",
+     "level": "P0",
+     "line": 8
+    },
+    {
+     "mark": "K26",
+     "id": "JZ-002",
+     "level": "P1",
+     "line": 9
+    },
+    {
+     "mark": "K27a",
+     "id": "JZ-004",
+     "level": "P1",
+     "line": 10
+    },
+    {
+     "mark": "K27b",
+     "id": "JZ-004",
+     "level": "P1",
+     "line": 11
+    },
+    {
+     "mark": "K27c",
+     "id": "JZ-005",
+     "level": "P2",
+     "line": 12
+    },
+    {
+     "mark": "K28",
+     "id": "JZ-003",
+     "level": "P0",
+     "line": 14
+    },
+    {
+     "mark": "K29",
+     "id": "JZ-009",
+     "level": "P1",
+     "line": 18
+    },
+    {
+     "mark": "K30",
+     "id": "JZ-007",
+     "level": "P1",
+     "line": 19
+    },
+    {
+     "mark": "K31",
+     "id": "JZ-006",
+     "level": "P0",
+     "line": 20
+    },
+    {
+     "mark": "K32",
+     "id": "JZ-008",
+     "level": "P0",
+     "line": 23
+    },
+    {
+     "mark": "K33",
+     "id": "JZ-011",
+     "level": "P1",
+     "line": 24
+    },
+    {
+     "mark": "K34b",
+     "id": "JZ-012",
+     "level": "P1",
+     "line": 28
+    },
+    {
+     "mark": "K35",
+     "id": "JZ-013",
+     "level": "P2",
+     "line": 30
+    }
+   ],
+   "allow_extra_p0": [],
+   "names": [
+    "陈嘉树",
+    "邵知远"
+   ],
+   "known_miss": [
+    {
+     "mark": "K28b",
+     "id": "JZ-003",
+     "level": "P0",
+     "line": 15,
+     "reason": "公开总分前十的名单属于公布考试排名；JZ-003 未把“总分前十”与后置“张贴”连起来，义务教育、高中均未报。"
+    },
+    {
+     "mark": "K34",
+     "id": "JZ-012",
+     "level": "P1",
+     "line": 27,
+     "reason": "明确点名通报批评；“同学”与“批评”之间超过 JZ-012 的 20 字窗口，“缺交数学作业”也未触发其其他模式，两学段均未出摘录。"
+    }
+   ]
+  },
+  {
+   "file": "V_k07_寒假致家长信初稿.txt",
+   "mode": "parents",
+   "args": [
+    "--stage",
+    "高中"
+   ],
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "K25",
+     "id": "JZ-001",
+     "level": "P1",
+     "line": 8
+    },
+    {
+     "mark": "K26",
+     "id": "JZ-002",
+     "level": "P2",
+     "line": 9
+    },
+    {
+     "mark": "K27c",
+     "id": "JZ-005",
+     "level": "P2",
+     "line": 12
+    },
+    {
+     "mark": "K28",
+     "id": "JZ-003",
+     "level": "P1",
+     "line": 14
+    },
+    {
+     "mark": "K30",
+     "id": "JZ-007",
+     "level": "P1",
+     "line": 19
+    },
+    {
+     "mark": "K31",
+     "id": "JZ-006",
+     "level": "P1",
+     "line": 20
+    },
+    {
+     "mark": "K32",
+     "id": "JZ-008",
+     "level": "P0",
+     "line": 23
+    },
+    {
+     "mark": "K33",
+     "id": "JZ-011",
+     "level": "P1",
+     "line": 24
+    },
+    {
+     "mark": "K34b",
+     "id": "JZ-012",
+     "level": "P1",
+     "line": 28
+    },
+    {
+     "mark": "K35",
+     "id": "JZ-013",
+     "level": "P2",
+     "line": 30
+    }
+   ],
+   "allow_extra_p0": [],
+   "note": "同一小学文书按高中参数重跑，验证规则跳过和定级。",
+   "names": [
+    "陈嘉树",
+    "邵知远"
+   ],
+   "known_miss": [
+    {
+     "mark": "K28b",
+     "id": "JZ-003",
+     "level": "P1",
+     "line": 15,
+     "reason": "公开总分前十的名单属于公布考试排名；JZ-003 未把“总分前十”与后置“张贴”连起来，义务教育、高中均未报。"
+    },
+    {
+     "mark": "K34",
+     "id": "JZ-012",
+     "level": "P1",
+     "line": 27,
+     "reason": "明确点名通报批评；“同学”与“批评”之间超过 JZ-012 的 20 字窗口，“缺交数学作业”也未触发其其他模式，两学段均未出摘录。"
+    }
+   ]
+  },
+  {
+   "file": "V_k08_期末评语初稿.txt",
+   "mode": "comments",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "facts": "V_k08_事实表.md",
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "C6a",
+     "id": "PY-001",
+     "level": "P0",
+     "line": 1
+    },
+    {
+     "mark": "C6b",
+     "id": "PY-002",
+     "level": "P1",
+     "line": 1
+    },
+    {
+     "mark": "C7",
+     "id": "PY-002",
+     "level": "P1",
+     "line": 3
+    },
+    {
+     "mark": "C8",
+     "id": "PY-003",
+     "level": "P0",
+     "line": 5
+    },
+    {
+     "mark": "C8b",
+     "id": "PY-017",
+     "level": "P1",
+     "line": 5
+    },
+    {
+     "mark": "C9b",
+     "id": "PY-016",
+     "level": "P1",
+     "line": 5
+    },
+    {
+     "mark": "C11",
+     "id": "PY-006",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "C12",
+     "id": "PY-005",
+     "level": "P0",
+     "line": 7
+    },
+    {
+     "mark": "C13",
+     "id": "PY-010",
+     "level": "P2",
+     "line": 9
+    },
+    {
+     "mark": "C14",
+     "id": "PY-009",
+     "level": "P2",
+     "line": 9
+    },
+    {
+     "mark": "C15",
+     "id": "PY-011",
+     "level": "P2",
+     "line": 11
+    },
+    {
+     "mark": "C16",
+     "id": "PY-007",
+     "level": "P1",
+     "line": 13
+    },
+    {
+     "mark": "C17",
+     "id": "PY-008",
+     "level": "P2"
+    },
+    {
+     "mark": "C18",
+     "id": "PY-017",
+     "level": "P1",
+     "line": 15
+    },
+    {
+     "mark": "C19",
+     "id": "PY-017",
+     "level": "P2",
+     "line": 15
+    },
+    {
+     "mark": "C20",
+     "id": "PY-013",
+     "level": "P2",
+     "line": 17
+    },
+    {
+     "mark": "C21",
+     "id": "PY-015",
+     "level": "P1",
+     "line": 9
+    },
+    {
+     "mark": "C22",
+     "id": "PY-016",
+     "level": "P1",
+     "line": 19
+    }
+   ],
+   "allow_extra_p0": [],
+   "names": [
+    "程文帆"
+   ],
+   "known_miss": [
+    {
+     "mark": "C9",
+     "id": "PY-004",
+     "level": "P1",
+     "line": 5,
+     "reason": "“数学卷面98分”直接披露考试分数；PY-004 未覆盖“卷面…分”，事实对账另报 PY-016（C9b）。"
+    },
+    {
+     "mark": "C10",
+     "id": "PY-014",
+     "level": "P1",
+     "line": 5,
+     "reason": "“保证你能进重点高中”是明确升学承诺；人称“你”隔在保证词与升学动作之间，PY-014 现有模式未覆盖。"
+    }
+   ],
+   "observations": [
+    {
+     "line": 7,
+     "id": "PY-016",
+     "level": "P1",
+     "reason": "待主控确认：脱敏事实表不应包含身份证号，故本条不作有效事实核对命中。PY-016 的 message 在两种输出都带出完整虚构号码，PY-005 摘录已遮蔽。"
+    }
+   ]
+  },
+  {
+   "file": "V_k09_班主任总结违规稿.txt",
+   "mode": "general",
+   "args": [
+    "--stage",
+    "义务教育"
+   ],
+   "kind": "violation",
+   "expect": [
+    {
+     "mark": "K36",
+     "id": "K12-G01",
+     "level": "P0",
+     "line": 11
+    },
+    {
+     "mark": "K37",
+     "id": "K12-G03",
+     "level": "P0",
+     "line": 12
+    },
+    {
+     "mark": "K38",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 16
+    },
+    {
+     "mark": "K39",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 17
+    },
+    {
+     "mark": "K40",
+     "id": "K12-G04",
+     "level": "P0",
+     "line": 18
+    },
+    {
+     "mark": "K41b",
+     "id": "K12-G02",
+     "level": "P0",
+     "line": 23
+    }
+   ],
+   "allow_extra_p0": [],
+   "names": [
+    "林晓峰",
+    "苏婉宁",
+    "赵启铭"
+   ],
+   "known_miss": [
+    {
+     "mark": "K41",
+     "id": "K12-G02",
+     "level": "P0",
+     "line": 22,
+     "reason": "该句在迎检语境下补写记录；“补写”与“家访记录”相隔 9 字，超过 G02 的 8 字匹配窗口。"
+    }
+   ]
   }
  ]
 }
