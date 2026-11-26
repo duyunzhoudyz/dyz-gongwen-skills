@@ -36,8 +36,6 @@
 <!-- AD-SLOT -->
 ## 广告赞助
 
-使用本仓库无需购买或注册下列服务。
-
 <table>
 <tr>
 <td width="180"><a href="https://www.16688.com.cn/shop/SUB4AI"><img src="docs/assets/sponsors/sub4ai.png" alt="Sub4AI" width="150"></a></td>
