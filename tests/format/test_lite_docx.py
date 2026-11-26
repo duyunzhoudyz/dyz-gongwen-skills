@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -162,6 +163,31 @@ class LiteDocxBuildTest(unittest.TestCase):
             if name.endswith('.docx'):
                 got = lite_docx.read_docx_text(p.read_bytes())
                 self.assertGreater(got['paragraphs'], 3, name)
+
+    def test_blank_template_signature_and_date_indent(self):
+        ns = {'w': lite_docx.W_NS}
+        signatures = {
+            '01-白头公文模板.docx': '某单位名称（替换为本机关全称）',
+            '02-红头公文模板.docx': '某单位名称（替换为本机关全称）',
+            '04-内部签报模板.docx': '某内设部门（替换为本部门名称）',
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            lite_docx.generate_templates(Path(tmp))
+            for filename, signature in signatures.items():
+                with self.subTest(filename=filename):
+                    with zipfile.ZipFile(Path(tmp) / filename) as zf:
+                        xml = zf.read('word/document.xml')
+                    with zipfile.ZipFile(REPO_ROOT / 'xinchuang' / 'templates' / filename) as zf:
+                        self.assertEqual(xml, zf.read('word/document.xml'))
+                    root = ET.fromstring(xml)
+                    paragraphs = {
+                        ''.join(node.text or '' for node in p.findall('.//w:t', ns)): p
+                        for p in root.findall('w:body/w:p', ns)
+                    }
+                    for text in (signature, '2026年11月　日'):
+                        p = paragraphs[text]
+                        self.assertEqual(p.find('w:pPr/w:ind', ns).get(f'{{{ns["w"]}}}rightChars'), '200')
+                        self.assertEqual(p.find('w:pPr/w:jc', ns).get(f'{{{ns["w"]}}}val'), 'right')
 
     def test_cli_builds_docx_and_templates(self):
         tmp = Path(tempfile.mkdtemp(prefix='lite-docx-cli-'))

@@ -1,4 +1,6 @@
 * text=auto eol=lf
+# 批处理以原始 CRLF 入库，关闭文本归一化。
+*.bat -text eol=crlf whitespace=cr-at-eol
 *.docx binary
 *.xlsx binary
 *.zip binary

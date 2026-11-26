@@ -308,13 +308,14 @@ function bindImport(inputId,targetId,hfKey,hfLabelId){
         }).catch(function(e){showResult({ok:false,text:'导入失败：'+e});});
       });
     }else{
-      var rd=new FileReader();
-      rd.onload=function(){
-        $(targetId).value=rd.result||'';
-        HF[hfKey]='';
-        $(hfLabelId).textContent='已导入纯文本：'+f.name;
-      };
-      rd.readAsText(f,'utf-8');
+      readAsBase64(f,function(b64){
+        postJson('/api/extract_text',{filename:f.name,data_b64:b64}).then(function(r){
+          if(!r.ok){showResult(r);return;}
+          $(targetId).value=r.text;
+          HF[hfKey]='';
+          $(hfLabelId).textContent='已导入纯文本：'+f.name;
+        }).catch(function(e){showResult({ok:false,text:'导入失败：'+e});});
+      });
     }
   };
 }
@@ -515,6 +516,17 @@ def op_format_html(d: dict) -> dict:
         "note": f"已生成单文件 HTML 轻排版（{report['layout']}版式），可在新标签页直接打印/存 PDF 或下载离线打开。",
         "html_b64": base64.b64encode(html_doc.encode("utf-8")).decode("ascii"),
     }
+
+
+def op_extract_text(d: dict) -> dict:
+    fname = Path(str(d.get("filename") or "上传文件.txt")).name
+    try:
+        raw = base64.b64decode(d.get("data_b64") or "", validate=True)
+        with redirect_stderr(io.StringIO()):
+            text = fact_diff._decode(raw, Path(fname))
+    except (ValueError, TypeError, fact_diff.InputError) as exc:
+        return {"ok": False, "text": f"读取 {fname} 失败：{exc}"}
+    return {"ok": True, "text": text}
 
 
 def op_extract_docx(d: dict) -> dict:
@@ -768,6 +780,7 @@ OPS = {
     "fonts": op_fonts,
     "format": op_format,
     "format_html": op_format_html,
+    "extract_text": op_extract_text,
     "extract_docx": op_extract_docx,
     "ofd": op_ofd,
     "industry_check": op_industry_check,

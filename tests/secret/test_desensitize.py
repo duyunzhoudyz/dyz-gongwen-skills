@@ -206,6 +206,23 @@ class ToolboxServerTest(unittest.TestCase):
         self.assertTrue(data['ok'])
         self.assertNotIn('13812345678', data['text'])
 
+    def test_import_plain_text_encodings_over_http(self):
+        for name, text in (
+            ('通知.txt', '关于报送材料的通知\r\n\r\n各单位：'),
+            ('材料.md', '# 关于报送材料的通知\n\n**各单位：**\n【起草说明】保留原文。\n'),
+        ):
+            for encoding in ('gbk', 'utf-8', 'utf-8-sig'):
+                with self.subTest(name=name, encoding=encoding):
+                    body = json.dumps({
+                        'filename': name,
+                        'data_b64': base64.b64encode(text.encode(encoding)).decode('ascii'),
+                    }).encode('utf-8')
+                    status, result = self.request(
+                        'POST', '/api/extract_text', body, {'Content-Type': 'application/json'},
+                    )
+                    self.assertEqual(status, 200)
+                    self.assertEqual(json.loads(result), {'ok': True, 'text': text})
+
     def test_unknown_api_refused(self):
         self.assertEqual(self.request('POST', '/api/nope', b'{}')[0], 403)
 

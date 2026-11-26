@@ -17,10 +17,15 @@
 | 位置 | 内容 |
 |---|---|
 | `dist/prompts/` | 提示词版：每个 skill 一份 .md 文件，复制全文就能给内网模型用。索引见 `dist/prompts/README.md` |
+| `dist/prompts-lite/`、`dist/prompts-bundles/`、`dist/rag-kb/` | 信创精简提示词、一站式合集、知识库切片及导入模板，由 `tools/build_prompts.py` 生成 |
+| `xinchuang/` | 本机工具箱及 Linux、Windows 启动器、轻量排版脚本、`templates/` 空白 DOCX 模板、`lite/` 提示词和部署验收文档，来自仓库同名目录 |
 | `skills/` | 全部 skill 的完整目录，含参考资料和可运行的脚本 |
-| `install.ps1`、`install.sh`、`tools/install.py`、`.claude-plugin/` | 一键安装脚本和安装器，用于把 skill 装进本机的 Agent 工具（第五节） |
+| `install.ps1`、`install.sh`、`tools/install.py`、`.claude-plugin/marketplace.json` | 一键安装脚本、安装器及清单，用于把 skill 装进本机的 Agent 工具（第五节） |
 | `README.md` | 项目主页。里面的 `git clone`、`/plugin marketplace add`、`npx skills add` 等安装方式都要联网，离线时不用看，按本说明操作 |
 | `使用须知.md`、`LICENSE`、`THIRD_PARTY_NOTICES.md`、`CHANGELOG.md` | 使用须知、许可证、第三方说明、更新记录 |
+| `离线使用说明.md` | 本说明，由仓库中的 `tools/offline_readme.md` 改名入包 |
+| `wheelhouse/`（若随包提供） | 构建时收集的离线 Python 依赖，来源为仓库根目录下已准备的 `wheelhouse/` |
+| `安全自查报告.md`、`SHA256SUMS.txt` | 打包时由 `tools/security_audit.py` 生成的静态审计报告和文件哈希清单 |
 
 ## 三、在内网模型里使用提示词（最常用）
 
@@ -35,7 +40,7 @@
 
 几点说明：
 
-- 每份提示词最长约 3 万字。粘贴后如果模型提示内容过长，或者回答明显漏掉了前面的要求，说明这个模型的上下文长度不够，请换一个上下文更长的模型，或者请平台管理员调大上限。
+- 完整提示词版每份硬上限为 29000 字符（见 `tools/build_prompts.py` 的 `MAX_PROMPT_CHARS`）。粘贴后如果模型提示内容过长，或者回答明显漏掉了前面的要求，说明这个模型的上下文长度不够，请换一个上下文更长的模型，或者请平台管理员调大上限。
 - 提示词版没法运行脚本。里面的“自检清单”需要你对照着人工逐项检查，模型也会在回复里提醒。
 - 该装行业包的单位，用对应的提示词文件，如医院用 `gongwen-hospital.md`。文件名和用途见 `dist/prompts/README.md`。
 - 模型写出来的稿子，事实、数据、政策依据都要你自己核对。稿子里的【待补】【待核实】标记，定稿前要逐条补齐。
@@ -112,7 +117,7 @@ python skills/gongwen-review/scripts/gongwen_lint.py 通知正文.txt --doc-type
 
 单位电脑是国产操作系统、不能用编程类智能体工具时，按下面用。全部由你手动点击或运行，没有后台自动执行的部分。
 
-1. **本机工具箱（双击即用）**：双击 `xinchuang/启动工具箱.sh`（或 `.desktop`，Windows 双击 `xinchuang/启动工具箱.bat`），或在终端运行 `python3 xinchuang/local_toolbox.py --auto-port`，会自动在浏览器打开 `http://127.0.0.1:8765`。在一个页面里完成：一键复制内网提示词、直接导入 `.docx`/`.txt`/`.md` 做涉密检测（含页眉页脚）与双向脱敏还原、八关机检、事实数字核对、字体自检、国标排版下载 `.docx`（没有 `python-docx`/`lxml` 时自动改用内置零依赖轻量排版）、OFD 结构体检。只监听本机回环地址，不联网、不调模型，不保存正文（个别功能仅在本机临时目录瞬时处理、用后即删），多标签页映射表相互隔离，关闭窗口即销毁。
+1. **本机工具箱（双击即用）**：Linux 双击 `xinchuang/启动工具箱.sh` 或 `xinchuang/启动工具箱.desktop`，Windows 双击 `xinchuang/启动工具箱.bat`，启动器会尝试自动打开默认浏览器。在终端直接运行 `python3 xinchuang/local_toolbox.py --auto-port` 时，请在浏览器中手动打开终端显示的地址（默认 `http://127.0.0.1:8765`）。在一个页面里完成：一键复制内网提示词、直接导入 `.docx`/`.txt`/`.md` 做涉密检测（含页眉页脚）与双向脱敏还原、八关机检、事实数字核对、字体自检、国标排版下载 `.docx`（没有 `python-docx`/`lxml` 时自动改用内置零依赖轻量排版）、OFD 结构体检。只监听本机回环地址，不联网、不调模型，不保存正文（个别功能仅在本机临时目录瞬时处理、用后即删），多标签页映射表相互隔离，关闭窗口即销毁。
 2. **命令行脱敏与还原**：`python3 skills/gongwen-review/scripts/desensitize.py mask 原稿.txt -o 脱敏稿.txt --map 映射表.json`，模型改稿后用 `restore` 还原。映射表用完请删除，不要外传。命中密级标识或“内部资料”等字样时直接拦截；脱敏不能让涉密材料进入非涉密系统。
 3. **零依赖排版与免宏模板**：工具箱、脱敏、机检、事实核对、OFD 体检、轻量国标排版（`xinchuang/lite_docx.py`）和 `.docx` 读取全部只用 Python 标准库，不需要 `pip`。完整七种版式（红头套打、联合行文、表格）才需要 `python-docx`、`openpyxl`；若离线包内附带 `wheelhouse/`，按对应架构目录的 `INSTALL.txt` 离线安装。如果既没装 Python、信息中心又禁用了 WPS 宏，直接打开 `xinchuang/templates/` 下的 5 套 GB/T 9704 空白 `.docx` 模板（白头、红头、纪要、签报、综合材料）粘贴正文即可；允许用宏时可用 `skills/gongwen-format/assets/wps_gongwen_macro.js`，或按 `skills/gongwen-format/references/xinchuang.md` 手动设置。
 4. **OFD**：导出 OFD 后可在工具箱直接点「⑧ OFD 结构体检」上传，或命令行运行 `python3 skills/gongwen-format/scripts/ofd_check.py 成稿.ofd`。折行、红线、印章位置仍要用阅读器或打印核对。

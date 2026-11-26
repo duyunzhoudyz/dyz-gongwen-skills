@@ -2,7 +2,7 @@
 Type=Application
 Name=公文写作本机工具箱
 Comment=零联网公文脱敏、八关核稿、国标排版与 OFD 体检（仅监听 127.0.0.1）
-Exec=bash -c 'dir="$(dirname "%k")"; cd "$dir" && bash "./启动工具箱.sh"'
+Exec=bash -c "exec bash \\"\\$(dirname -- \\"\\$1\\")/启动工具箱.sh\\"" bash %k
 Terminal=true
 Categories=Office;Utility;
 StartupNotify=true
