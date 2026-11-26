@@ -625,7 +625,7 @@ def build_lite_docx(
 def render_lite_report(report: Dict[str, object]) -> str:
     lines = [
         "轻量排版完成（纯 Python 标准库，不依赖 python-docx / lxml）",
-        "已套用：A4 纸张、页边距（上37/下35/左28/右26 mm）、每页22行×每行28字网格、标准字体、各级标题层次、无印章落款（署名右空二字，日期较长时日期右空二字、署名相应左移）与奇偶页码。",
+        "已套用：A4 纸张、页边距（上37/下35/左28/右26 mm）、每页22行×每行28字网格、标准字体、各级标题层次、无印章落款（署名右空二字，成文日期首字比署名首字右移二字，日期较长时日期右空二字、署名相应左移）与奇偶页码。",
         f"共生成 {report['paragraphs']} 段。",
     ]
     if report.get("detected"):

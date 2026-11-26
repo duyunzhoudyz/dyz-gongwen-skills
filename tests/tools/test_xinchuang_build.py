@@ -128,6 +128,22 @@ class XinchuangOutputTest(unittest.TestCase):
             self.assertEqual(desk_mode, 0o755)
 
 
+    def test_offline_bat_preserves_checkout_crlf(self):
+        name = 'xinchuang/启动工具箱.bat'
+        raw = (REPO_ROOT / name).read_bytes()
+        self.assertTrue(raw.endswith(b'\r\n'))
+        self.assertNotIn(b'\n', raw.replace(b'\r\n', b''))
+        self.assertNotIn(b'\r', raw.replace(b'\r\n', b''))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / name
+            target.parent.mkdir()
+            target.write_bytes(raw)
+            archive, _ = build_prompts.write_offline_zip(root, '1.0.0')
+            with zipfile.ZipFile(archive) as zf:
+                self.assertEqual(zf.read(name), raw)
+
+
 class SecurityAuditTest(unittest.TestCase):
 
     def test_flags_network_import_and_eval(self):

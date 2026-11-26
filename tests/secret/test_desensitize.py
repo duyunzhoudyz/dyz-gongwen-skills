@@ -223,6 +223,26 @@ class ToolboxServerTest(unittest.TestCase):
                     self.assertEqual(status, 200)
                     self.assertEqual(json.loads(result), {'ok': True, 'text': text})
 
+        headers = {'Content-Type': 'application/json'}
+        invalid_inputs = (
+            ('损坏字节', base64.b64encode(b'\xff\xfe\x80\x81').decode('ascii')),
+            ('非法 Base64', '!!!!'),
+        )
+        for reason, encoded in invalid_inputs:
+            with self.subTest(reason=reason):
+                body = json.dumps({'filename': '损坏.txt', 'data_b64': encoded}).encode('utf-8')
+                status, result = self.request('POST', '/api/extract_text', body, headers)
+                self.assertEqual(status, 200)
+                self.assertIs(json.loads(result)['ok'], False)
+
+        # 两次失败后，同一个服务仍能正确处理 GBK 无法表示的字符。
+        text = '材料中的生僻字：㐀、𠮷。'
+        encoded = base64.b64encode(text.encode('gb18030')).decode('ascii')
+        body = json.dumps({'filename': '生僻字.md', 'data_b64': encoded}).encode('utf-8')
+        status, result = self.request('POST', '/api/extract_text', body, headers)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(result), {'ok': True, 'text': text})
+
     def test_unknown_api_refused(self):
         self.assertEqual(self.request('POST', '/api/nope', b'{}')[0], 403)
 
