@@ -625,7 +625,7 @@ def build_lite_docx(
 def render_lite_report(report: Dict[str, object]) -> str:
     lines = [
         "轻量排版完成（纯 Python 标准库，不依赖 python-docx / lxml）",
-        "已套用：A4 纸张、页边距（上37/下35/左28/右26 mm）、每页22行×每行28字网格、标准字体、各级标题层次、落款右空四字居中与奇偶页码。",
+        "已套用：A4 纸张、页边距（上37/下35/左28/右26 mm）、每页22行×每行28字网格、标准字体、各级标题层次、无印章落款（署名右空二字，成文日期首字比署名首字右移二字，日期较长时日期右空二字、署名相应左移）与奇偶页码。",
         f"共生成 {report['paragraphs']} 段。",
     ]
     if report.get("detected"):
@@ -656,8 +656,8 @@ def _template_specs(fonts: Dict[str, str], line_pt: float) -> List[Tuple[str, st
     def p_left(text: str) -> str:
         return f"<w:p>{_ppr_xml(align='left', line_exact_pt=line_pt)}{_run_xml(text, fs, 16.0)}</w:p>"
 
-    def p_right(text: str, right_chars: float = 4.0) -> str:
-        return f"<w:p>{_ppr_xml(align='right', line_exact_pt=line_pt, right_chars=right_chars)}{_run_xml(text, fs, 16.0)}</w:p>"
+    def p_right(text: str) -> str:
+        return f"<w:p>{_ppr_xml(align='right', line_exact_pt=line_pt, right_chars=2.0)}{_run_xml(text, fs, 16.0)}</w:p>"
 
     def p_h1(text: str) -> str:
         return f"<w:p>{_ppr_xml(align='both', line_exact_pt=line_pt, first_line_chars=2.0, outline=0, keep_next=True, style_id='Heading1')}{_run_xml(text, ht, 16.0)}</w:p>"
@@ -694,8 +694,8 @@ def _template_specs(fonts: Dict[str, str], line_pt: float) -> List[Tuple[str, st
                 p_h2("（一）【二级标题：楷体_GB2312 三号】"),
                 p_body("1.【三级标题与正文：仿宋_GB2312 三号】"),
                 _blank_p(line_pt),
-                p_right("某单位名称（替换为本机关全称）", 4.0),
-                p_right("2026年11月　日", 4.0),
+                p_right("某单位名称（替换为本机关全称）"),
+                p_right("2026年11月　日"),
             ],
         ),
         (
@@ -714,8 +714,8 @@ def _template_specs(fonts: Dict[str, str], line_pt: float) -> List[Tuple[str, st
                 p_h1("一、【一级标题】"),
                 p_body("【正文内容】"),
                 _blank_p(line_pt),
-                p_right("某单位名称（替换为本机关全称）", 4.0),
-                p_right("2026年11月　日", 4.0),
+                p_right("某单位名称（替换为本机关全称）"),
+                p_right("2026年11月　日"),
             ] + p_banji("抄送：【抄送机关】。", "【印发机关名称】　　　　　　　　　　　　2026年【月】月【日】日印发"),
         ),
         (
@@ -745,8 +745,8 @@ def _template_specs(fonts: Dict[str, str], line_pt: float) -> List[Tuple[str, st
                 p_body("经研究，拟【此处写明本部门倾向性处理意见和经费/人员/时限安排】。"),
                 p_body("妥否，请批示。"),
                 _blank_p(line_pt),
-                p_right("某内设部门（替换为本部门名称）", 4.0),
-                p_right("2026年11月　日", 4.0),
+                p_right("某内设部门（替换为本部门名称）"),
+                p_right("2026年11月　日"),
                 p_body("（联系人：【姓名】，联系电话：【电话】）"),
             ],
         ),
