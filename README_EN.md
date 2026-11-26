@@ -6,7 +6,7 @@
 
 # dyz-gongwen-skills · Chinese Official Document (公文) Skills
 
-22 AI skills for writing Chinese official documents (公文, *gongwen*) in government agencies, schools, hospitals, public institutions, and enterprises: drafts use only the facts you provide, format Word files to the GB/T 9704 national standard, run 13 categories of automated lint checks, and stop on classified markings. Works across 7 coding agents, web LLM chat prompts, and air-gapped intranet workstations.
+22 AI skills for writing Chinese official documents (公文, *gongwen*) in government agencies, schools, public institutions, and enterprises: drafts use only the facts you provide, format Word files to the GB/T 9704 national standard, run 13 categories of automated lint checks, and stop on classified markings. Works across 7 coding agents, web LLM chat prompts, and air-gapped intranet workstations.
 
 Author: [duyunzhoudyz](https://github.com/duyunzhoudyz) · Free for personal and non-commercial use; commercial use requires prior authorization; keep this attribution when redistributing.
 
@@ -38,8 +38,8 @@ If this project solves a real problem for you, leave a [Star](https://github.com
 
 Using this repository does not require purchasing or signing up for any of the services below.
 
-- [Sub4AI Shop](https://www.16688.com.cn/shop/SUB4AI): AI subscriptions and digital memberships across 9 categories and dozens of items, including direct top-ups for major AI plans (monthly, annual, and multi-tier options), ready-to-use AI accounts, productivity and creative software memberships (Notion, Adobe Express, Suno, Tavily, and others), and email accounts, helping individual users get around payment hurdles when subscribing to overseas AI services. Self-service checkout accepts Alipay and WeChat Pay, with automated delivery on the majority of listings and 24/7 self-service top-ups arriving in roughly a minute (see individual product pages for exact timing); transactions are held in escrow on the 16688 platform with order-lookup and dispute channels, a 30-day warranty on select direct top-up items, and invoices available through customer support on eligible products. For team and institutional procurement, see [sub4ai.com](https://sub4ai.com): overseas AI subscription provisioning, renewals, and account delivery for companies, universities, and teams, supporting bulk purchasing with quotes, contracts, corporate bank settlement, and invoicing.
-- [1KeyAPI](https://1keyapi.com): Infrastructure-grade stability and unthrottled concurrency, built for research benchmarks and production workloads. One API key connects major global and Chinese model families, including Claude, GPT, Gemini, Grok, Qwen, DeepSeek, Kimi, and GLM; switch models without changing code through dual Anthropic (`/v1/messages`) and OpenAI (`/v1/chat/completions`, `/v1/responses`) protocol compatibility, so existing SDKs and IDE plugins plug in with no code changes, backed by multi-route hot standby, automatic failover, and sticky long-context sessions. Transparent per-token pricing in RMB: the website publishes model rates alongside vendor reference prices with a monthly cost estimator, plus spending caps, rate limits, and over-quota alerts broken down by school, lab, department, or project, and exportable billing and usage reports for finance reconciliation. Supports corporate bank transfers and invoices; users in mainland China should use the service in accordance with local laws, regulations, and platform terms of service.
+- [Sub4AI Shop](https://www.16688.com.cn/shop/SUB4AI): AI subscriptions and digital memberships across 9 categories and dozens of items: direct AI plan top-ups (monthly, annual, etc.), ready-made AI accounts, Notion / Adobe Express / Suno / Tavily tool memberships, and email accounts, solving overseas AI top-up and payment hassles for everyday users. Self-service checkout via Alipay and WeChat Pay, auto-delivery on many items, and 24/7 top-ups in ~1 minute (per listing), with 16688 platform escrow, order lookup and dispute channels, 30-day warranty on select top-ups, and invoicing via support on eligible items. Team and institutional procurement is at [sub4ai.com](https://sub4ai.com): overseas AI subscription setup, renewals, and account delivery for enterprises, universities, and teams, with bulk quotes, contracts, corporate bank settlement, and invoicing.
+- [1KeyAPI](https://1keyapi.com): Rock-solid stability and smooth high concurrency, built for research benchmarks and production. One key connects Claude, GPT, Gemini, Grok, Qwen, DeepSeek, Kimi, GLM, and other major model families; switch models without code changes via Anthropic (`/v1/messages`) and OpenAI (`/v1/chat/completions`, `/v1/responses`) protocols for existing SDKs and IDE plugins, with multi-route hot standby, auto-failover, and sticky long-context sessions. Transparent per-token RMB pricing is listed against reference rates with a monthly cost estimator, plus spending caps, rate limits, over-quota alerts, and exportable finance reports by school, lab, department, or project. Supports corporate bank transfers and invoices; mainland China users should use the service as needed under local laws, regulations, and platform terms.
 <!-- /AD-SLOT -->
 
 ---
@@ -53,19 +53,19 @@ How this differs from asking a general-purpose LLM to write directly:
 | Stage | Plain AI drafting | With dyz-gongwen-skills |
 |---|---|---|
 | Data & examples | Invents figures or cases when materials are missing | Uses only the materials you provide and marks missing facts as `【待补】` (`[TO FILL]`). Across 136 anti-fabrication cases in the v1.0 benchmark, fabrications were 0 with skills vs. 66 without |
-| Page layout | Ad-hoc styling; breaks or swaps fonts silently when standard Chinese fonts are missing | Generates 7 GB/T 9704-2012 Word layouts; reports missing fonts upfront and never substitutes silently. Scored 97.2 on layout audit in head-to-head testing (next highest: 79.6) |
+| Page layout | Manual ad-hoc styling; layout breaks easily when standard Chinese fonts are missing | Generates 7 GB/T 9704-2012 Word layouts; reports missing fonts upfront and never substitutes silently. Scored 97.2 on layout audit in head-to-head testing (next highest: 79.6) |
 | Prose style | AI clichés, choppy short sentences, and overused directives ("must", "strictly prohibited") | Built-in opening-stance guides, sentence-length rewrites, and 6 rhythm exemplars; 13 script lint categories across 41 document types, calibrated for sentence length and directive density against a 300-document public *gongwen* corpus |
 | Administrative stance | Hedged wording ("may", "consider") and tacked-on disclaimers | Calibrates phrasing to upward, parallel, or downward administrative routing; puts items needing verification into a separate drafting note outside the document body |
 | Confidentiality | No interception | Stops and alerts on classification marks or "internal document" (`内部资料`) / "work secret" (`工作秘密`) labels; prompt editions and the offline bundle work on air-gapped intranets |
-| Workflow weight | Same heavy pipeline for every request | One-step output for routine notices under 1,000 Chinese characters; standard drafts run script linting first and add polishing or review only when thresholds fire; high-stakes filings go through an eight-gate review |
+| Workflow weight | Treats every document weight the same | One-step output for routine notices under 1,000 Chinese characters; standard drafts run script linting first and add polishing or review only when thresholds fire; high-stakes filings go through an eight-gate review |
 | Organizational rules | Generic templates | 7 organization profiles, 5 role modes, and 5 sector packs with dedicated compliance scripts (39 rules for hospitals, 40 checks for SOEs, 38 rules for K-12 schools, 11 rules for universities, etc.) |
 
 Verifiable evidence in the repository:
 
 - Traceable rules: every layout, punctuation, and numeral rule cites its clause number in [shared/rules/](shared/rules/); the lint engine runs 13 check categories across 41 document types ([gongwen_lint.py](shared/scripts/gongwen_lint.py)).
-- Tests: 3,191 unit tests pass across the repository (1 Windows symlink test skipped), and CI enforces schema validation, unit tests, and zero-egress static auditing.
+- Tests: 3,191 unit tests pass across the repository (1 Windows symlink test skipped), and CI enforces skill validation, unit tests, and zero-egress static auditing.
 - Benchmarks: across 372 test cases and 2,671 checks in the v1.0 benchmark, universal check pass rate reached 99.1% with skills vs. 68.7% without; head-to-head comparisons against 8 similar GitHub projects are in [Results](#results).
-- Air-gapped operation: the Xinchuang local toolbox binds strictly to `127.0.0.1`, makes no network requests, and retains no document text; all offline scripts pass automated code-level zero-egress auditing (`security_audit.py --strict`, blocking any networking code on commit); an 8-case guardrail smoke test passed 8/8 on `deepseek-chat` in both injection modes.
+- Air-gapped operation: the Xinchuang local toolbox binds only to `127.0.0.1`, makes no network requests, and retains no document text; all offline scripts pass automated code-level zero-egress auditing (`security_audit.py --strict`, blocking any networking code on commit); an 8-case guardrail smoke test passed 8/8 on `deepseek-chat` in both injection modes.
 - Stated limitations: real-hardware acceptance on Kylin OS and UnionTech UOS is not yet complete; benchmark judges are LLMs instead of human reviewers; personal-name detection is heuristic. Details in [Results](#results) and [FAQ](#faq).
 
 How to use it in three steps: install for your environment (or copy a prompt), state your request in plain Chinese, and ask to "format as red-header Word" (`排成红头`) when you need a formal file. Copy-paste commands for each setup follow in [Quick start](#quick-start).
@@ -90,7 +90,7 @@ How to use it in three steps: install for your environment (or copy a prompt), s
 | Codex, Cursor, Gemini CLI, GitHub Copilot, Qwen Code, Kimi Code CLI | One-line install script; see [Option 1](#option-1-one-line-install-script-windows-macos-linux) |
 | Already inside an agent (Cursor, Trae, CodeBuddy, etc.) and prefer not to run shell commands | Paste one sentence to let the agent install it; see [Option 5](#option-5-let-your-agent-install-it) |
 
-Skills directory paths for Trae and CodeBuddy have not been verified on every version. The installer includes targets for both (`--target trae`, `--target codebuddy`); open an Issue if you run into path mismatches.
+Skills directory paths for Trae and CodeBuddy have not yet been fully verified. The installer includes targets for both (`--target trae`, `--target codebuddy`) for trial use; please open an Issue if you run into problems.
 
 ### Option 1: One-line install script (Windows, macOS, Linux)
 
@@ -148,7 +148,7 @@ No command line required. Open one of the directories below and paste the file c
 
 ### Option 5: Let your agent install it
 
-Send the prompt below to your agent (replace `gongwen-hospital` with the sector pack you need, or change the last clause to skip sector packs if you only need the core skills):
+Send the prompt below to your agent (replace `gongwen-hospital` on the last line with your sector pack, or replace `install only gongwen-hospital for now` with `skip sector packs for now` if you do not need one):
 
 ```text
 Please install the core skills from the skills/ directory of https://github.com/duyunzhoudyz/dyz-gongwen-skills into your skills directory.
@@ -178,11 +178,11 @@ The install script accepts multiple packs (`--pack hospital --pack soe`) or `--p
 
 Adaptation status, stated plainly: offline and zero-dependency adaptation plus local self-testing are complete; real-hardware acceptance testing on Kylin OS and UnionTech UOS has not yet been completed.
 
-Built for domestic Chinese Linux distributions (*Xinchuang* / 信创 workstations), government intranets, and office PCs where autonomous coding agents are disallowed: every operation is triggered manually by the user, with no background daemon and no outbound network traffic. Download `dyz-gongwen-skills-offline-1.3.0.zip` from [Releases](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) (available once v1.3.0 is published; until then use `Code -> Download ZIP`, `git clone`, or an internal IT shared drive), extract it, and run the command for your scenario.
+Built for domestic Chinese OS environments (*Xinchuang* / 信创), government intranets, and office PCs where autonomous coding agents are disallowed: every operation is triggered manually by the user, with no background daemon and no outbound network traffic. Download `dyz-gongwen-skills-offline-1.3.0.zip` from [Releases](https://github.com/duyunzhoudyz/dyz-gongwen-skills/releases) (available once v1.3.0 is published; until then use `Code -> Download ZIP`, `git clone`, or an internal IT shared drive), extract it, and run the command for your scenario.
 
 #### Office staff: launch the zero-network local toolbox
 
-Listens exclusively on `http://127.0.0.1:8765`, makes no internet or model API calls, and does not save document text (a few checks process files briefly in a local temp folder and delete them right after). One local browser page handles prompt copying, `.docx`/`.txt` import, classified-mark blocking, tab-isolated two-way redaction and restoration, eight-gate linting with style-fingerprint checks, fact cross-checking, 8 sector-specific compliance checkers, font checks, single-file HTML formatting, GB/T 9704 Word generation (falls back automatically to a built-in pure-stdlib generator when `python-docx`/`lxml` are absent, including on LoongArch), and OFD structure checks.
+Listens only on `http://127.0.0.1:8765`, makes no internet or model API calls, and does not save document text (a few checks process files briefly in a local temp folder and delete them right after). One local browser page handles prompt copying, `.docx`/`.txt` import, classified-mark blocking, tab-isolated two-way redaction and restoration, eight-gate linting with style-fingerprint checks, fact cross-checking, 8 sector-specific compliance checkers, font checks, single-file HTML formatting, GB/T 9704 Word generation (falls back automatically to a built-in pure-stdlib generator when `python-docx`/`lxml` are absent, including on LoongArch), and OFD structure checks.
 
 Kylin OS / UnionTech UOS / Linux (double-click `xinchuang/启动工具箱.sh` or `.desktop`, or open a terminal in the extracted folder and paste):
 
@@ -273,8 +273,8 @@ Full instructions for each skill live in its directory under `SKILL.md` (read by
 
 | Skill | What it does | Trigger scenarios | Maturity |
 |---|---|---|---|
-| [`gongwen`](skills/gongwen/) | Entry router: identifies organization type, writer role, document genre, and administrative routing (`上行/平行/下行`), plans the workflow, and builds a quick org profile in 3 questions on first run | "What materials do we prepare for an inspection?", "Not sure which document genre fits"; in web chat, "Which prompt should I paste next?" | Stable |
-| [`gongwen-profile`](skills/gongwen-profile/) | Full organization profile builder: learns style conventions from past agency drafts, extracts leadership editing habits, and maintains org banned/preferred term lists | "Build a full organization profile", "Learn our agency's writing style", "Study how our director revised this draft", "Add a banned term" | Stable |
+| [`gongwen`](skills/gongwen/) | Entry router: identifies organization type, writer role, document genre, and administrative routing (`上行/平行/下行`), plans the workflow, and builds a quick org profile in 3 questions on first run | "What materials do we prepare for an inspection?", "What documents do we need to draft soon?"; in web chat, "Which prompt should I paste next?" | Stable |
+| [`gongwen-profile`](skills/gongwen-profile/) | Full organization profile builder: learns style conventions from past agency drafts, extracts leadership editing habits, and manages org banned-term lists | "Build a full organization profile", "Learn our agency's writing style", "Study how our director revised this draft", "Add a banned term" | Stable |
 
 **Drafting**
 
@@ -284,8 +284,8 @@ Full instructions for each skill live in its directory under `SKILL.md` (read by
 | [`gongwen-report`](skills/gongwen-report/) | General institutional documents (`综合文稿`): work summaries, annual plans, work priorities, briefings, research reports, experience write-ups, duty/integrity reports (`述职述责述廉`), implementation plans, plenary reports | "Write an annual work summary", "Draft a briefing", "Write a year-end duty report", "Next year's work plan", "Consolidate submissions from multiple departments" | Stable |
 | [`gongwen-speech`](skills/gongwen-speech/) | Speeches (`讲话类`): leadership speeches, emcee scripts (`主持词`), ceremonial remarks (`致辞`), pledge/exchange/delegate remarks; sets length from speaking time (~200 Chinese chars/min) in spoken register | "Draft a speech", "Prepare a 15-minute talk", "Opening ceremony remarks", "Write an emcee script" | Stable |
 | [`gongwen-party`](skills/gongwen-party/) | Party-building & organizational life (`党建与组织生活`): self-examination (`对照检查`), Party work reports, Party lectures (`党课`), seminar remarks, study reflections, `三会一课` branch meeting records; outputs an outline only when personal examples are missing | "Draft a self-examination report", "Prepare a Party lecture", "Plan a themed Party day", "Write study notes", "Clean up branch meeting notes" | Stable |
-| [`gongwen-brief`](skills/gongwen-brief/) | Information briefs (`信息简报`): government info submissions (`政务信息`), bulletins, press releases, official WeChat posts; condenses long reports into short briefs and evaluates adoption likelihood | "Submit a government info item", "Compile a bulletin issue", "Write a press release", "Condense this into an 800-char brief", "Will this info brief get picked up?" | Stable |
-| [`gongwen-minutes`](skills/gongwen-minutes/) | Meeting minutes (`会议纪要`): raw records, formal minutes, agenda papers, follow-up action trackers (`督办清单`); organizes strictly without adding unstated claims, distinguishing approved / approved in principle / deferred | "Turn this transcript into meeting minutes", "Draft executive-meeting minutes", "Prepare an agenda paper", "List action items decided at the meeting" | Stable |
+| [`gongwen-brief`](skills/gongwen-brief/) | Information briefs (`信息简报`): government info submissions (`政务信息`), bulletins, press releases, WeChat public-account posts; condenses long reports into short briefs and evaluates adoption likelihood | "Submit a government info item", "Compile a bulletin issue", "Write a press release", "Condense this into an 800-char brief", "Will this info brief get picked up?" | Stable |
+| [`gongwen-minutes`](skills/gongwen-minutes/) | Meeting minutes (`会议纪要`): raw records, formal minutes, agenda papers, follow-up action trackers (`督办清单`); organizes records without adding unstated claims, distinguishing approved / approved in principle / deferred | "Turn this transcript into meeting minutes", "Draft executive-meeting minutes", "Prepare an agenda paper", "List action items decided at the meeting" | Stable |
 | [`gongwen-implement`](skills/gongwen-implement/) | Superior-document implementation (`上级文件转化`): extracts core requirements, builds task-breakdown tables, drafts local implementation plans and compliance reports; flags verbatim copying and layer-by-layer over-mandating (`层层加码`) | "The province issued a notice and we need an implementation plan", "Break down tasks from this policy file", "Map requirements item by item", "Report implementation progress" | Stable |
 | [`gongwen-rectify`](skills/gongwen-rectify/) | Inspection & audit rectification (`整改材料`): rectification plans, issue ledgers (Excel-exportable), progress reports, self-inspection reports; reconciles narrative counts against ledger rows item by item | "Inspection feedback arrived and we need a rectification plan", "Build a rectification ledger", "Audit rectification report", "Check whether the report matches the ledger" | Stable |
 
@@ -297,7 +297,7 @@ Full instructions for each skill live in its directory under `SKILL.md` (read by
 | [`gongwen-polish`](skills/gongwen-polish/) | Revision & polishing: length compression, fact-preserving expansion, routing-tone conversion, plain talk to formal *gongwen*, edits from leader margin notes, multi-draft merging | "Cut this down to 3,000 chars", "Turn this upward report into a downward notice", "Director wrote 'too vague, where are the numbers?'", "Merge these two drafts" | Stable |
 | [`gongwen-humanize`](skills/gongwen-humanize/) | De-AI-tone cleanup: strips AI buzzwords and formulaic phrasing while keeping legitimate *gongwen* conventions and preserving every fact (99.6% fact retention in benchmark) | "Remove the AI tone", "Sounds too robotic", "Rewrite this DeepSeek-generated summary in natural official prose" | Stable |
 | [`gongwen-direct`](skills/gongwen-direct/) | De-hedging: removes disclaimers, turns tentative "it is suggested / may consider" phrasing into clear directives, and ensures upward requests state a concrete recommendation | "Remove 'for reference only'", "This notice sounds like it's bargaining with subordinates; make it a directive", "Approval reply is ambiguous", "Request lacks a proposed option" | Stable |
-| [`gongwen-review`](skills/gongwen-review/) | Eight-gate proofreading (`八关核稿`): outputs a severity-ranked issue list (P0/P1/P2); runs 13 categories of script checks covering punctuation, numerals, layout, normative terms, confidentiality, and privacy, with optional style-fingerprint and org banned-term checks | "Proofread this draft", "Run a pre-sign-off check", "Check formatting and punctuation" | Stable |
+| [`gongwen-review`](skills/gongwen-review/) | Eight-gate proofreading (`八关核稿`): outputs a tiered issue list; runs 13 categories of script checks covering punctuation, numerals, layout, normative terms, confidentiality, and privacy, with optional style-fingerprint and org banned-term checks | "Proofread this draft", "Run a pre-sign-off check", "Check formatting and punctuation" | Stable |
 
 **Delivery tools**
 
@@ -311,10 +311,10 @@ Full instructions for each skill live in its directory under `SKILL.md` (read by
 | Skill | What it does | Trigger scenarios | Maturity |
 |---|---|---|---|
 | [`gongwen-grassroots`](skills/gongwen-grassroots/) | Townships, subdistricts & communities: inspection briefings, resident notices, emergency alerts, work logs, village/community affairs disclosures | "Submit a township info brief", "County inspection self-check report", "Water-outage notice for residents", "Heavy-rain alert to villages", "Format a village affairs disclosure" | Stable |
-| [`gongwen-hospital`](skills/gongwen-hospital/) | Public hospitals: hospital accreditation self-assessments, national performance exam (`国考`) analysis, RCA/PDCA reports, department chief duty reports (DRG/CMI), Party committee and president's office agendas | "Draft an accreditation self-assessment", "National hospital performance analysis", "Quarterly quality report", "Run an RCA or PDCA write-up", "Department chair duty report", "Hospital executive agenda item" | Stable |
+| [`gongwen-hospital`](skills/gongwen-hospital/) | Public hospitals: hospital accreditation self-assessments, performance analysis, RCA/PDCA reports, department chief duty reports (DRG/CMI), Party committee and president's office agendas | "Draft an accreditation self-assessment", "National hospital performance exam (`国考`) analysis", "Quarterly quality report", "Run an RCA or PDCA write-up", "Department chair duty report", "Hospital executive agenda item" | Stable |
 | [`gongwen-university`](skills/gongwen-university/) | Universities: undergraduate teaching-audit self-assessments, discipline evaluations, blind-review checks on grant proposals (`活页`), school summaries, internal sign-offs, and university-vs.-department issuance routing | "Undergraduate audit self-assessment", "Discipline evaluation case study", "Check whether this grant proposal leaks author identity", "Issued by the university or the office?", "Sign-off memo to university leadership" | Stable |
-| [`gongwen-k12`](skills/gongwen-k12/) | Primary & secondary schools (K-12): semester plans and summaries, education-supervision self-assessments, parent-meeting talks, student report-card comments, letters to parents | "Semester work plan or summary", "Supervision self-assessment", "Parent-meeting remarks", "End-of-term comments for the whole class", "Holiday safety letter to parents" | Stable |
-| [`gongwen-soe`](skills/gongwen-soe/) | State-owned enterprises (SOEs): "Three Majors and One Large" (`三重一大`: major decisions, major appointments, major projects, large-sum capital use) agenda items, board proposals, GM-office minutes, ESG reports, compliance reports | "`三重一大` executive agenda package", "Board proposal and draft resolution", "Executive office minutes", "Operating performance analysis", "ESG or compliance report" | Stable |
+| [`gongwen-k12`](skills/gongwen-k12/) | Primary & secondary schools (K-12): semester plans and summaries, education-supervision self-assessments, parent-meeting talks, student report-card comments, letters to parents | "Semester work plan or summary", "Supervision self-assessment", "Parent-meeting remarks", "End-of-term comments for the whole class", "School-break letter to parents" | Stable |
+| [`gongwen-soe`](skills/gongwen-soe/) | State-owned enterprises (SOEs): "Three Majors and One Large" (`三重一大`: major decisions, major appointments, major projects, large-sum capital use) agenda items, board proposals, GM-office minutes, ESG reports, compliance management reports | "`三重一大` agenda materials", "Board proposal", "Compile board resolutions", "Operating performance analysis", "Compile an ESG report" | Stable |
 
 ---
 
@@ -328,7 +328,7 @@ You do not need to name a skill. Send your request in Chinese directly:
 | "Here is the transcript from this morning's workplace-safety meeting. Draft the minutes and list decided items in a follow-up tracker." | `gongwen-minutes` |
 | "Write a department annual work summary, around 2,000 characters, using the attached notes. Do not invent any figures." | `gongwen-report` |
 | "This is an AI-generated first draft. Strip buzzwords like `赋能` ('empower'), `闭环` ('closed loop'), and `全链条` ('full chain'), rewrite in normal *gongwen* prose, and keep every number and case intact. (draft attached)" | `gongwen-humanize` |
-| "Change tentative phrases like 'units are advised to' and 'may refer to' in this notice into firm requirements. (notice attached)" | `gongwen-direct` |
+| "Change tentative phrases like 'units are advised to' and 'may refer to' in this notice into firm requirements, making clear that compliance is mandatory. (notice attached)" | `gongwen-direct` |
 | "This request memo goes for signature tomorrow. Proofread it first, then format it as a standard red-header Word file. (memo attached)" | `gongwen-review` -> `gongwen-format` |
 | "The municipal government issued this policy document. Extract a task breakdown and draft our agency's implementation plan. (document attached)" | `gongwen-implement` |
 | "The inspection team flagged 9 issues. Draft a rectification plan and an issue ledger that exports to Excel. (feedback list attached)" | `gongwen-rectify` |
@@ -353,7 +353,7 @@ dyz-gongwen-skills/
 │   ├── style/               # Prose engine, 6 rhythm exemplars, 300-doc corpus baseline.md
 │   ├── profiles/            # 7 organization profiles and 5 writer role modes
 │   ├── scripts/             # Lint engine gongwen_lint.py, name detector gw_names.py, etc.
-│   └── guardrails.md        # Six non-negotiable writing guardrails
+│   └── guardrails.md        # Six writing guardrails
 ├── dist/                    # Web-chat and intranet deliverables (built by tools/build_prompts.py)
 │   ├── prompts/             # 22 full standalone prompts
 │   ├── prompts-lite/        # 22 compact prompts (<=4,000 chars each)
@@ -470,7 +470,7 @@ Model under test: `claude-sonnet-5-5`, across 372 test cases and 2,671 check ite
 | Runs containing fabrications (136 anti-fabrication cases) | 0 | 66 |
 | Classified-mark cases halted as required (21 cases) | 21 | 3 |
 
-> In round 2, the with-skills group was re-run at max reasoning effort while the without-skills group reused round-1 outputs, so the table above is not an equal-effort comparison; the equal-condition round-1 numbers are 97.1% vs. 54.0% (universal items: 97.7% vs. 68.5%). Each test case ran once, and the grader was the same model family as the model under test.
+> In round 2, the with-skills group was re-run at max reasoning effort while the without-skills group reused round-1 outputs, so the table above is not an equal-effort comparison; the equal-condition round-1 numbers are 97.1% vs. 54.0% (universal items: 97.7% vs. 68.5%). Each test case ran once, and the grader was the same model as the one under test.
 
 All 17 core skills passed at `>= 97.4%` with 0 fabrications and met trigger thresholds, earning `Stable` status. In v1.1.0, the 5 sector packs were re-evaluated against the `Stable` criteria in [CONTRIBUTING.md](CONTRIBUTING.md) (quantitative thresholds plus sector engineering gates): `grassroots`, `hospital`, `k12`, and `university` cleared sampled re-testing (Group A pass rates from 80.9% to 94.7%, 0 fabrications upon verification) and moved to `Stable`; `soe` showed fabrications in initial review, had rules tightened, and passed re-testing on cases 17 to 22 (90.9% pass rate, 0 fabrications upon verification; 92.7% combined with round-1 cases 13 to 16 on grader basis), bringing all five sector packs to `Stable`. Sampling design and caveats: [v1.1 sector-pack sample report](evals/results/v1.1-industry-sample.md); full v1.0 protocol and caveats: [v1.0 benchmark report](evals/results/v1.0-benchmark.md).
 
@@ -485,9 +485,9 @@ Testing the compact intranet prompts (`dist/prompts-lite/`) and single-chat bund
 Every skill enforces these six rules ahead of any individual workflow (full text in [shared/guardrails.md](shared/guardrails.md)):
 
 1. **Confidentiality before generation**: Stop and alert the user immediately upon detecting classification marks, `内部资料` ("internal material"), `工作秘密` ("work secret"), or sensitive personal data.
-2. **Facts come strictly from the user**: Figures, cases, document numbers, and policy citations come only from user-supplied materials; mandatory missing items are marked `【待补】` (`[TO FILL]`), and uncertain points go into the drafting note.
+2. **Facts come only from the user**: Figures, cases, document numbers, and policy citations come only from user-supplied materials; mandatory missing items are marked `【待补】` (`[TO FILL]`), and uncertain points go into the drafting note.
 3. **Clean body, notes outside**: Never insert disclaimers or AI self-references inside the document body; put verification reminders into a separate "Drafting Note" (`起草说明`).
-4. **Cut by default**: Open directly, obey official length-reduction caps, and do not copy paragraphs verbatim from superior documents; match requested word counts without inventing facts or padding.
+4. **Cut by default**: Open directly, obey burden-reduction length caps, and do not copy paragraphs verbatim from superior documents; match requested word counts without inventing facts or padding.
 5. **Traceable, script-checkable rules**: Every layout, punctuation, and numeral rule cites its clause number, and anything checkable by deterministic script is not left to LLM guesswork.
 6. **Assist, never ghostwrite personal experience**: For self-examination (`对照检查`) or personal duty reports (`述职`) that require first-hand examples, output an outline only when personal material is absent.
 
@@ -510,7 +510,7 @@ No literary polish or coding background is required, as long as you draft Chines
 
 **1. What is this project, and does it cost money?**
 
-dyz-gongwen-skills is a suite of Chinese official-document writing skills for staff in government agencies, public institutions, schools, hospitals, and SOEs; v1.3.0 ships 22 skills plus the Xinchuang zero-network local toolbox (all prompts and generated documents are in Chinese). The repository is source-available under the PolyForm Noncommercial License 1.0.0 (source available, not OSI-approved open source): free for personal and non-commercial use, while commercial use requires prior authorization from the author.
+dyz-gongwen-skills is a suite of Chinese official-document writing skills for staff writers in government agencies, public institutions, and SOEs; v1.3.0 ships 22 skills plus the Xinchuang zero-network local toolbox (all prompts and generated documents are in Chinese). The repository is source-available under the PolyForm Noncommercial License 1.0.0 (source available, not OSI-approved open source): free for personal and non-commercial use, while commercial use requires prior authorization from the author.
 
 **2. Can I use it without Claude?**
 
@@ -530,7 +530,7 @@ No, and the project makes no such claim. `gongwen-humanize` edits prose style an
 
 **6. What if the exported Word fonts look wrong, or I do not have Python installed?**
 
-This repository bundles no font files and never substitutes fallback fonts behind your back. When standard Chinese *gongwen* fonts (such as FangSong_GB2312 or FZXiaoBiaoSong) are missing, `gongwen-format` lists the missing fonts at the top of its reply along with installation steps; restart Word or WPS after installing them. If you have Python without `python-docx`/`lxml` (including on LoongArch machines), use the zero-dependency single-file HTML builder (`build_html.py`) or the pure-stdlib Word builder (`xinchuang/lite_docx.py`) inside the local toolbox; with no Python at all, open the 5 macro-free blank `.docx` templates in [xinchuang/templates/](xinchuang/templates/) or follow the manual Word/WPS setup checklist generated by the format skill.
+This repository bundles no font files and never substitutes fallback fonts behind your back. When standard fonts are missing, `gongwen-format` lists the missing fonts at the top of its reply along with installation steps; restart Word or WPS after installing them to verify the layout. If you have Python without `python-docx`/`lxml` (including on LoongArch machines), use the zero-dependency single-file HTML builder (`build_html.py`) or the pure-stdlib Word builder (`xinchuang/lite_docx.py`) inside the local toolbox; with no Python at all, open the 5 macro-free blank `.docx` templates in [xinchuang/templates/](xinchuang/templates/) or follow the manual Word/WPS setup checklist generated by the format skill.
 
 Further notes are in [使用须知](使用须知.md) (in Chinese).
 
@@ -615,7 +615,7 @@ This project adapted ideas and reference structures from several open-source pro
 
 - [dyz-plain-talk-decoder](https://github.com/duyunzhoudyz/dyz-plain-talk-decoder) (Plain-Talk Decoder / 人话解码器): An information-filtering and substance-extraction assistant. Uses AI Agents to fetch, classify, fact-check, and strip filler or PR spin from articles, press releases, and videos, laying out the plain facts, subtext, and practical takeaways.
 - [dyz-med-paper-skills](https://github.com/duyunzhoudyz/dyz-med-paper-skills) (Medical Paper Writing Skills): Agent skills for Chinese clinicians and medical graduate students writing academic papers, with 32 skills covering PubMed literature search, statistical analysis, Chinese and English manuscript drafting, journal selection, submission, and peer-review rebuttal for Claude Code and Codex.
-- [dyz-patent-copyright-skills](https://github.com/duyunzhoudyz/dyz-patent-copyright-skills) (Patent & Software Copyright Skills): Agent skills and local utilities for patent, software copyright, and technical-standard workflows. Drafts and cross-checks strictly from user-provided materials to produce internal candidate drafts for professional review.
+- [dyz-patent-copyright-skills](https://github.com/duyunzhoudyz/dyz-patent-copyright-skills) (Patent & Software Copyright Skills): Agent skills and local utilities for patent, software copyright, and technical-standard workflows. Drafts and cross-checks only from user-provided materials to produce internal candidate drafts for professional review.
 
 ---
 
@@ -625,4 +625,4 @@ Source available. Free for personal, learning, educational, research, and other 
 
 **Free distribution on skill platforms**: Free listing and distribution on platforms such as Coze (`扣子`), Tencent SkillHub, Tencent WorkBuddy, Xiaohongshu Red Skill, and Kimi Skill Store are permitted, provided you retain attribution to `duyunzhoudyz` and a link to this repository, keep this license notice intact, and charge end users nothing. **Paid listings, reselling, or bundling into paid courses or paid services constitute commercial use and require prior commercial authorization.**
 
-[PolyForm Noncommercial 1.0.0](LICENSE). Regulatory summaries in this repository are compiled from public regulations and national standards and do not replace the official texts.
+[PolyForm Noncommercial 1.0.0](LICENSE). Regulatory summaries in this repository are compiled from public regulations and national standards and do not replace the original texts.
