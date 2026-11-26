@@ -9,6 +9,12 @@ from tests.k12.test_k12_stage1 import probe_hits
 from tests.k12.test_k12_stage3b import comment_digest
 
 
+# 首评样例原封存。复审裁决撤去只有“项目”或“费用”作项目列的表头证据。
+_GENERIC_TABLE_CASES = {"G06_gap_04_col_header_biaozhun_plain"} | {
+    f"新R3-{kind}-{index}" for kind in ("MD", "Word") for index in range(10, 19)
+}
+
+
 def samples():
     with (SAMPLES / "stage3b_review_r1.jsonl").open(encoding="utf8") as stream:
         yield from map(json.loads, stream)
@@ -101,7 +107,11 @@ class Stage3bReviewTests(K12TestCase):
                     added_p0 = [h for h in now if h[1] == "P0" and h not in base]
                     self.assertEqual(added_p0, row.get("allowed_p0", {}).get(stage, {}).get(entry, []))
                     if row.get("rule") and entry == "general":
-                        self.assertIn(row["rule"], [r for r, lv, n in now])
+                        actual = [r for r, lv, n in now]
+                        if row["id"] in _GENERIC_TABLE_CASES:
+                            self.assertNotIn(row["rule"], actual)
+                        else:
+                            self.assertIn(row["rule"], actual)
                     if row.get("question"):
                         graph = k12_check.load_clause_module().analyze(row["text"])
                         self.assertTrue(graph.clauses)

@@ -197,6 +197,7 @@ def _alternatives(words):
 _PAIRS = dict(zip("（([［【〔《〈“‘「『", "）)]］】〕》〉”’」』"))
 _TITLES = "《〈"
 _QUOTES = "\"'“‘「『"
+_PUNCT_GAP = " \t\u00a0\u202f\u3000\u200b\u200c\u200d\u2060\ufeff"
 _SENTENCE_END = "。！？!?．."
 _BREAKS = _SENTENCE_END + "，,；;：:"
 _LINE_ENDS = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
@@ -673,8 +674,13 @@ def _parts(text, start, end, pairs, escaped):
         if char in _BREAKS and not _number_separator(text, index):
             stop = index + 1
             if char in _SENTENCE_END:
-                while stop < end and text[stop] in _SENTENCE_END and stop not in escaped:
-                    stop += 1
+                while stop < end:
+                    following = stop
+                    while following < end and text[following] in _PUNCT_GAP:
+                        following += 1
+                    if following == end or text[following] not in _SENTENCE_END or following in escaped:
+                        break
+                    stop = following + 1
             yield start, index, text[index:stop], previous
             prior = (start, index) if char not in _SENTENCE_END else None
             start, previous = stop, ""
@@ -2433,6 +2439,14 @@ _BASIS_HISTORY = re.compile(r"(?:已(?:经)?|累计|实际)(?:收取|收缴|缴�
 _BASIS_PENDING = re.compile(r"【待(?:补|核实)[：:][^】]*收费依据[^】]*】|收费依据[：:]【待(?:补|核实)")
 _BASIS_TITLE = re.compile(r"《([^》]+)》")
 _BASIS_NUMBER = re.compile(r"[\u3400-\u9fff]{1,16}[〔［\[]\d{4}[〕］\]]\s*\d+\s*号")
+_FEE_ITEM_HEADERS = {"收费项目", "费用名称", "收费名称", "缴费项目", "代收项目", "缴费名称", "代收名称"}
+_FEE_UNITS = r"(?:每(?:生|人))?(?:每(?:套|件|册|次|课时|月|学期|学年|年|人次))?"
+_BARE_FEE = re.compile(r"(?:本(?:学期|学年|月))?(?:按)?\s*" + _FEE_UNITS
+                       + r"\s*(?:收取|收费|缴纳)?\s*" + _BASIS_AMOUNT.pattern + r"(?:标准(?:收取|缴纳))?")
+_DIRECT_BASIS = re.compile(r"(?:按(?:照)?|根据|依据|(?:上述|本项)?收费依据(?:为)?)[：:]?\s*"
+                           r"[^《》。，,；;：:\n]{0,36}" + _BASIS_TITLE.pattern
+                           + r"(?:\s*(?:（\s*" + _BASIS_NUMBER.pattern + r"\s*）|\(\s*" + _BASIS_NUMBER.pattern
+                           + r"\s*\)))?")
 _BASIS_AUTHORITY = r"(?:教育局|教育厅|教育部|发改委|发展改革委|物价局|物价部门|人民政府)"
 _BASIS_APPROVED = re.compile(_BASIS_AUTHORITY + r"(?:已)?(?:批准|核定|批复)(?:的)?收费标准")
 _BASIS_CITATION = re.compile(_BASIS_AUTHORITY + r"(?:(?:联合)?(?:印发|发布|制定)的?)?$")
@@ -2477,7 +2491,46 @@ class UnsupportedAmount:
 
 def table_heading(cells):
     return any(_ITEM_COLUMN.fullmatch(label) or _BASIS_STANDARD.fullmatch(label)
-               or "姓名" in "".join(label.split()) or label in {"收费项目", "费用名称", "事项", "内容", "费用", "金额", "单价"} for label in cells)
+               or label in _FEE_ITEM_HEADERS or "姓名" in "".join(label.split())
+               or label in {"事项", "内容", "费用", "金额", "单价"} for label in cells)
+
+
+def _bare_fee_projects(clauses, index, sentence):
+    """只把独立裸单价绑定到直接引文；带项目修饰的收费不能借同段另一项目的依据。"""
+    current = clauses[index]
+    if index:
+        before = clauses[index - 1]
+        citation = _DIRECT_BASIS.fullmatch(before.text)
+        if (citation and before.separator in ("，", ",") and not any(
+                part.id < before.id and not _BASIS_STANDARD.fullmatch(part.text) for part in sentence)):
+            return _basis_projects(citation[1])
+    # 后置依据可和金额同句，也可自成一行；不跨另一收费动作或隐含项目的句首。
+    if any(part.id < current.id and not _BASIS_STANDARD.fullmatch(part.text) for part in sentence):
+        return set()
+    for i in range(index + 1, len(clauses)):
+        part = clauses[i]
+        value = part.text
+        if part.separator in ("：", ":") and i + 1 < len(clauses):
+            value += part.separator + clauses[i + 1].text
+        citation = _DIRECT_BASIS.fullmatch(value)
+        if citation:
+            return _basis_projects(citation[1])
+        if (_BASIS_AMOUNT.search(value) or _BASIS_ACTION.search(value) or _basis_projects(value)
+                or _BASIS_TITLE.search(value)):
+            break
+    return set()
+
+
+# 保留金额的符号和中文小数整数部分，避免将“负零点五元”当作“五元”。
+_TABLE_AMOUNT = re.compile(r"(?P<minus>[-−－负]\s*)?(?:[零〇一二两三四五六七八九十百千万]+点)?" + _BASIS_AMOUNT.pattern)
+
+
+def _positive_table_amount(raw):
+    for match in _TABLE_AMOUNT.finditer(raw):
+        if match["minus"] is None and (re.search(r"[一二两三四五六七八九十百千万]", match[0])
+                                       or any(ch.isdecimal() and int(ch) > 0 for ch in match[0])):
+            return True
+    return False
 
 
 def unsupported_amounts(graph, *, word_lines=()):
@@ -2528,8 +2581,8 @@ def unsupported_amounts(graph, *, word_lines=()):
                     continue
                 header = table is not None and (
                     _BASIS_STANDARD.fullmatch(c.column_header) or c.column_header in {"金额", "费用", "单价", "标准"}
-                ) and any(s.column != c.column and (_ITEM_COLUMN.fullmatch(s.column_header)
-                          or s.column_header == "费用") and s.text.strip() for s in clauses)
+                ) and _positive_table_amount(raw) and any(
+                    s.column != c.column and s.column_header in _FEE_ITEM_HEADERS and s.text.strip() for s in clauses)
                 related = [a for a in active if a is c or table is not None and a.project == c.project
                            or a.previous == c.id and _basis_projects(raw)
                            or c.previous == a.id and _BASIS_STANDARD.search(_BASIS_TITLE.sub("", a.text))]
@@ -2541,23 +2594,8 @@ def unsupported_amounts(graph, *, word_lines=()):
                     *(_basis_projects(_BASIS_TITLE.sub("", a.text)) for a in related))
                 if table is not None and c.project is not None and not projects:
                     projects = _basis_projects(graph.projects[c.project].label)
-                if sources and not projects and table is None:
-                    # 光杆金额紧邻“按《文件》”或“依据：《文件》”时，项目来自直接修饰它的依据。
-                    if re.fullmatch(r"(?:收费标准[：:]\s*)?(?:每[生人]\s*)?(?:收取|收费|缴纳)?\s*" +
-                                    _BASIS_AMOUNT.pattern, raw):
-                        idx = positions[c.id]
-                        before = clauses[idx-1].text if idx else ""
-                        after = "".join(s.text for s in clauses[idx+1:idx+3])
-                        title = _BASIS_TITLE.search(before)
-                        if (title and before.startswith(("按", "根据", "依据"))
-                                and not before[title.end():].strip()
-                                and clauses[idx - 1].separator in ("，", ",")):
-                            projects = _basis_projects(title[1])
-                        elif after.startswith("依据《") and all(
-                                part is c or _BASIS_STANDARD.fullmatch(part.text) for part in sentence):
-                            title = _BASIS_TITLE.search(after)
-                            if title:
-                                projects = _basis_projects(title[1])
+                if sources and not projects and table is None and _BARE_FEE.fullmatch(c.text):
+                    projects = _bare_fee_projects(clauses, positions[c.id], sentence)
                 if projects and any(projects <= keys for keys in sources):
                     continue
                 yield UnsupportedAmount(c.span.line, c.text)
