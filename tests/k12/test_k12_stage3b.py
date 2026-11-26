@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from tests.k12.test_k12_check import HAS_DOCX, K12TestCase
-from tests.k12.test_k12_stage1 import REPO_ROOT, SAMPLES, k12_check, read_jsonl, run_entry
+from tests.k12.test_k12_stage1 import SAMPLES, frozen_document_path, k12_check, read_jsonl, run_entry
 from tests.k12.test_k12_stage3a import baseline_losses, regression_probes
 from tests.k12.stage3a_checks import hits
 
@@ -34,7 +34,7 @@ def audit_inputs(folder):
         documents.setdefault(r["file"], {s: {e: r["runs"][e][s] for e in ("parents", "general")}
                                          for s in k12_check.STAGES})
     for file, base in documents.items():
-        yield "documents", file, REPO_ROOT / file, None, base, {}
+        yield "documents", file, frozen_document_path(file), None, base, {}
     for case in read_jsonl(SAMPLES / "stage3b_cases.jsonl"):
         path = folder / "probe.txt"
         path.write_bytes(case["text"].encode("utf8"))

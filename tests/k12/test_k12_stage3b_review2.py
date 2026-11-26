@@ -6,8 +6,8 @@ from pathlib import Path
 import sys
 import tarfile
 
-from tests.k12.test_k12_check import HAS_DOCX, HAS_OPENPYXL, K12TestCase, REPO_ROOT, SAMPLES, k12_check
-from tests.k12.test_k12_stage1 import probe_hits
+from tests.k12.test_k12_check import HAS_DOCX, HAS_OPENPYXL, K12TestCase, SAMPLES, k12_check
+from tests.k12.test_k12_stage1 import frozen_document_path, probe_hits
 
 
 def own_questions():
@@ -86,7 +86,7 @@ class Stage3bReview2Tests(K12TestCase):
     def test_review_repository_inputs(self):
         snapshots = json.loads((SAMPLES / "stage3b_review2_expected.json").read_text(encoding="utf8"))
         for rel, stages in snapshots["repository"].items():
-            path = REPO_ROOT / rel
+            path = frozen_document_path(rel)
             if path.suffix == ".docx" and not HAS_DOCX:
                 continue
             for stage, entries in stages.items():

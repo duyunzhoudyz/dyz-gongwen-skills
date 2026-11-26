@@ -14,10 +14,24 @@ from tests.k12.stage3a_checks import (
 
 REGRESSION = SAMPLES / "clause_regression"
 ENTRIES = ("parents", "general", "comments")
+REVIEW_ADDON = "skills/gongwen-k12/references/review-addon.md"
 
 
 def read_jsonl(path):
     return list(map(json.loads, path.read_text(encoding="utf-8").splitlines()))
+
+
+def frozen_document_path(filename):
+    # 说明文档第 4 步修订。原始输入和断言继续用于复跑前几步快照。
+    if filename == REVIEW_ADDON:
+        return SAMPLES / "stage4_original" / "review-addon.md"
+    if filename == "tests/industry_corpus/README.md":
+        return SAMPLES / "stage4_original" / "README.md"
+    return REPO_ROOT / filename
+
+
+def stage4_corpus():
+    return read_jsonl(SAMPLES / "stage4_corpus.jsonl")[1:]
 
 
 def probe_hits(report):
@@ -237,12 +251,13 @@ class K12Stage1Tests(K12TestCase):
     def test_current_reference_documents_match_frozen_hits(self):
         data = read_jsonl(SAMPLES / "reference_baseline.jsonl")
         metadata, *docs = data
-        self.assertEqual({record["file"]: record["category"] for record in docs}, reference_documents())
+        added = {r["file"]: r["category"] for r in stage4_corpus() if r["file"].endswith(".txt")}
+        self.assertEqual({record["file"]: record["category"] for record in docs} | added, reference_documents())
         by_file = {record["file"]: record for record in docs}
         mirrors = noise_mirrors(self, REPO_ROOT, SAMPLES, docs, k12_check.STAGES)
         levels = Counter()
         for record in docs:
-            path = REPO_ROOT / record["file"]
+            path = frozen_document_path(record["file"])
             self.assertEqual(sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest(), record["sha256"])
             for entry in ENTRIES:
                 for stage in k12_check.STAGES:

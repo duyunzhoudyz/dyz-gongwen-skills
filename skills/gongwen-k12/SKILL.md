@@ -141,7 +141,7 @@ license: PolyForm-Noncommercial-1.0.0
    - 校内综合文书（学期计划总结、督导自评、课后服务方案、安全教育和教研记录）：`python scripts/k12_check.py general 正文.txt [--stage 高中]`；
    - 总结、督导自评：`python scripts/fact_diff.py 素材台账.md 正文.txt --ledger` 核对数字；有往年稿或上级原文时用 `python scripts/overlap_check.py 正文.txt <对比稿>` 查雷同；台账/清单需转 Excel 时用 `python scripts/md2xlsx.py`。
 <!-- /prompt:omit -->
-2. P0 必改，P1 逐条判断，P2 酌情处理；【待补】机检报 P2，保留并汇总进起草说明。级别说明按 `references/review-addon.md` 第二部分。
+2. 机检 P0 优先复核，人工确认的 P0 必改。P1 逐条判断，P2 酌情处理。【待补】机检报 P2，保留并汇总进起草说明。级别说明按 `references/review-addon.md` 第二部分。
 3. 不能运行脚本时，按 `references/review-addon.md` 第三部分人工检查，起草说明写“未运行机检，已按人工清单检查”。以实际能否运行为准：脚本能运行的，即使用户自称网页版，也如实写“已运行”；交付格式按用户声明或交接卡。
 4. 最后过一遍本文“自检清单”。
 

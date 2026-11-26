@@ -13,7 +13,8 @@ cases.json 格式：
      "known_miss": [{"mark": "E3", "id": "HOS-005", "level": "P1", "reason": "……"}]}]}
 可选字段：mode（中小学子命令，general、parents 或 comments，默认 general）、args（附加命令行参数列表，如国企的 --as-of）、
 facts（仅中小学 comments，路径相对于文书目录，不得与 args 中的 --facts 并用）、
-known_miss（已知漏检，必须写原因，不参与断言但留在检出率分母里）、leak_known（已知会被规则摘录带出的姓名，见下）、
+known_miss（已知漏检，必须写原因，留在检出率分母里；登记 actual_levels 时核对当前命中）、leak_known（已知会被规则摘录带出的姓名，见下）、
+baseline_p0（中小学规范稿已冻结的误报，按规则、级别、行号核对）、known_name_echo（中小学已知回显，核对规则摘录及两种输出）、
 shrink_cost（仅规范文书：收缩已知代价。分句豁免取消“后续分句”窗口后，否决、整改、出处写在后一分句的句子会重新被报出（后续分句里有针对该做法的处置词时 P0 降为 P1）；
 把这些命中登记成 [{"id","level","line","reason"}]，它们不计入 P0、P1、P2 基线，但每条登记都必须真的出现，否则登记过期、要求清理。
 没有登记的命中照旧按基线判失败，所以登记不会掩盖其他回归）。
@@ -21,7 +22,7 @@ shrink_cost（仅规范文书：收缩已知代价。分句豁免取消“后续
 埋点清单在同目录的 marks.json（以它为准）：每个埋点有编号、文件、行号、违规点描述、应报规则与级别、来源 source。
 
 断言：
-  1. 规范文书（clean）：P0 必须为 0；P1 不超过 max_p1（缺省 0）；P2 不超过 max_p2（缺省不检查）。
+  1. 规范文书（clean）：除逐处登记的 baseline_p0 和 shrink_cost 外，P0 必须为 0；P1/P2 不超过登记上限。
   2. 违规文书（violation）：expect 里每一条的规则编号和级别（写了 line 时还有行号）都要出现；
      不在 expect 和 allow_extra_p0 里的规则编号出现 P0 视为失败。
   3. 所有文书：names 里的姓名不得出现在 JSON 输出和文本输出里；leak_known 里的姓名是已登记的真实泄露，
@@ -38,7 +39,7 @@ import io
 import json
 import sys
 import unittest
-from collections import defaultdict
+from collections import Counter, defaultdict
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -132,6 +133,20 @@ def evaluate(doc: Dict[str, Any], issues: Sequence[Dict[str, Any]], json_text: s
         if lv in levels:
             levels[lv] += 1
     if kind == "clean":
+        baseline_p0 = Counter((item["id"], item["line"]) for item in doc.get("baseline_p0", ()))
+        actual_p0 = Counter((it.get("id"), it.get("line")) for it in issues if it.get("level") == "P0")
+        retained_p0 = actual_p0 & baseline_p0
+        for rule, line in sorted(baseline_p0 - retained_p0):
+            fails.append(f"{file_name}：既有误报 {rule} P0 第{line}行已消失，请核对 baseline_p0 登记")
+        levels["P0"] -= sum(retained_p0.values())
+        other_issues = []
+        for issue in issues:
+            key = issue.get("id"), issue.get("line")
+            if issue.get("level") == "P0" and retained_p0[key]:
+                retained_p0[key] -= 1
+            else:
+                other_issues.append(issue)
+        issues = other_issues
         cost = list(doc.get("shrink_cost") or [])
         if cost:
             counted = {"P0": 0, "P1": 0, "P2": 0}
@@ -171,6 +186,16 @@ def evaluate(doc: Dict[str, Any], issues: Sequence[Dict[str, Any]], json_text: s
             rows.append(f"{file_name}\t{mark}\t{ex.get('id')} {ex.get('level')} {where}\t{'检出' if hit else '漏检'}")
             if not hit:
                 fails.append(f"{file_name}：{mark} 应检出 {ex.get('id')} {ex.get('level')}（{where}）")
+        for miss in doc.get("known_miss", ()):
+            if "actual_levels" not in miss:
+                continue
+            actual = sorted({i["level"] for i in issues if i["id"] == miss["id"] and i["line"] == miss["line"]})
+            target = miss["target_min_level"]
+            label = f"{file_name}：{miss['mark']} {miss['id']} 第{miss['line']}行"
+            if any(SEVERITY[level] <= SEVERITY[target] for level in actual):
+                fails.append(f"{label} 已达到 {target}，请把该条从已知漏检移到正常期望")
+            elif actual != miss["actual_levels"]:
+                fails.append(f"{label} 已知漏检实测级别变为 {actual}，请重新对账")
         allowed = {str(e.get("id")) for e in expects if e.get("level") == "P0"} | set(doc.get("allow_extra_p0") or [])
         extra = sorted({str(i.get("id")) for i in issues if i.get("level") == "P0" and str(i.get("id")) not in allowed})
         if extra:
@@ -190,19 +215,29 @@ def evaluate(doc: Dict[str, Any], issues: Sequence[Dict[str, Any]], json_text: s
     _leaked, stale = leak_report(doc, json_text, plain_text)
     for name in stale:
         fails.append(f"{file_name}：leak_known 里的“{name}”已不再出现在输出里，请从 leak_known 移除")
+    for echo in doc.get("known_name_echo", ()):
+        name = echo["name"]
+        actual = {"json": json_text.count(name), "text": plain_text.count(name)}
+        excerpt = [issue["excerpt"] for issue in issues
+                   if (issue["id"], issue["level"], issue["line"]) == (echo["id"], echo["level"], echo["line"])
+                   and name in issue["excerpt"]]
+        if actual == {"json": 0, "text": 0}:
+            fails.append(f"{file_name}：姓名“{name}”已不再回显，请从已知回显移到正常姓名遮蔽期望")
+        elif actual != echo["actual_counts"] or excerpt != [echo["actual_excerpt"]]:
+            fails.append(f"{file_name}：姓名“{name}”的已知回显位置或输出次数改变，请重新对账")
     return fails, rows
 
 
 # ---------------------------------------------------------------- 埋点对账与检出率
 
-def load_marks(engine: str) -> List[Dict[str, Any]]:
+def load_marks(engine: str) -> Dict[str, Any]:
     path = CORPUS / engine / "marks.json"
     if not path.is_file():
         raise AssertionError(f"[{engine}] 缺少 marks.json（埋点清单）")
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     if data.get("engine") != engine:
         raise AssertionError(f"{path} 的 engine 应为 {engine}")
-    return list(data.get("marks") or [])
+    return data
 
 
 def check_marks(engine: str, docs: Sequence[Dict[str, Any]], marks: Sequence[Dict[str, Any]]) -> List[str]:
@@ -316,7 +351,9 @@ def run_corpus(engine: str) -> None:
         raise AssertionError(f"{case_file} 的 engine 应为 {engine}")
     mod = load_engine(engine)
     docs = data.get("docs") or []
-    marks = load_marks(engine)
+    mark_data = load_marks(engine)
+    marks = mark_data.get("marks") or []
+    controls = mark_data.get("clean_controls", []) if engine == "k12" else []
     all_fails: List[str] = list(check_marks(engine, docs, marks))
     table: List[str] = []
     warnings: List[str] = []
@@ -325,6 +362,12 @@ def run_corpus(engine: str) -> None:
         if not path.is_file():
             all_fails.append(f"{doc['file']}：文件不存在")
             continue
+        if engine == "k12":
+            source = path.read_text(encoding="utf-8-sig").splitlines()
+            for item in [*doc.get("baseline_p0", ()), *doc.get("known_miss", ()), *doc.get("known_name_echo", ())]:
+                line = item.get("line")
+                if "original" in item and (not 1 <= line <= len(source) or source[line - 1] != item["original"]):
+                    all_fails.append(f"{doc['file']}：第{line}行的语料原文和登记不一致")
         code_j, out_j, err_j = run_engine(mod, build_argv(engine, path, doc, True))
         code_t, out_t, err_t = run_engine(mod, build_argv(engine, path, doc, False))
         if code_j == 2 or code_t == 2:
@@ -335,12 +378,22 @@ def run_corpus(engine: str) -> None:
         except ValueError:
             all_fails.append(f"{doc['file']}：JSON 输出无法解析")
             continue
+        if doc["kind"] == "clean":
+            for control in controls:
+                if control["file"] != doc["file"]:
+                    continue
+                observed = [{"id": issue["id"], "level": issue["level"]}
+                            for issue in issues if issue["line"] == control["line"]]
+                if observed != control["observed"]:
+                    all_fails.append(f"{doc['file']}：{control['mark']} 实测 {observed}，期望 {control['observed']}")
         fails, rows = evaluate(doc, issues, out_j + err_j, out_t + err_t)
         all_fails.extend(fails)
         table.extend(rows)
         leaked, _stale = leak_report(doc, out_j + err_j, out_t + err_t)
         for name in leaked:
             warnings.append(f"[警告] [{engine}] {doc['file']}：已知泄露（leak_known）“{name}”出现在输出里")
+        for item in doc.get("known_name_echo", ()):
+            warnings.append(f"[警告] [{engine}] {doc['file']} 第{item['line']}行：已知回显“{item['name']}”")
     sys.stderr.write("\n" + format_stats(engine, summarize_marks(docs, marks)) + "\n")
     viol = [r for r in table if r.endswith("检出") or r.endswith("漏检")]
     if viol:
@@ -376,6 +429,27 @@ class EvaluateLogicTest(unittest.TestCase):
         self.assertTrue(evaluate(doc, [self.issue("X-1", "P0")], "", "")[0])
         doc2 = {"file": "a.txt", "kind": "clean", "max_p2": 0}
         self.assertTrue(evaluate(doc2, [self.issue("X-1", "P2")], "", "")[0])
+
+    def test_clean_baseline_p0_requires_exact_line_and_count(self) -> None:
+        doc = {"file": "a.txt", "kind": "clean", "baseline_p0": [{"id": "JZ-003", "line": 17}]}
+        issue = self.issue("JZ-003", "P0", 17)
+        self.assertFalse(evaluate(doc, [issue], "", "")[0])
+        self.assertIn("既有误报 JZ-003 P0 第17行已消失", evaluate(doc, [], "", "")[0][0])
+        for extra in (issue, self.issue("JZ-003", "P0", 18)):
+            self.assertIn("P0，实得 1 处", evaluate(doc, [issue, extra], "", "")[0][0])
+
+    def test_known_miss_and_echo_must_be_reclassified_after_fix(self) -> None:
+        doc = {"file": "v.txt", "kind": "violation", "expect": [{"id": "K12-G02", "level": "P0"}],
+               "known_miss": [{"mark": "K39", "id": "K12-G04", "line": 17,
+                               "actual_levels": [], "target_min_level": "P1"}],
+               "known_name_echo": [{"name": "虚构姓名", "id": "K12-G02", "line": 23, "level": "P0",
+                                    "actual_counts": {"json": 1, "text": 1}, "actual_excerpt": "虚构姓名"}]}
+        echo = dict(self.issue("K12-G02", "P0", 23), excerpt="虚构姓名")
+        self.assertFalse(evaluate(doc, [echo], "虚构姓名", "虚构姓名")[0])
+        hit = self.issue("K12-G04", "P1", 17)
+        fails, _ = evaluate(doc, [hit, self.issue("K12-G02", "P0", 23)], "", "")
+        self.assertIn("请把该条从已知漏检移到正常期望", fails[0])
+        self.assertIn("请从已知回显移到正常姓名遮蔽期望", fails[1])
 
     def test_violation_expect_and_extra_p0(self) -> None:
         doc = {"file": "v.txt", "kind": "violation", "expect": [

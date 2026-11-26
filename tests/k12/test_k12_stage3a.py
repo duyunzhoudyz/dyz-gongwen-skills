@@ -9,7 +9,9 @@ from tests.k12.stage3a_checks import (
     PAIRS, RANK, RANK_RULES, RULES, assert_noise, assert_preserved, assert_probe_additions,
     document_exemptions, hits, noise_mirrors, probe_exemptions,
 )
-from tests.k12.test_k12_stage1 import REGRESSION, REPO_ROOT, SAMPLES, k12_check, read_jsonl, run_entry
+from tests.k12.test_k12_stage1 import (
+    REGRESSION, REPO_ROOT, SAMPLES, frozen_document_path, k12_check, read_jsonl, run_entry, stage4_corpus,
+)
 
 
 def regression_probes():
@@ -31,7 +33,7 @@ def probe_runs():
 def document_deltas(records):
     for record in records:
         filename = record["file"]
-        path = REPO_ROOT / filename
+        path = frozen_document_path(filename)
         lines = path.read_text(encoding="utf8").splitlines()
         for entry in RULES:
             for stage in k12_check.STAGES:
@@ -180,7 +182,7 @@ class Stage3aTests(unittest.TestCase):
                     before = record["runs"][entry][stage]
                     exempt = document_exemptions(record, entry, before)
                     if exempt:
-                        actual = run_entry(k12_check, entry, REPO_ROOT / record["file"], stage)
+                        actual = run_entry(k12_check, entry, frozen_document_path(record["file"]), stage)
                         self.assertFalse(exempt & hits(actual))
 
     def test_catalog_describes_precision_wide_and_entry_difference(self):
@@ -450,8 +452,9 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
         external = {row["file"] for row in self.round2["external"]}
         sources = {*REPO_ROOT.glob("tests/industry_corpus/*/*.txt"), *REPO_ROOT.glob("examples/*/*"),
                    *SAMPLES.iterdir()}
-        self.assertEqual(external, {path.relative_to(REPO_ROOT).as_posix() for path in sources
-                                    if path.is_file() and path.suffix in k12_check.SUPPORTED_SUFFIXES})
+        added = {r["file"] for r in stage4_corpus() if r["file"].endswith(".txt")}
+        self.assertEqual(external | added, {path.relative_to(REPO_ROOT).as_posix() for path in sources
+                                            if path.is_file() and path.suffix in k12_check.SUPPORTED_SUFFIXES})
         for record in self.round2["external"]:
             for stage, before in record["base"].items():
                 with self.subTest(file=record["file"], stage=stage):
@@ -461,7 +464,7 @@ class Stage3aPositiveAdmissionTests(unittest.TestCase):
             for stage in k12_check.STAGES:
                 with self.subTest(file=record["file"], stage=stage):
                     self.assert_external_preserved(
-                        REPO_ROOT / record["file"], stage,
+                        frozen_document_path(record["file"]), stage,
                         {entry: record["runs"][entry][stage] for entry in RULES},
                     )
 
