@@ -1,4 +1,5 @@
-"""第 4 步门禁。用两个独立冻结引擎重跑语料，并与正式文档合并计算噪声。"""
+"""第 4 步门禁。重跑语料并与双基线快照核对，合并正式文档计算噪声。"""
+from collections import defaultdict
 from hashlib import sha256
 import json
 import unittest
@@ -21,13 +22,15 @@ EXISTING_P0 = {
 
 
 class Stage4CorpusTests(unittest.TestCase):
-    def assert_name_echoes(self, path, entry, stage, echoes):
-        report = getattr(k12_check, f"check_{entry}")(path, stage=stage)
+    def assert_name_echoes(self, path, entry, stage, echoes, *, names=(), facts_path=None):
+        kwargs = {"facts_path": facts_path} if facts_path is not None else {}
+        report = getattr(k12_check, f"check_{entry}")(path, stage=stage, **kwargs)
         structured = json.dumps(report, ensure_ascii=False)
         rendered = k12_check.render_check_text(report)
-        for echo in echoes:
-            name = echo["name"]
-            rule = echo["matrix_rules"].get(entry)
+        by_name = {echo["name"]: echo for echo in echoes}
+        for name in sorted(set(names) | by_name.keys()):
+            echo = by_name.get(name)
+            rule = echo["matrix_rules"].get(entry) if echo else None
             counts = {"json": structured.count(name), "text": rendered.count(name)}
             if rule is None:
                 self.assertEqual(counts, {"json": 0, "text": 0}, f"新增姓名回显：{name}")
@@ -42,7 +45,12 @@ class Stage4CorpusTests(unittest.TestCase):
         corpus = REPO_ROOT / CORPUS
         cases = json.loads((corpus / "cases.json").read_text(encoding="utf8"))["docs"]
         facts = {f"{CORPUS}/{case['file']}": corpus / case["facts"] for case in cases if "facts" in case}
-        echoes = {case["file"]: case["known_name_echo"] for case in cases if "known_name_echo" in case}
+        names_by_file = defaultdict(set)
+        echoes_by_file = defaultdict(list)
+        for case in cases:
+            filename = case["file"]
+            names_by_file[filename].update(case.get("names", ()))
+            echoes_by_file[filename].extend(case.get("known_name_echo", ()))
         records = stage4_corpus()
         covered = {rec["file"] for rec in records}
         inputs = {path.relative_to(REPO_ROOT).as_posix()
@@ -53,13 +61,16 @@ class Stage4CorpusTests(unittest.TestCase):
                          | {p.relative_to(REPO_ROOT).as_posix() for p in facts.values()}, inputs)
 
         old_records = read_jsonl(SAMPLES / "reference_baseline.jsonl")[1:]
+        # 语料 README 是列有违规例句的测试手册。历史对照仍使用它的冻结副本。
         noise_records = [record for record in old_records if record["file"] not in covered]
         deltas = list(document_deltas(noise_records))
         p0_checked = set()
         for rec in records:
             filename = rec["file"]
             path = REPO_ROOT / filename
-            self.assertEqual(sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest(), rec["sha256"], filename)
+            # 语料原文冻结。核稿清单允许修订说明，现行文本仍核对命中、评语摘要、镜像和噪声。
+            if filename != REVIEW_ADDON:
+                self.assertEqual(sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest(), rec["sha256"], filename)
             lines = path.read_text(encoding="utf8").splitlines()
             entries = set(RULES)
             if filename in facts or filename == REVIEW_ADDON:
@@ -93,9 +104,13 @@ class Stage4CorpusTests(unittest.TestCase):
                                 self.assertEqual({hit for hit in hits(report) if hit[1] == "P0"}, allowed)
                             if allowed:
                                 p0_checked.add(key)
+                        names = names_by_file[path.name]
+                        echoes = echoes_by_file[path.name]
+                        if names or echoes:
+                            self.assert_name_echoes(
+                                path, entry, stage, echoes, names=names, facts_path=facts_path,
+                            )
                         if entry in RULES:
-                            if path.name in echoes:
-                                self.assert_name_echoes(path, entry, stage, echoes[path.name])
                             for rule, level, line in sorted(hits(actual) - hits(base)):
                                 deltas.append((rec["category"], filename, entry, stage,
                                                rule, level, line, lines[line - 1]))
