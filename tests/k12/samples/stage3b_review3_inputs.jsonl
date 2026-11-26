@@ -36,8 +36,8 @@
 {"id":"W20_hair_space_200a","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
 {"id":"W21_med_math_205f","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
 {"id":"W22_ogham_1680","text":"学生王小明属于资助对象！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
-{"id":"W23_soft_hyphen_00ad","text":"学生王小明属于资助对象！­？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
-{"id":"W24_lrm_200e","text":"学生王小明属于资助对象！‎？\r\n","expected":{"general":[["K12-G04","P0",1]],"parents":[]}}
+{"id":"W23_soft_hyphen_00ad","text":"学生王小明属于资助对象！­？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
+{"id":"W24_lrm_200e","text":"学生王小明属于资助对象！‎？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
 {"id":"W25_triple_punct_spaces","text":"学生王小明属于资助对象。 ！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
 {"id":"W26_space_before_first_punct","text":"学生王小明属于资助对象 ！ ？\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}
 {"id":"W27_ascii_dots_space_q","text":"学生王小明属于资助对象...  ?\r\n","expected":{"general":[["K12-G04","P1",1]],"parents":[]}}

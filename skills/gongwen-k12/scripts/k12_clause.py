@@ -5,6 +5,7 @@ import argparse
 import json
 import re
 import sys
+import unicodedata
 from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
@@ -197,7 +198,6 @@ def _alternatives(words):
 _PAIRS = dict(zip("（([［【〔《〈“‘「『", "）)]］】〕》〉”’」』"))
 _TITLES = "《〈"
 _QUOTES = "\"'“‘「『"
-_ZERO_WIDTH_GAP = "\u200b\u200c\u200d\u2060\ufeff"
 _SENTENCE_END = "。！？!?．."
 _BREAKS = _SENTENCE_END + "，,；;：:"
 _LINE_ENDS = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
@@ -676,8 +676,10 @@ def _parts(text, start, end, pairs, escaped):
             if char in _SENTENCE_END:
                 while stop < end:
                     following = stop
-                    while following < end and (text[following] in _ZERO_WIDTH_GAP or
-                            text[following].isspace() and text[following] not in _LINE_ENDS):
+                    while following < end:
+                        gap = text[following]
+                        if gap in _LINE_ENDS or not (gap.isspace() or unicodedata.category(gap) in ("Cf", "Mn", "Cc")):
+                            break
                         following += 1
                     if following == end or text[following] not in _SENTENCE_END or following in escaped:
                         break

@@ -1,6 +1,7 @@
 """第 3b 步第三轮定点复核。原件预期以父提交及逐条裁决为准。"""
 import json
 import sys
+import unicodedata
 
 from tests.k12.test_k12_check import HAS_DOCX, K12TestCase, SAMPLES, k12_check
 from tests.k12.test_k12_stage3b_review import materialize
@@ -63,22 +64,42 @@ class Stage3bReview3Tests(K12TestCase):
     def test_every_horizontal_gap_preserves_question_and_following_text(self):
         module = k12_check.load_clause_module()
         # 用 Python 自身的物理行语义枚举，两端加字才能区分尾行是否真的断开。
-        horizontal = (c for c in map(chr, range(sys.maxunicode + 1))
-                      if c.isspace() and len(("甲" + c + "乙").splitlines()) == 1)
-        stem, following = "学生王小明属于资助对象", "班主任组织学生参加校外有偿补课"
-        for gap in (*horizontal, "\u200b", "\u200c", "\u200d", "\u2060", "\ufeff"):
+        gaps = (c for c in map(chr, range(sys.maxunicode + 1))
+                if (c.isspace() or (ord(c) <= 0xffff and unicodedata.category(c) in ("Cf", "Mn", "Cc")))
+                and len(("甲" + c + "乙").splitlines()) == 1)
+        following = "班主任组织学生参加校外有偿补课"
+        for gap in gaps:
             with self.subTest(codepoint=f"U+{ord(gap):04X}"):
-                question = stem + "！" + gap + "？"
-                graph = module.analyze(question)
-                self.assertEqual([(c.text, c.question, c.separator) for c in graph.clauses],
-                                 [(stem, True, "！" + gap + "？")])
-                self.assertEqual(measured(k12_check, "general", self.write("疑问.txt", question)),
-                                 [["K12-G04", "P1", 1]])
+                for stem, rule in (("学校统一购买校服", "K12-G05"), ("学生王小明属于资助对象", "K12-G04")):
+                    question = stem + "！" + gap + "？"
+                    graph = module.analyze(question)
+                    self.assertEqual([(c.text, c.question, c.separator) for c in graph.clauses],
+                                     [(stem, True, "！" + gap + "？")])
+                    self.assertEqual(measured(k12_check, "general", self.write("疑问.txt", question)),
+                                     [[rule, "P1", 1]])
+                stem = "学生王小明属于资助对象"
                 plain = stem + "！" + gap + following + "。"
                 first, second = module.analyze(plain).clauses
                 self.assertEqual((first.text, first.separator, first.question), (stem, "！", False))
                 self.assertEqual(second.text.lstrip(gap), following)
                 self.assertEqual(second.span.end, plain.index("。"))
+
+    def test_review4_invisible_questions(self):
+        # 复审原件 Section 2 的 I01–I26 和四组 3a 载荷。
+        points = (0x00ad, 0x200e, 0x200f, 0x180e, 0x061c, *range(0x202a, 0x202f),
+                  *range(0x2066, 0x206a), *range(0x2061, 0x2065), 0xfe00, 0xfe01,
+                  0xfe0e, 0xfe0f, 0x034f, 0x0301, 0x0000, 0x007f)
+        variants = (0x200e, 0xad, 0xfe00, 0xfe0f)
+        for entry, stem, rule, chars in (
+                ("general", "学生王小明属于资助对象", "K12-G04", points),
+                ("general", "学校统一购买校服", "K12-G05", variants),
+                ("general", "班主任组织学生参加校外有偿补课", "K12-G09", variants),
+                ("parents", "班主任组织学生参加校外有偿补课", "JZ-008", variants),
+                ("general", "学校不公布考试成绩是不行的", "K12-G01", variants)):
+            for point in chars:
+                with self.subTest(rule=rule, codepoint=f"U+{point:04X}"):
+                    path = self.write("复合问号.txt", f"{stem}！{chr(point)}？\n")
+                    self.assertEqual(measured(k12_check, entry, path), [[rule, "P1", 1]])
 
     def test_fee_table_combinations(self):
         for item, heading, price, expected in table_cases():
@@ -103,7 +124,9 @@ class Stage3bReview3Tests(K12TestCase):
         HTTP.setUpClass()
         self.addCleanup(HTTP.tearDownClass)
         for text in ("学生王小明属于资助对象！ ？", "学生王小明属于资助对象！\u2003？",
-                     "学生王小明属于资助对象！\u2009？", "第一句！ ？ 学生王小明属于资助对象。"):
+                     "学生王小明属于资助对象！\u2009？", "第一句！ ？ 学生王小明属于资助对象。",
+                     "学生王小明属于资助对象！\u200e？", "学生王小明属于资助对象！\ufe00？",
+                     "学生王小明属于资助对象！\u00ad？"):
             with self.subTest(text=text):
                 data = HTTP().post_raw(json.dumps({"industry": "k12_general", "stage": "义务教育", "b": text}), ("王小明",))
                 self.assertTrue(data["ok"])
